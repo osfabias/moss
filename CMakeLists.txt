@@ -101,10 +101,6 @@ target_link_libraries(moss PRIVATE ${Vulkan_LIBRARIES})
 
 target_compile_options(moss PRIVATE ${MOSS_COMPILE_OPTIONS})
 
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  target_compile_definitions(moss PUBLIC __MOSS_DEBUG__)
-endif()
-
 target_compile_definitions(moss PUBLIC
   MOSS_VERSION_MAJOR=${CMAKE_PROJECT_VERSION_MAJOR}
   MOSS_VERSION_MINOR=${CMAKE_PROJECT_VERSION_MINOR}

@@ -22,13 +22,16 @@
 
 #include <stdio.h>
 
-#ifdef __MOSS_DEBUG__
+#ifdef NDEBUG
+#  define moss__info(...)
+#  define moss__error(...)
+#else
 /*
   @brief Prints info message in stdin.
   @param ... Arguments to be passed to printf.
   @note Expands only in debug builds.
 */
-#  define moss__info(...) printf ("moss [info]: " __VA_ARGS__)
+#  define moss__info(...)  printf ("moss [info]: " __VA_ARGS__)
 
 /*
   @brief Prints error message in stderr.
@@ -36,7 +39,4 @@
   @note Expands only in debug builds.
 */
 #  define moss__error(...) fprintf (stderr, "moss [error]: " __VA_ARGS__);
-#else
-#  define moss__info(...)
-#  define moss__error(...)
 #endif
