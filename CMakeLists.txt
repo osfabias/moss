@@ -8,7 +8,6 @@ project(
   "moss"
   VERSION 0.1.0
   DESCRIPTION "A C library."
-  LANGUAGES C
 )
 
 #-----------------------------------------------------------------------------
@@ -75,9 +74,15 @@ include(CMakeInfo.txt)
 #-----------------------------------------------------------------------------
 # Define source files for the library
 set(MOSS_SOURCE_FILES
-  src/main.c
+  src/engine.c
   # add new source files here...
 )
+
+#=============================================================================
+# SEARCH FOR PACKAGES
+#=============================================================================
+
+find_package(Vulkan REQUIRED)
 
 #=============================================================================
 # LIBRARY TARGET CREATION
@@ -85,20 +90,26 @@ set(MOSS_SOURCE_FILES
 # Create the main library target with appropriate configuration
 if(MOSS_BUILD_SHARED)
   add_library(moss SHARED ${MOSS_SOURCE_FILES})
-  target_compile_definitions(moss PUBLIC __MOSS_SHARED__)
-  target_compile_definitions(moss PRIVATE __MOSS_EXPORT__)
 else()
   add_library(moss STATIC ${MOSS_SOURCE_FILES})
 endif()
 
 target_include_directories(moss PUBLIC include)
-target_include_directories(moss PRIVATE .)
+target_include_directories(moss PRIVATE . ${Vulkan_INCLUDE_DIRS})
+
+target_link_libraries(moss PRIVATE ${Vulkan_LIBRARIES})
 
 target_compile_options(moss PRIVATE ${MOSS_COMPILE_OPTIONS})
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   target_compile_definitions(moss PUBLIC __MOSS_DEBUG__)
 endif()
+
+target_compile_definitions(moss PUBLIC
+  MOSS_VERSION_MAJOR=${CMAKE_PROJECT_VERSION_MAJOR}
+  MOSS_VERSION_MINOR=${CMAKE_PROJECT_VERSION_MINOR}
+  MOSS_VERSION_PATCH=${CMAKE_PROJECT_VERSION_PATCH}
+)
 
 if(MOSS_BUILD_EXAMPLE)
   add_subdirectory(example)

@@ -13,6 +13,22 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  @file src/main.c
+  @file include/moss/app_info.h
+  @brief App info struct declaration.
   @author Ilya Buravov (ilburale@gmail.com)
 */
+
+#pragma once
+
+#include "moss/version.h"
+
+/*
+  @brief App info.
+  @details Used to provide info to the graphics API driver in order to apply specific
+           optimization to your app. But, let's be honest, nobody will support it :3
+*/
+typedef struct
+{
+  const char *app_name;    /* App name. */
+  MossVersion app_version; /* App version. */
+} MossAppInfo;
