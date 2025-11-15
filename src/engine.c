@@ -939,6 +939,18 @@ moss__create_swapchain (const uint32_t width, const uint32_t height)
     &g_engine.swapchain_image_count,
     NULL
   );
+
+  if (g_engine.swapchain_image_count <= MAX_SWAPCHAIN_IMAGE_COUNT)
+  {
+    moss__error (
+      "Real swapchain image count is bigger than expected. (%d > %d)",
+      g_engine.swapchain_image_count,
+      MAX_SWAPCHAIN_IMAGE_COUNT
+    );
+    moss__free_swapchain_support_details (&swapchain_support);
+    return MOSS_RESULT_ERROR;
+  }
+
   vkGetSwapchainImagesKHR (
     g_engine.device,
     g_engine.swapchain,

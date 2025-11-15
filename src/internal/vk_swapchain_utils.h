@@ -25,6 +25,7 @@
 
 #include <vulkan/vulkan.h>
 
+#include "src/internal/log.h"
 #include "src/internal/vk_physical_device_utils.h"
 
 /*
