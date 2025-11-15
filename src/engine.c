@@ -18,6 +18,8 @@
   @author Ilya Buravov (ilburale@gmail.com)
 */
 
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #include <vulkan/vulkan.h>
@@ -29,6 +31,7 @@
 #include "src/internal/app_info.h"
 #include "src/internal/log.h"
 #include "src/internal/vk_instance_utils.h"
+#include "src/internal/vk_validation_layers_utils.h"
 #include "vulkan/vulkan_core.h"
 
 /*=============================================================================
@@ -89,6 +92,33 @@ void moss_engine_deinit (void) { vkDestroyInstance (g_engine.api_instance, NULL)
 
 VkResult moss__create_api_instance (const MossAppInfo *const app_info)
 {
+  // Set up validation layers
+#ifdef NDEBUG
+  const bool enable_validation_layers = false;
+#else
+  const bool enable_validation_layers = true;
+#endif
+
+  uint32_t           validation_layer_count = 0;
+  const char *const *validation_layer_names = NULL;
+
+  if (enable_validation_layers)
+  {
+    if (moss__check_vk_validation_layer_support ( ))
+    {
+      const Moss__VkValidationLayers validation_layers =
+        moss__get_vk_validation_layers ( );
+      validation_layer_count = validation_layers.count;
+      validation_layer_names = validation_layers.names;
+    }
+    else {
+      moss__warning (
+        "Validation layers are enabled but not supported. Disabling validation layers."
+      );
+    }
+  }
+
+  // Set up other required info
   const VkApplicationInfo          vk_app_info = moss__create_vk_app_info (app_info);
   const Moss__VkInstanceExtensions extensions =
     moss__get_required_vk_instance_extensions ( );
@@ -99,8 +129,9 @@ VkResult moss__create_api_instance (const MossAppInfo *const app_info)
     .pApplicationInfo        = &vk_app_info,
     .ppEnabledExtensionNames = extensions.names,
     .enabledExtensionCount   = extensions.count,
-    .enabledLayerCount       = 0,
-    .flags                   = moss__get_required_vk_instance_flags ( )
+    .enabledLayerCount       = validation_layer_count,
+    .ppEnabledLayerNames     = validation_layer_names,
+    .flags                   = moss__get_required_vk_instance_flags ( ),
   };
 
   const VkResult result =

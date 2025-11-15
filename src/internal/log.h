@@ -24,6 +24,7 @@
 
 #ifdef NDEBUG
 #  define moss__info(...)
+#  define moss__warning(...)
 #  define moss__error(...)
 #else
 /*
@@ -31,12 +32,19 @@
   @param ... Arguments to be passed to printf.
   @note Expands only in debug builds.
 */
-#  define moss__info(...)  printf ("moss [info]: " __VA_ARGS__)
+#  define moss__info(...)    printf ("moss [info]: " __VA_ARGS__)
+
+/*
+  @brief Prints warning message in stderr.
+  @param ... Arguments to be passed to printf.
+  @note Expands only in debug builds.
+*/
+#  define moss__warning(...) printf ("moss [warning]: " __VA_ARGS__);
 
 /*
   @brief Prints error message in stderr.
   @param ... Arguments to be passed to printf.
   @note Expands only in debug builds.
 */
-#  define moss__error(...) fprintf (stderr, "moss [error]: " __VA_ARGS__);
+#  define moss__error(...)   fprintf (stderr, "moss [error]: " __VA_ARGS__);
 #endif
