@@ -7,6 +7,7 @@
 - [Building the Project](#building-the-project)
 - [Build Options](#build-options)
 - [Using as a CMake Subdirectory](#using-as-a-cmake-subdirectory)
+- [Count Malloc Calls](#count-malloc-calls)
 
 ## Building the Project
 
@@ -85,3 +86,13 @@ set(MOSS_BUILD_SHARED ON)
 add_subdirectory(moss)
 target_link_libraries(your_target PRIVATE moss)
 ```
+
+## Count Malloc Calls
+
+In order to run this script install `uv` python package this manager
+and run this command:
+
+```shell
+./analyze_malloc.py
+```
+

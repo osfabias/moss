@@ -21,7 +21,7 @@ Diagnostics:
       - modernize-*
       - bugprone-*
   UnusedIncludes: Strict
-  MissingIncludes: Strict
+  MissingIncludes: None
 
 Completion:
   AllScopes: Yes

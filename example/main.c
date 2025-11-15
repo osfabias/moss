@@ -18,28 +18,42 @@
   @author Ilya Buravov (ilburale@gmail.com)
 */
 
+#include <stddef.h>
 #include <stdlib.h>
 
-#include <stuffy/app.h>
-#include <stuffy/window.h>
+#include <moss/engine.h>
+#include <moss/result.h>
+#include <moss/window_config.h>
 
-static const WindowConf window_config = {
-  .rect       = {.x = 128, .y = 128, .width = 640, .height = 360},
-  .title      = "Moss Example Application",
-  .style_mask = WINDOW_STYLE_TITLED_BIT | WINDOW_STYLE_CLOSABLE_BIT |
-                WINDOW_STYLE_RESIZABLE_BIT | WINDOW_STYLE_ICONIFIABLE_BIT,
+static const MossAppInfo moss_app_info = {
+  .app_name    = "Moss Example Application",
+  .app_version = {0, 1, 0},
+};
+
+static const MossWindowConfig window_config = {
+  .title  = "Moss Example Application",
+  .width  = 640,
+  .height = 360,
 };
 
 int main (void)
 {
-  init_app ( );
+  const MossEngineConfig moss_engine_config = {
+    .app_info      = &moss_app_info,
+    .window_config = &window_config,
+  };
 
+  if (moss_engine_init (&moss_engine_config) != MOSS_RESULT_SUCCESS)
+  {
+    return EXIT_FAILURE;
+  }
 
-  Window *const window = open_window (&window_config);
+  while (!moss_engine_should_close ( ))
+  {
+    if (moss_engine_draw_frame ( ) != MOSS_RESULT_SUCCESS) { break; }
+  }
 
-  while (!should_window_close (window)) { update_app ( ); }
-
-  deinit_app ( );
+  moss_engine_deinit ( );
 
   return EXIT_SUCCESS;
 }
