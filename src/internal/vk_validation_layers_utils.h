@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include "src/internal/log.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -55,6 +56,12 @@ inline static bool moss__check_vk_validation_layer_support (void)
 {
   uint32_t available_layer_count;
   vkEnumerateInstanceLayerProperties (&available_layer_count, NULL);
+
+  if (available_layer_count == 0)
+  {
+    moss__error ("No validation layers available. ");
+    return false;
+  }
 
   assert (available_layer_count < 16);
 

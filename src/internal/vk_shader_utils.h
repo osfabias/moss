@@ -22,10 +22,66 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include <vulkan/vulkan.h>
 
 #include "src/internal/log.h"
+
+/*
+  @brief Reads SPIR-V code from a file.
+  @param file_path Path to the SPIR-V file.
+  @param out_code Pointer to store allocated code buffer (must be freed by caller).
+  @param out_code_size Pointer to store code size in bytes.
+  @return VK_SUCCESS on success, error code otherwise.
+*/
+inline static VkResult moss__read_shader_file (
+  const char *file_path, uint32_t **out_code, size_t *out_code_size
+)
+{
+  FILE *file = fopen (file_path, "rb");
+  if (file == NULL)
+  {
+    moss__error ("Failed to open shader file: %s\n", file_path);
+    return VK_ERROR_INITIALIZATION_FAILED;
+  }
+
+  fseek (file, 0, SEEK_END);
+  const long file_size = ftell (file);
+  fseek (file, 0, SEEK_SET);
+
+  if (file_size < 0 || (file_size % 4) != 0)
+  {
+    moss__error ("Invalid shader file size: %s\n", file_path);
+    fclose (file);
+    return VK_ERROR_INITIALIZATION_FAILED;
+  }
+
+  const size_t code_size = (size_t)file_size;
+  uint32_t    *code      = malloc (code_size);
+  if (code == NULL)
+  {
+    moss__error ("Failed to allocate memory for shader code: %s\n", file_path);
+    fclose (file);
+    return VK_ERROR_OUT_OF_HOST_MEMORY;
+  }
+
+  const size_t read_size = fread (code, 1, code_size, file);
+  fclose (file);
+
+  if (read_size != code_size)
+  {
+    moss__error ("Failed to read shader file: %s\n", file_path);
+    free (code);
+    return VK_ERROR_INITIALIZATION_FAILED;
+  }
+
+  *out_code      = code;
+  *out_code_size = code_size;
+
+  return VK_SUCCESS;
+}
 
 /*
   @brief Creates a shader module from SPIR-V code.
@@ -50,6 +106,30 @@ inline static VkResult moss__create_shader_module (
   {
     moss__error ("Failed to create shader module. Error code: %d.\n", result);
   }
+
+  return result;
+}
+
+/*
+  @brief Creates a shader module from a SPIR-V file.
+  @param device Logical device.
+  @param file_path Path to the SPIR-V file.
+  @param out_shader_module Pointer to store created shader module.
+  @return VK_SUCCESS on success, error code otherwise.
+*/
+inline static VkResult moss__create_shader_module_from_file (
+  VkDevice device, const char *file_path, VkShaderModule *out_shader_module
+)
+{
+  uint32_t *code      = NULL;
+  size_t    code_size = 0;
+
+  VkResult result = moss__read_shader_file (file_path, &code, &code_size);
+  if (result != VK_SUCCESS) { return result; }
+
+  result = moss__create_shader_module (device, code, code_size, out_shader_module);
+
+  free (code);
 
   return result;
 }

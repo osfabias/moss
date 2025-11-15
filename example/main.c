@@ -47,7 +47,10 @@ int main (void)
     return EXIT_FAILURE;
   }
 
-  while (!moss_engine_should_close ( )) { moss_engine_draw_frame ( ); }
+  while (!moss_engine_should_close ( ))
+  {
+    if (moss_engine_draw_frame ( ) != MOSS_RESULT_SUCCESS) { break; }
+  }
 
   moss_engine_deinit ( );
 

@@ -14,44 +14,24 @@
   limitations under the License.
 
   @file src/internal/shaders.h
-  @brief Embedded shader code for triangle rendering
+  @brief Shader file paths for triangle rendering
   @author Ilya Buravov (ilburale@gmail.com)
-  @details This file contains SPIR-V bytecode for vertex and fragment shaders
-           used to render a simple triangle.
+  @details This file contains paths to SPIR-V shader files used for rendering.
+           Shader source files are located in example/shaders/ directory.
 */
 
 #pragma once
 
-#include <stdint.h>
-#include <stddef.h>
-
 /*
-  @brief Vertex shader SPIR-V code.
+  @brief Path to vertex shader SPIR-V file.
   @details Simple vertex shader that outputs a triangle with positions and colors.
-           Shader code:
-           #version 450
-           layout(location = 0) in vec2 inPosition;
-           layout(location = 1) in vec3 inColor;
-           layout(location = 0) out vec3 fragColor;
-           void main() {
-             gl_Position = vec4(inPosition, 0.0, 1.0);
-             fragColor = inColor;
-           }
+           Shader source: example/shaders/shader.vert
 */
-extern const uint32_t moss__vert_shader_spv[];
-extern const size_t   moss__vert_shader_spv_size;
+#define MOSS__VERT_SHADER_PATH "shaders/shader.vert.spv"
 
 /*
-  @brief Fragment shader SPIR-V code.
+  @brief Path to fragment shader SPIR-V file.
   @details Simple fragment shader that outputs the interpolated color.
-           Shader code:
-           #version 450
-           layout(location = 0) in vec3 fragColor;
-           layout(location = 0) out vec4 outColor;
-           void main() {
-             outColor = vec4(fragColor, 1.0);
-           }
+           Shader source: example/shaders/shader.frag
 */
-extern const uint32_t moss__frag_shader_spv[];
-extern const size_t   moss__frag_shader_spv_size;
-
+#define MOSS__FRAG_SHADER_PATH "shaders/shader.frag.spv"

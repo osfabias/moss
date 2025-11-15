@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -29,6 +30,7 @@
 #include <stuffy/vulkan.h>
 
 #include "src/internal/log.h"
+#include "vulkan/vulkan_core.h"
 
 /*
   @brief Queue family indices.
@@ -43,44 +45,33 @@ typedef struct
 } Moss__QueueFamilyIndices;
 
 /*
-  @brief Checks if device supports required extensions.
-  @param device Physical device to check.
-  @return True if all required extensions are supported.
+  @brief Vulkan physical device extensions.
 */
-inline static bool moss__check_device_extension_support (VkPhysicalDevice device)
+typedef struct
 {
-  const VkDeviceExtensions required_extensions = get_required_vk_device_extensions ( );
+  const char *const *names; /* Extension names. */
+  const uint32_t     count; /* Extension count. */
+} Moss__VkPhysicalDeviceExtensions;
 
-  uint32_t available_extension_count;
-  vkEnumerateDeviceExtensionProperties (device, NULL, &available_extension_count, NULL);
+inline static Moss__VkPhysicalDeviceExtensions
+moss__get_required_vk_device_extensions (void)
+{
+#ifdef __APPLE__
+  static const char *const extension_names[] = {
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+    "VK_KHR_portability_subset",
+  };
+#else
+#  error \
+    "Vulkan physical device extensions aren't specified for the current target platform."
+#endif
 
-  VkExtensionProperties available_extensions[ available_extension_count ];
-  vkEnumerateDeviceExtensionProperties (
-    device,
-    NULL,
-    &available_extension_count,
-    available_extensions
-  );
+  static const Moss__VkPhysicalDeviceExtensions extensions = {
+    .names = extension_names,
+    .count = sizeof (extension_names) / sizeof (extension_names[ 0 ]),
+  };
 
-  for (uint32_t i = 0; i < required_extensions.count; ++i)
-  {
-    bool extension_found = false;
-    for (uint32_t j = 0; j < available_extension_count; ++j)
-    {
-      if (strcmp (
-            required_extensions.names[ i ],
-            available_extensions[ j ].extensionName
-          ) == 0)
-      {
-        extension_found = true;
-        break;
-      }
-    }
-
-    if (!extension_found) { return false; }
-  }
-
-  return true;
+  return extensions;
 }
 
 /*
@@ -90,7 +81,7 @@ inline static bool moss__check_device_extension_support (VkPhysicalDevice device
   @return Queue family indices structure.
 */
 inline static Moss__QueueFamilyIndices
-moss__find_queue_families (VkPhysicalDevice device, VkSurfaceKHR surface)
+moss__find_queue_families (const VkPhysicalDevice device, const VkSurfaceKHR surface)
 {
   Moss__QueueFamilyIndices indices = {
     .graphics_family_has_value = false,
@@ -126,6 +117,120 @@ moss__find_queue_families (VkPhysicalDevice device, VkSurfaceKHR surface)
   return indices;
 }
 
+
+/*
+  @brief Checks if device supports required queues.
+  @param device Physical device to check.
+  @return True if all required queues are supported, otherwise false.
+*/
+inline static bool moss__check_device_queues_support (
+  const VkPhysicalDevice device,
+  const VkSurfaceKHR     surface
+)
+{
+#ifndef NDEBUG
+  VkPhysicalDeviceProperties device_properties;
+  vkGetPhysicalDeviceProperties (device, &device_properties);
+#endif
+
+  const Moss__QueueFamilyIndices indices = moss__find_queue_families (device, surface);
+
+  if (!indices.present_family_has_value)
+  {
+    moss__info (
+      "%s device do not support required present queue family.\n",
+      device_properties.deviceName
+    );
+    return false;
+  }
+
+  if (!indices.graphics_family_has_value)
+  {
+    moss__info (
+      "%s device do not support required graphics queue family.\n",
+      device_properties.deviceName
+    );
+    return false;
+  }
+
+  return true;
+}
+
+/*
+  @brief Checks if device supports required extensions.
+  @param device Physical device to check.
+  @return True if all required extensions are supported, otherwise false.
+*/
+inline static bool moss__check_device_extension_support (const VkPhysicalDevice device)
+{
+#ifndef NDEBUG
+  VkPhysicalDeviceProperties device_properties;
+  vkGetPhysicalDeviceProperties (device, &device_properties);
+#endif
+
+  const Moss__VkPhysicalDeviceExtensions required_extensions =
+    moss__get_required_vk_device_extensions ( );
+
+  uint32_t available_extension_count;
+  vkEnumerateDeviceExtensionProperties (device, NULL, &available_extension_count, NULL);
+
+  VkExtensionProperties available_extensions[ available_extension_count ];
+  vkEnumerateDeviceExtensionProperties (
+    device,
+    NULL,
+    &available_extension_count,
+    available_extensions
+  );
+
+  for (uint32_t i = 0; i < required_extensions.count; ++i)
+  {
+    bool extension_found = false;
+    for (uint32_t j = 0; j < available_extension_count; ++j)
+    {
+      if (strcmp (
+            required_extensions.names[ i ],
+            available_extensions[ j ].extensionName
+          ) == 0)
+      {
+        extension_found = true;
+        break;
+      }
+    }
+
+    if (!extension_found)
+    {
+      moss__info (
+        "%s device doesn't support required \"%s\" extension.\n",
+        device_properties.deviceName,
+        required_extensions.names[ i ]
+      );
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+/*
+  @brief Checks if device supports required formats.
+  @param device Physical device to check.
+  @return True if all required formats are supported, otherwise false.
+*/
+inline static bool moss__check_device_format_support (
+  const VkPhysicalDevice device,
+  const VkSurfaceKHR     surface
+)
+{
+  uint32_t format_count;
+  vkGetPhysicalDeviceSurfaceFormatsKHR (device, surface, &format_count, NULL);
+
+  uint32_t present_mode_count;
+  vkGetPhysicalDeviceSurfacePresentModesKHR (device, surface, &present_mode_count, NULL);
+
+  return (format_count > 0) && (present_mode_count > 0);
+}
+
 /*
   @brief Checks if a physical device is suitable for our needs.
   @param device Physical device to check.
@@ -137,28 +242,11 @@ inline static bool moss__is_physical_device_suitable (
   const VkSurfaceKHR     surface
 )
 {
-  const Moss__QueueFamilyIndices indices = moss__find_queue_families (device, surface);
+  if (!moss__check_device_queues_support (device, surface)) { return false; }
+  if (!moss__check_device_extension_support (device)) { return false; }
+  if (!moss__check_device_format_support (device, surface)) { return false; }
 
-  const bool extensions_supported = moss__check_device_extension_support (device);
-
-  bool swap_chain_adequate = false;
-  if (extensions_supported)
-  {
-    uint32_t format_count;
-    uint32_t present_mode_count;
-    vkGetPhysicalDeviceSurfaceFormatsKHR (device, surface, &format_count, NULL);
-    vkGetPhysicalDeviceSurfacePresentModesKHR (
-      device,
-      surface,
-      &present_mode_count,
-      NULL
-    );
-
-    swap_chain_adequate = (format_count > 0) && (present_mode_count > 0);
-  }
-
-  return indices.graphics_family_has_value && indices.present_family_has_value &&
-         extensions_supported && swap_chain_adequate;
+  return true;
 }
 
 /*
@@ -169,9 +257,9 @@ inline static bool moss__is_physical_device_suitable (
   @return VK_SUCCESS on success, error code otherwise.
 */
 inline static VkResult moss__select_physical_device (
-  VkInstance        instance,
-  VkSurfaceKHR      surface,
-  VkPhysicalDevice *out_device
+  const VkInstance        instance,
+  const VkSurfaceKHR      surface,
+  VkPhysicalDevice *const out_device
 )
 {
   uint32_t device_count = 0;
@@ -183,6 +271,8 @@ inline static VkResult moss__select_physical_device (
     return VK_ERROR_INITIALIZATION_FAILED;
   }
 
+  assert (device_count < 16);
+
   VkPhysicalDevice devices[ device_count ];
   vkEnumeratePhysicalDevices (instance, &device_count, devices);
 
@@ -191,45 +281,13 @@ inline static VkResult moss__select_physical_device (
     VkPhysicalDeviceProperties device_properties;
     vkGetPhysicalDeviceProperties (devices[ i ], &device_properties);
 
-    const Moss__QueueFamilyIndices indices =
-      moss__find_queue_families (devices[ i ], surface);
-    const bool extensions_supported = moss__check_device_extension_support (devices[ i ]);
-
-    bool swap_chain_adequate = false;
-    if (extensions_supported)
-    {
-      uint32_t format_count;
-      uint32_t present_mode_count;
-      vkGetPhysicalDeviceSurfaceFormatsKHR (devices[ i ], surface, &format_count, NULL);
-      vkGetPhysicalDeviceSurfacePresentModesKHR (
-        devices[ i ],
-        surface,
-        &present_mode_count,
-        NULL
-      );
-
-      swap_chain_adequate = (format_count > 0) && (present_mode_count > 0);
-    }
-
     if (moss__is_physical_device_suitable (devices[ i ], surface))
     {
       *out_device = devices[ i ];
+
+      moss__info ("Selected %s as the target GPU.\n", device_properties.deviceName);
       return VK_SUCCESS;
     }
-
-    moss__error (
-      "Device %u (%s) is not suitable:\n"
-      "  Graphics queue: %s\n"
-      "  Present queue: %s\n"
-      "  Extensions supported: %s\n"
-      "  Swap chain adequate: %s\n",
-      i,
-      device_properties.deviceName,
-      indices.graphics_family_has_value ? "yes" : "no",
-      indices.present_family_has_value ? "yes" : "no",
-      extensions_supported ? "yes" : "no",
-      swap_chain_adequate ? "yes" : "no"
-    );
   }
 
   moss__error ("Failed to find a suitable GPU.\n");

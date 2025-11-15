@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include "vulkan/vulkan_core.h"
 #include <stdint.h>
 
 #include <vulkan/vulkan.h>
@@ -29,8 +30,8 @@
 */
 typedef struct
 {
-  const char *const *names;
-  const uint32_t     count;
+  const char *const *names; /* Extension names. */
+  const size_t       count; /* Extension count. */
 } Moss__VkInstanceExtensions;
 
 /*
@@ -43,6 +44,7 @@ inline static Moss__VkInstanceExtensions moss__get_required_vk_instance_extensio
   static const char *const extension_names[] = {
     VK_KHR_SURFACE_EXTENSION_NAME,
     VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
+    VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
     "VK_EXT_metal_surface",
   };
 #else

@@ -75,7 +75,6 @@ include(CMakeInfo.txt)
 # Define source files for the library
 set(MOSS_SOURCE_FILES
   src/engine.c
-  src/internal/shaders.c
   # add new source files here...
 )
 

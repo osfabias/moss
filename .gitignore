@@ -116,3 +116,6 @@ vcpkg_installed/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# SPIR-V
+*.spv
