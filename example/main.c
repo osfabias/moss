@@ -31,6 +31,7 @@ static const MossAppInfo moss_app_info = {
 };
 
 static const MossWindowConfig window_config = {
+  .title  = "Moss Example Application",
   .width  = 640,
   .height = 360,
 };

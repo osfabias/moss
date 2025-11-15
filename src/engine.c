@@ -77,7 +77,8 @@ typedef struct
   VkExtent2D     swapchain_extent;       /* Swap chain extent. */
   VkImageView   *swapchain_image_views;  /* Swap chain image views. */
   VkFramebuffer *swapchain_framebuffers; /* Swap chain framebuffers. */
-  bool           framebuffer_resized;
+  bool framebuffer_resize_requsted; /* Flag that shows, that the framebuffer resize was
+                                       requested, but not performed yet. */
 
   /* Render pipeline. */
   VkRenderPass     render_pass;       /* Render pass. */
@@ -121,13 +122,14 @@ static Moss__Engine g_engine = {
   .present_queue                                  = VK_NULL_HANDLE,
 
   /* Swap chain. */
-  .swapchain              = VK_NULL_HANDLE,
-  .swapchain_images       = NULL,
-  .swapchain_image_count  = 0,
-  .swapchain_image_format = 0,
-  .swapchain_extent       = (VkExtent2D) {.width = 0,     .height = 0   },
-  .swapchain_image_views  = NULL,
-  .swapchain_framebuffers = NULL,
+  .swapchain                   = VK_NULL_HANDLE,
+  .swapchain_images            = NULL,
+  .swapchain_image_count       = 0,
+  .swapchain_image_format      = 0,
+  .swapchain_extent            = (VkExtent2D) {.width = 0,     .height = 0   },
+  .swapchain_image_views       = NULL,
+  .swapchain_framebuffers      = NULL,
+  .framebuffer_resize_requsted = false,
 
   /* Render pipeline. */
   .render_pass       = VK_NULL_HANDLE,
@@ -148,6 +150,15 @@ static Moss__Engine g_engine = {
 };
 
 /*=============================================================================
+    INTERNAL CALLBACK FUNCTION DECLARATIONS
+  =============================================================================*/
+
+/*
+  @brief Callback for window resize event.
+  @note Satisfies @ref
+*/
+
+/*=============================================================================
     INTERNAL FUNCTION DECLARATIONS
   =============================================================================*/
 
@@ -156,18 +167,26 @@ static Moss__Engine g_engine = {
   @param app_info A pointer to a native moss app info struct.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult moss__create_api_instance (const MossAppInfo *app_info);
+inline static MossResult moss__create_api_instance (const MossAppInfo *app_info);
 
 /*
   @brief Initializes stuffy app.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult moss__init_stuffy_app (void);
+inline static MossResult moss__init_stuffy_app (void);
 
 /*
   @brief Deinitializes stuffy app.
 */
-static void moss__deinit_stuffy_app (void);
+inline static void moss__deinit_stuffy_app (void);
+
+/*
+  @brief Creates stuffy window config out of moss window config.
+  @param window_config A pointer to a moss window cofig.
+  @return Returns stuffy window config that corresponds to the passed moss config.
+*/
+inline static StuffyWindowConfig
+moss__create_stuffy_window_config (const MossWindowConfig *window_config);
 
 /*
   @brief Creates window.
@@ -175,20 +194,19 @@ static void moss__deinit_stuffy_app (void);
   @param app_name Application name for window title.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult
-moss__create_window (const MossWindowConfig *window_config, const char *app_name);
+inline static MossResult moss__open_window (const MossWindowConfig *window_config);
 
 /*
   @brief Creates window surface.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult moss__create_surface (void);
+inline static MossResult moss__create_surface (void);
 
 /*
   @brief Creates logical device and queues.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult moss__create_logical_device (void);
+inline static MossResult moss__create_logical_device (void);
 
 /*
   @brief Creates swap chain.
@@ -196,112 +214,112 @@ static MossResult moss__create_logical_device (void);
   @param height Window height.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult moss__create_swapchain (uint32_t width, uint32_t height);
+inline static MossResult moss__create_swapchain (uint32_t width, uint32_t height);
 
 /*
   @brief Creates image views for swap chain images.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult moss__create_image_views (void);
+inline static MossResult moss__create_image_views (void);
 
 /*
   @brief Creates render pass.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult moss__create_render_pass (void);
+inline static MossResult moss__create_render_pass (void);
 
 /*
   @brief Creates graphics pipeline.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult moss__create_graphics_pipeline (void);
+inline static MossResult moss__create_graphics_pipeline (void);
 
 /*
   @brief Creates framebuffers.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult moss__create_framebuffers (void);
+inline static MossResult moss__create_framebuffers (void);
 
 /*
   @brief Creates command pool.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult moss__create_command_pool (void);
+inline static MossResult moss__create_command_pool (void);
 
 /*
   @brief Creates command buffers.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult moss__create_command_buffers (void);
+inline static MossResult moss__create_command_buffers (void);
 
 /*
   @brief Creates image available semaphores.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult moss__create_image_available_semaphores (void);
+inline static MossResult moss__create_image_available_semaphores (void);
 
 /*
   @brief Creates render finished semaphores.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult moss__create_render_finished_semaphores (void);
+inline static MossResult moss__create_render_finished_semaphores (void);
 
 /*
   @brief Creates in-flight fences.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult moss__create_in_flight_fences (void);
+inline static MossResult moss__create_in_flight_fences (void);
 
 /*
   @brief Creates synchronization objects (semaphores and fences).
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult moss__create_synchronization_objects (void);
+inline static MossResult moss__create_synchronization_objects (void);
 
 /*
   @brief Cleans up semaphores array.
   @param semaphores Array of semaphores to clean up.
 */
-static void moss__cleanup_semaphores (VkSemaphore *semaphores);
+inline static void moss__cleanup_semaphores (VkSemaphore *semaphores);
 
 /*
   @brief Cleans up fences array.
   @param fences Array of fences to clean up.
 */
-static void moss__cleanup_fences (VkFence *fences);
+inline static void moss__cleanup_fences (VkFence *fences);
 
 /*
   @brief Cleans up image available semaphores.
 */
-static void moss__cleanup_image_available_semaphores (void);
+inline static void moss__cleanup_image_available_semaphores (void);
 
 /*
   @brief Cleans up render finished semaphores.
 */
-static void moss__cleanup_render_finished_semaphores (void);
+inline static void moss__cleanup_render_finished_semaphores (void);
 
 /*
   @brief Cleans up in-flight fences.
 */
-static void moss__cleanup_in_flight_fences (void);
+inline static void moss__cleanup_in_flight_fences (void);
 
 /*
   @brief Cleans up synchronization objects.
 */
-static void moss__cleanup_synchronization_objects (void);
+inline static void moss__cleanup_synchronization_objects (void);
 
 /*
   @brief Records command buffer.
   @param command_buffer Command buffer to record.
   @param image_index Swap chain image index.
 */
-static void
+inline static void
 moss__record_command_buffer (VkCommandBuffer command_buffer, uint32_t image_index);
 
 /*
   @brief Cleans up swap chain resources.
 */
-static void moss__cleanup_swapchain (void);
+inline static void moss__cleanup_swapchain (void);
 
 /*
   @brief Recreates swap chain.
@@ -309,7 +327,7 @@ static void moss__cleanup_swapchain (void);
   @param height Window height.
   @return Returns MOSS_RESULT_SUCCESS on success, error code otherwise.
 */
-static MossResult moss__recreate_swapchain (uint32_t width, uint32_t height);
+inline static MossResult moss__recreate_swapchain (uint32_t width, uint32_t height);
 
 /*=============================================================================
     PUBLIC API FUNCTIONS IMPLEMENTATION
@@ -324,8 +342,7 @@ MossResult moss_engine_init (const MossEngineConfig *const config)
 {
   if (moss__init_stuffy_app ( ) != MOSS_RESULT_SUCCESS) { return MOSS_RESULT_ERROR; }
 
-  if (moss__create_window (config->window_config, config->app_info->app_name) !=
-      MOSS_RESULT_SUCCESS)
+  if (moss__open_window (config->window_config) != MOSS_RESULT_SUCCESS)
   {
     moss_engine_deinit ( );
     return MOSS_RESULT_ERROR;
@@ -594,8 +611,11 @@ MossResult moss_engine_draw_frame (void)
 
   result = vkQueuePresentKHR (g_engine.present_queue, &present_info);
 
-  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR ||
+      g_engine.framebuffer_resize_requsted)
   {
+    g_engine.framebuffer_resize_requsted = false;
+
     // Swap chain is out of date or suboptimal, need to recreate
     const StuffyWindowRect window_rect = stuffy_window_get_rect (g_engine.window);
     if (moss__recreate_swapchain (window_rect.width, window_rect.height) !=
@@ -619,7 +639,7 @@ MossResult moss_engine_draw_frame (void)
     INTERNAL FUNCTIONS IMPLEMENTATION
   =============================================================================*/
 
-static MossResult moss__create_api_instance (const MossAppInfo *const app_info)
+inline static MossResult moss__create_api_instance (const MossAppInfo *const app_info)
 {
   // Set up validation layers
 #ifdef NDEBUG
@@ -674,7 +694,7 @@ static MossResult moss__create_api_instance (const MossAppInfo *const app_info)
   return MOSS_RESULT_SUCCESS;
 }
 
-static MossResult moss__init_stuffy_app (void)
+inline static MossResult moss__init_stuffy_app (void)
 {
   if (stuffy_app_init ( ) != 0)
   {
@@ -684,23 +704,32 @@ static MossResult moss__init_stuffy_app (void)
   return MOSS_RESULT_SUCCESS;
 }
 
-static void moss__deinit_stuffy_app (void) { stuffy_app_deinit ( ); }
+inline static void moss__deinit_stuffy_app (void) { stuffy_app_deinit ( ); }
 
-static MossResult
-moss__create_window (const MossWindowConfig *window_config, const char *app_name)
+inline static StuffyWindowConfig
+moss__create_stuffy_window_config (const MossWindowConfig *const window_config)
 {
-  const StuffyWindowConfig stuffy_window_config = {
-    .rect =
-      {
-             .x      = 128,
-             .y      = 128,
-             .width  = window_config->width,
-             .height = window_config->height,
-             },
-    .title      = app_name,
+  const StuffyWindowRect window_rect = {
+    .x      = 128,
+    .y      = 128,
+    .width  = window_config->width,
+    .height = window_config->height,
+  };
+
+  const StuffyWindowConfig result_config = {
+    .rect       = window_rect,
+    .title      = window_config->title,
     .style_mask = STUFFY_WINDOW_STYLE_TITLED_BIT | STUFFY_WINDOW_STYLE_CLOSABLE_BIT |
                   STUFFY_WINDOW_STYLE_RESIZABLE_BIT | STUFFY_WINDOW_STYLE_ICONIFIABLE_BIT,
   };
+
+  return result_config;
+}
+
+inline static MossResult moss__open_window (const MossWindowConfig *window_config)
+{
+  const StuffyWindowConfig stuffy_window_config =
+    moss__create_stuffy_window_config (window_config);
 
   g_engine.window = stuffy_window_open (&stuffy_window_config);
   if (g_engine.window == NULL)
@@ -712,7 +741,7 @@ moss__create_window (const MossWindowConfig *window_config, const char *app_name
   return MOSS_RESULT_SUCCESS;
 }
 
-static MossResult moss__create_surface (void)
+inline static MossResult moss__create_surface (void)
 {
   const StuffyVkSurfaceCreateInfo create_info = {
     .window    = g_engine.window,
@@ -730,7 +759,7 @@ static MossResult moss__create_surface (void)
   return MOSS_RESULT_SUCCESS;
 }
 
-static MossResult moss__create_logical_device (void)
+inline static MossResult moss__create_logical_device (void)
 {
   const Moss__VkPhysicalDeviceExtensions extensions =
     moss__get_required_vk_device_extensions ( );
@@ -781,7 +810,7 @@ static MossResult moss__create_logical_device (void)
   return MOSS_RESULT_SUCCESS;
 }
 
-static MossResult moss__create_swapchain (uint32_t width, uint32_t height)
+inline static MossResult moss__create_swapchain (uint32_t width, uint32_t height)
 {
   Moss__SwapChainSupportDetails swapchain_support =
     moss__query_swapchain_support (g_engine.physical_device, g_engine.surface);
@@ -863,7 +892,7 @@ static MossResult moss__create_swapchain (uint32_t width, uint32_t height)
   return MOSS_RESULT_SUCCESS;
 }
 
-static MossResult moss__create_image_views (void)
+inline static MossResult moss__create_image_views (void)
 {
   g_engine.swapchain_image_views =
     (VkImageView *)malloc (g_engine.swapchain_image_count * sizeof (VkImageView));
@@ -912,7 +941,7 @@ static MossResult moss__create_image_views (void)
   return MOSS_RESULT_SUCCESS;
 }
 
-static MossResult moss__create_render_pass (void)
+inline static MossResult moss__create_render_pass (void)
 {
   const VkAttachmentDescription color_attachment = {
     .format         = g_engine.swapchain_image_format,
@@ -966,7 +995,7 @@ static MossResult moss__create_render_pass (void)
   return MOSS_RESULT_SUCCESS;
 }
 
-static MossResult moss__create_graphics_pipeline (void)
+inline static MossResult moss__create_graphics_pipeline (void)
 {
   VkShaderModule vert_shader_module;
   VkShaderModule frag_shader_module;
@@ -1135,7 +1164,7 @@ static MossResult moss__create_graphics_pipeline (void)
   return MOSS_RESULT_SUCCESS;
 }
 
-static MossResult moss__create_framebuffers (void)
+inline static MossResult moss__create_framebuffers (void)
 {
   g_engine.swapchain_framebuffers =
     (VkFramebuffer *)malloc (g_engine.swapchain_image_count * sizeof (VkFramebuffer));
@@ -1179,7 +1208,7 @@ static MossResult moss__create_framebuffers (void)
   return MOSS_RESULT_SUCCESS;
 }
 
-static MossResult moss__create_command_pool (void)
+inline static MossResult moss__create_command_pool (void)
 {
   const VkCommandPoolCreateInfo pool_info = {
     .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -1198,7 +1227,7 @@ static MossResult moss__create_command_pool (void)
   return MOSS_RESULT_SUCCESS;
 }
 
-static MossResult moss__create_command_buffers (void)
+inline static MossResult moss__create_command_buffers (void)
 {
   const VkCommandBufferAllocateInfo alloc_info = {
     .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -1218,7 +1247,7 @@ static MossResult moss__create_command_buffers (void)
   return MOSS_RESULT_SUCCESS;
 }
 
-static void
+inline static void
 moss__record_command_buffer (VkCommandBuffer command_buffer, uint32_t image_index)
 {
   const VkCommandBufferBeginInfo begin_info = {
@@ -1264,7 +1293,7 @@ moss__record_command_buffer (VkCommandBuffer command_buffer, uint32_t image_inde
   }
 }
 
-static void moss__cleanup_swapchain (void)
+inline static void moss__cleanup_swapchain (void)
 {
   if (g_engine.device == VK_NULL_HANDLE) { return; }
 
@@ -1309,7 +1338,7 @@ static void moss__cleanup_swapchain (void)
   g_engine.swapchain_framebuffers  = NULL;
 }
 
-static MossResult moss__recreate_swapchain (uint32_t width, uint32_t height)
+inline static MossResult moss__recreate_swapchain (uint32_t width, uint32_t height)
 {
   vkDeviceWaitIdle (g_engine.device);
 
@@ -1329,7 +1358,7 @@ static MossResult moss__recreate_swapchain (uint32_t width, uint32_t height)
   @brief Creates image available semaphores.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult moss__create_image_available_semaphores (void)
+inline static MossResult moss__create_image_available_semaphores (void)
 {
   if (g_engine.device == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
 
@@ -1358,7 +1387,7 @@ static MossResult moss__create_image_available_semaphores (void)
   @brief Creates render finished semaphores.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult moss__create_render_finished_semaphores (void)
+inline static MossResult moss__create_render_finished_semaphores (void)
 {
   if (g_engine.device == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
 
@@ -1387,7 +1416,7 @@ static MossResult moss__create_render_finished_semaphores (void)
   @brief Creates in-flight fences.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult moss__create_in_flight_fences (void)
+inline static MossResult moss__create_in_flight_fences (void)
 {
   if (g_engine.device == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
 
@@ -1413,7 +1442,7 @@ static MossResult moss__create_in_flight_fences (void)
   @brief Creates synchronization objects (semaphores and fences).
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-static MossResult moss__create_synchronization_objects (void)
+inline static MossResult moss__create_synchronization_objects (void)
 {
   if (moss__create_image_available_semaphores ( ) != MOSS_RESULT_SUCCESS)
   {
@@ -1437,7 +1466,7 @@ static MossResult moss__create_synchronization_objects (void)
   @brief Cleans up semaphores array.
   @param semaphores Array of semaphores to clean up.
 */
-static void moss__cleanup_semaphores (VkSemaphore *semaphores)
+inline static void moss__cleanup_semaphores (VkSemaphore *semaphores)
 {
   for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
   {
@@ -1452,7 +1481,7 @@ static void moss__cleanup_semaphores (VkSemaphore *semaphores)
   @brief Cleans up fences array.
   @param fences Array of fences to clean up.
 */
-static void moss__cleanup_fences (VkFence *fences)
+inline static void moss__cleanup_fences (VkFence *fences)
 {
   for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
   {
@@ -1466,7 +1495,7 @@ static void moss__cleanup_fences (VkFence *fences)
 /*
   @brief Cleans up image available semaphores.
 */
-static void moss__cleanup_image_available_semaphores (void)
+inline static void moss__cleanup_image_available_semaphores (void)
 {
   moss__cleanup_semaphores (g_engine.image_available_semaphores);
 }
@@ -1474,7 +1503,7 @@ static void moss__cleanup_image_available_semaphores (void)
 /*
   @brief Cleans up render finished semaphores.
 */
-static void moss__cleanup_render_finished_semaphores (void)
+inline static void moss__cleanup_render_finished_semaphores (void)
 {
   moss__cleanup_semaphores (g_engine.render_finished_semaphores);
 }
@@ -1482,7 +1511,7 @@ static void moss__cleanup_render_finished_semaphores (void)
 /*
   @brief Cleans up in-flight fences.
 */
-static void moss__cleanup_in_flight_fences (void)
+inline static void moss__cleanup_in_flight_fences (void)
 {
   moss__cleanup_fences (g_engine.in_flight_fences);
 }
@@ -1490,7 +1519,7 @@ static void moss__cleanup_in_flight_fences (void)
 /*
   @brief Cleans up synchronization objects.
 */
-static void moss__cleanup_synchronization_objects (void)
+inline static void moss__cleanup_synchronization_objects (void)
 {
   moss__cleanup_in_flight_fences ( );
   moss__cleanup_render_finished_semaphores ( );
