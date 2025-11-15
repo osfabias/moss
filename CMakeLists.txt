@@ -99,7 +99,7 @@ endif()
 target_include_directories(moss PUBLIC include)
 target_include_directories(moss PRIVATE . ${Vulkan_INCLUDE_DIRS})
 
-target_link_libraries(moss PRIVATE ${Vulkan_LIBRARIES} stuffy)
+target_link_libraries(moss PRIVATE ${Vulkan_LIBRARIES} stuffy cglm)
 
 target_compile_options(moss PRIVATE ${MOSS_COMPILE_OPTIONS})
 
