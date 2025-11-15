@@ -99,6 +99,14 @@ typedef struct
   /* Transfer queue. */
   VkQueue transfer_queue;
 
+  /* === Buffer sharing mode and queue family indices === */
+  /* Buffer sharing mode for buffers shared between graphics and transfer queues. */
+  VkSharingMode buffer_sharing_mode;
+  /* Number of queue family indices that share buffers. */
+  uint32_t shared_queue_family_index_count;
+  /* Queue family indices that share buffers. */
+  uint32_t shared_queue_family_indices[ 2 ];
+
   /* === Swap chain === */
   /* Swap chain. */
   VkSwapchainKHR swapchain;
@@ -175,6 +183,9 @@ static Moss__Engine g_engine = {
     .present_family_found  = false,
     .transfer_family_found = false,
   },
+  .buffer_sharing_mode            = VK_SHARING_MODE_EXCLUSIVE,
+  .shared_queue_family_index_count = 0,
+  .shared_queue_family_indices     = {0, 0},
 
   /* Swap chain. */
   .swapchain                   = VK_NULL_HANDLE,
@@ -266,6 +277,14 @@ inline static MossResult moss__create_surface (void);
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
 inline static MossResult moss__create_logical_device (void);
+
+/*
+  @brief Initializes buffer sharing mode and queue family indices.
+  @details Determines whether graphics and transfer queue families are the same,
+           and sets up the appropriate sharing mode and queue family indices
+           for buffer creation. This should be called after logical device creation.
+*/
+inline static void moss__init_buffer_sharing_mode (void);
 
 /*
   @brief Creates swap chain.
@@ -485,6 +504,8 @@ MossResult moss_engine_init (const MossEngineConfig *const config)
     0,
     &g_engine.transfer_queue
   );
+
+  moss__init_buffer_sharing_mode ( );
 
   const StuffyExtent2D framebuffer_size =
     stuffy_window_get_framebuffer_size (g_engine.window);
@@ -977,6 +998,22 @@ inline static MossResult moss__create_logical_device (void)
   return MOSS_RESULT_SUCCESS;
 }
 
+inline static void moss__init_buffer_sharing_mode (void)
+{
+  if (g_engine.queue_family_indices.graphics_family ==
+      g_engine.queue_family_indices.transfer_family)
+  {
+    g_engine.buffer_sharing_mode            = VK_SHARING_MODE_EXCLUSIVE;
+    g_engine.shared_queue_family_index_count = 0;
+  }
+  else {
+    g_engine.buffer_sharing_mode = VK_SHARING_MODE_CONCURRENT;
+    g_engine.shared_queue_family_indices[ 0 ] = g_engine.queue_family_indices.graphics_family;
+    g_engine.shared_queue_family_indices[ 1 ] = g_engine.queue_family_indices.transfer_family;
+    g_engine.shared_queue_family_index_count  = 2;
+  }
+}
+
 inline static MossResult
 moss__create_swapchain (const uint32_t width, const uint32_t height)
 {
@@ -1385,33 +1422,15 @@ inline static MossResult moss__create_framebuffers (void)
 
 inline static MossResult moss__create_vertex_crate (void)
 {
-  const bool graphics_and_transfer_family_are_same =
-    g_engine.queue_family_indices.graphics_family ==
-    g_engine.queue_family_indices.transfer_family;
-
-  const uint32_t shared_queue_family_indices[] = {
-    g_engine.queue_family_indices.graphics_family,
-    g_engine.queue_family_indices.transfer_family,
-  };
-
   Moss__CrateCreateInfo create_info = {
     .size  = sizeof (g_verticies),
     .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
     .memory_properties =
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+    .sharing_mode                    = g_engine.buffer_sharing_mode,
+    .shared_queue_family_index_count = g_engine.shared_queue_family_index_count,
+    .shared_queue_family_indices     = g_engine.shared_queue_family_indices,
   };
-
-  if (graphics_and_transfer_family_are_same)
-  {
-    create_info.sharing_mode                    = VK_SHARING_MODE_EXCLUSIVE;
-    create_info.shared_queue_family_index_count = 0;
-  }
-  else {
-    create_info.sharing_mode = VK_SHARING_MODE_CONCURRENT;
-    create_info.shared_queue_family_index_count =
-      sizeof (shared_queue_family_indices) / sizeof (shared_queue_family_indices[ 0 ]);
-    create_info.shared_queue_family_indices = shared_queue_family_indices;
-  }
 
   const MossResult result = moss__create_crate (
     g_engine.physical_device,

@@ -181,6 +181,8 @@ MossResult moss__create_crate (
 
 /*
   @brief Fill moss crate.
+  @details Creates temporary staging crate in order to store actual data on GPU
+           in the most optimized format.
   @param destination_crate Crate to write to.
   @param source Source memory block to read from.
   @param size Number of bytes to read from source and write to destination crate.
