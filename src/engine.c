@@ -853,7 +853,8 @@ inline static MossResult moss__create_logical_device (void)
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult moss__create_swapchain (uint32_t width, uint32_t height)
+inline static MossResult
+moss__create_swapchain (const uint32_t width, const uint32_t height)
 {
   Moss__SwapChainSupportDetails swapchain_support =
     moss__query_swapchain_support (g_engine.physical_device, g_engine.surface);
@@ -1095,26 +1096,12 @@ inline static MossResult moss__create_graphics_pipeline (void)
     .primitiveRestartEnable = VK_FALSE,
   };
 
-  const VkViewport viewport = {
-    .x        = 0.0F,
-    .y        = 0.0F,
-    .width    = (float)g_engine.swapchain_extent.width,
-    .height   = (float)g_engine.swapchain_extent.height,
-    .minDepth = 0.0F,
-    .maxDepth = 1.0F,
-  };
-
-  const VkRect2D scissor = {
-    .offset = {0, 0},
-    .extent = g_engine.swapchain_extent,
-  };
-
   const VkPipelineViewportStateCreateInfo viewport_state = {
     .sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
     .viewportCount = 1,
-    .pViewports    = &viewport,
+    .pViewports    = NULL,  // Dynamic viewport
     .scissorCount  = 1,
-    .pScissors     = &scissor,
+    .pScissors     = NULL,  // Dynamic scissor
   };
 
   const VkPipelineRasterizationStateCreateInfo rasterizer = {
@@ -1168,6 +1155,17 @@ inline static MossResult moss__create_graphics_pipeline (void)
     return VK_ERROR_INITIALIZATION_FAILED;
   }
 
+  const VkDynamicState dynamic_states[] = {
+    VK_DYNAMIC_STATE_VIEWPORT,
+    VK_DYNAMIC_STATE_SCISSOR,
+  };
+
+  const VkPipelineDynamicStateCreateInfo dynamic_state = {
+    .sType             = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+    .dynamicStateCount = sizeof (dynamic_states) / sizeof (dynamic_states[ 0 ]),
+    .pDynamicStates    = dynamic_states,
+  };
+
   const VkGraphicsPipelineCreateInfo pipeline_info = {
     .sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
     .stageCount          = 2,
@@ -1178,6 +1176,7 @@ inline static MossResult moss__create_graphics_pipeline (void)
     .pRasterizationState = &rasterizer,
     .pMultisampleState   = &multisampling,
     .pColorBlendState    = &color_blending,
+    .pDynamicState       = &dynamic_state,
     .layout              = g_engine.pipeline_layout,
     .renderPass          = g_engine.render_pass,
     .subpass             = 0,
@@ -1325,6 +1324,23 @@ moss__record_command_buffer (VkCommandBuffer command_buffer, uint32_t image_inde
     VK_PIPELINE_BIND_POINT_GRAPHICS,
     g_engine.graphics_pipeline
   );
+
+  const VkViewport viewport = {
+    .x        = 0.0F,
+    .y        = 0.0F,
+    .width    = (float)g_engine.swapchain_extent.width,
+    .height   = (float)g_engine.swapchain_extent.height,
+    .minDepth = 0.0F,
+    .maxDepth = 1.0F,
+  };
+
+  const VkRect2D scissor = {
+    .offset = {0, 0},
+    .extent = g_engine.swapchain_extent,
+  };
+
+  vkCmdSetViewport (command_buffer, 0, 1, &viewport);
+  vkCmdSetScissor (command_buffer, 0, 1, &scissor);
 
   vkCmdDraw (command_buffer, 3, 1, 0, 0);
 
