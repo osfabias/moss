@@ -136,6 +136,12 @@ typedef struct
 */
 typedef struct
 {
+  /* Physical device to allocate memory on. */
+  VkPhysicalDevice physical_device;
+
+  /* Logical device to create buffer itself on. */
+  VkDevice device;
+
   /* Desired size of the buffer in bytes. */
   VkDeviceSize size;
 
@@ -178,18 +184,11 @@ typedef struct
 
 /*
   @brief Creates moss crate.
-  @param physical_device Physical device to allocaet buffer memory on.
-  @param device Logical device to create buffer on.
-  @param info Crate creation info.
+  @param info Required info for crate creation.
   @param out_crate Ouput variable where crate handle will be written to.
   @return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
-MossResult moss__create_crate (
-  VkPhysicalDevice             physical_device,
-  VkDevice                     device,
-  const Moss__CrateCreateInfo *info,
-  Moss__Crate                 *out_crate
-);
+MossResult moss__create_crate (const Moss__CrateCreateInfo *info, Moss__Crate *out_crate);
 
 /*
   @brief Fill moss crate.

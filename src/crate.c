@@ -31,12 +31,8 @@
 #include "src/internal/memory_utils.h"
 #include "src/internal/vk_buffer_utils.h"
 
-MossResult moss__create_crate (
-  const VkPhysicalDevice             physical_device,
-  const VkDevice                     device,
-  const Moss__CrateCreateInfo *const info,
-  Moss__Crate *const                 out_crate
-)
+MossResult
+moss__create_crate (const Moss__CrateCreateInfo *const info, Moss__Crate *const out_crate)
 {
   {  // Create buffer itself
     const VkBufferCreateInfo create_info = {
@@ -49,7 +45,7 @@ MossResult moss__create_crate (
     };
 
     const VkResult result =
-      vkCreateBuffer (device, &create_info, NULL, &out_crate->buffer);
+      vkCreateBuffer (info->device, &create_info, NULL, &out_crate->buffer);
     if (result != VK_SUCCESS)
     {
       moss__error ("Failed to create buffer: %d.", result);
@@ -59,7 +55,7 @@ MossResult moss__create_crate (
 
   {  // Allocate buffer memory
     VkMemoryRequirements memory_requirements;
-    vkGetBufferMemoryRequirements (device, out_crate->buffer, &memory_requirements);
+    vkGetBufferMemoryRequirements (info->device, out_crate->buffer, &memory_requirements);
 
     // Save actual buffer size
     out_crate->size = memory_requirements.size;
@@ -68,7 +64,7 @@ MossResult moss__create_crate (
     uint32_t suitable_memory_type_index;
     {
       const MossResult result = moss__select_suitable_memory_type (
-        physical_device,
+        info->physical_device,
         memory_requirements.memoryTypeBits,
         info->memory_properties,
         &suitable_memory_type_index
@@ -88,7 +84,7 @@ MossResult moss__create_crate (
       .memoryTypeIndex = suitable_memory_type_index,
     };
     const VkResult result =
-      vkAllocateMemory (device, &alloc_info, NULL, &out_crate->memory);
+      vkAllocateMemory (info->device, &alloc_info, NULL, &out_crate->memory);
     if (result != VK_SUCCESS)
     {
       moss__destroy_crate (out_crate);
@@ -98,11 +94,11 @@ MossResult moss__create_crate (
   }
 
   // After all bind memory to the buffer
-  vkBindBufferMemory (device, out_crate->buffer, out_crate->memory, 0);
+  vkBindBufferMemory (info->device, out_crate->buffer, out_crate->memory, 0);
 
   // Save device handles for later cleanup
-  out_crate->original_device          = device;
-  out_crate->original_physical_device = physical_device;
+  out_crate->original_device          = info->device;
+  out_crate->original_physical_device = info->physical_device;
 
   // Save sharing mode and queue family indices
   out_crate->sharing_mode                    = info->sharing_mode;
@@ -136,13 +132,10 @@ MossResult moss__fill_crate (const Moss__FillCrateInfo *const info)
       .sharing_mode                    = dst_crate->sharing_mode,
       .shared_queue_family_index_count = dst_crate->shared_queue_family_index_count,
       .shared_queue_family_indices     = dst_crate->shared_queue_family_indices,
+      .device                          = dst_crate->original_device,
+      .physical_device                 = dst_crate->original_physical_device,
     };
-    moss__create_crate (
-      dst_crate->original_physical_device,
-      dst_crate->original_device,
-      &create_info,
-      &staging_crate
-    );
+    moss__create_crate (&create_info, &staging_crate);
   }
 
   // Copy data to the staging buffer

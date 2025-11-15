@@ -1436,15 +1436,11 @@ inline static MossResult moss__create_vertex_crate (void)
     .sharing_mode                    = g_engine.buffer_sharing_mode,
     .shared_queue_family_index_count = g_engine.shared_queue_family_index_count,
     .shared_queue_family_indices     = g_engine.shared_queue_family_indices,
+    .device                          = g_engine.device,
+    .physical_device                 = g_engine.physical_device,
   };
 
-  const MossResult result = moss__create_crate (
-    g_engine.physical_device,
-    g_engine.device,
-    &create_info,
-    &g_engine.vertex_crate
-  );
-
+  const MossResult result = moss__create_crate (&create_info, &g_engine.vertex_crate);
   if (result != MOSS_RESULT_SUCCESS) { moss__error ("Failed to create vertex crate.\n"); }
 
   return result;
