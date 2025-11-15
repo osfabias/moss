@@ -32,3 +32,4 @@ typedef struct
   uint32_t    width;  /* Window width in pixels. */
   uint32_t    height; /* Window height in pixels. */
 } MossWindowConfig;
+

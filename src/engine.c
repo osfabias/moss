@@ -157,8 +157,7 @@ static Moss__Engine g_engine = {
   @brief Callback for window resize event.
   @note Satisfies @ref StuffyWindowResizeCallback signature.
 */
-static void
-moss__window_resize_callback (StuffyWindow *window, uint32_t width, uint32_t height);
+static void moss__window_resize_callback (StuffyWindow *window, StuffyWindowRect rect);
 
 /*=============================================================================
     INTERNAL FUNCTION DECLARATIONS
@@ -419,10 +418,10 @@ MossResult moss_engine_init (const MossEngineConfig *const config)
     &g_engine.present_queue
   );
 
-  if (moss__create_swapchain (
-        config->window_config->width,
-        config->window_config->height
-      ) != MOSS_RESULT_SUCCESS)
+  const StuffyExtent2D framebuffer_size =
+    stuffy_window_get_framebuffer_size (g_engine.window);
+  if (moss__create_swapchain (framebuffer_size.width, framebuffer_size.height) !=
+      MOSS_RESULT_SUCCESS)
   {
     moss_engine_deinit ( );
     return MOSS_RESULT_ERROR;
@@ -587,8 +586,9 @@ MossResult moss_engine_draw_frame (void)
   if (result == VK_ERROR_OUT_OF_DATE_KHR)
   {
     // Swap chain is out of date, need to recreate before we can acquire image
-    const StuffyWindowRect window_rect = stuffy_window_get_rect (g_engine.window);
-    return moss__recreate_swapchain (window_rect.width, window_rect.height);
+    const StuffyExtent2D framebuffer_size =
+      stuffy_window_get_framebuffer_size (g_engine.window);
+    return moss__recreate_swapchain (framebuffer_size.width, framebuffer_size.height);
   }
 
   if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
@@ -644,8 +644,9 @@ MossResult moss_engine_draw_frame (void)
     g_engine.framebuffer_resize_requsted = false;
 
     // Swap chain is out of date or suboptimal, need to recreate
-    const StuffyWindowRect window_rect = stuffy_window_get_rect (g_engine.window);
-    if (moss__recreate_swapchain (window_rect.width, window_rect.height) !=
+    const StuffyExtent2D framebuffer_size =
+      stuffy_window_get_framebuffer_size (g_engine.window);
+    if (moss__recreate_swapchain (framebuffer_size.width, framebuffer_size.height) !=
         MOSS_RESULT_SUCCESS)
     {
       return MOSS_RESULT_ERROR;
@@ -666,15 +667,11 @@ MossResult moss_engine_draw_frame (void)
     INTERNAL CALLBACK FUNCTIONS IMPLENTATION
   =============================================================================*/
 
-static void moss__window_resize_callback (
-  StuffyWindow *const window,
-  const uint32_t      width,
-  const uint32_t      height
-)
+static void
+moss__window_resize_callback (StuffyWindow *const window, StuffyWindowRect rect)
 {
   (void)(window);
-  (void)(width);
-  (void)(height);
+  (void)(rect);
 
   g_engine.framebuffer_resize_requsted = true;
 }
