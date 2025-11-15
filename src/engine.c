@@ -319,6 +319,26 @@ inline static void
 moss__record_command_buffer (VkCommandBuffer command_buffer, uint32_t image_index);
 
 /*
+  @brief Cleans up swapchain framebuffers.
+*/
+inline static void moss__cleanup_swapchain_framebuffers (void);
+
+/*
+  @brief Cleans up swapchain image views.
+*/
+inline static void moss__cleanup_swapchain_image_views (void);
+
+/*
+  @brief Cleans up swapchain images array.
+*/
+inline static void moss__cleanup_swapchain_images (void);
+
+/*
+  @brief Cleans up swapchain handle.
+*/
+inline static void moss__cleanup_swapchain_handle (void);
+
+/*
   @brief Cleans up swap chain resources.
 */
 inline static void moss__cleanup_swapchain (void);
@@ -1319,7 +1339,7 @@ moss__record_command_buffer (VkCommandBuffer command_buffer, uint32_t image_inde
   }
 }
 
-inline static void moss__cleanup_swapchain (void)
+inline static void moss__cleanup_swapchain_framebuffers (void)
 {
   if (g_engine.swapchain_framebuffers != NULL)
   {
@@ -1327,39 +1347,52 @@ inline static void moss__cleanup_swapchain (void)
     {
       vkDestroyFramebuffer (g_engine.device, g_engine.swapchain_framebuffers[ i ], NULL);
     }
-    free (g_engine.swapchain_framebuffers);
+    free ((void *)g_engine.swapchain_framebuffers);
     g_engine.swapchain_framebuffers = NULL;
   }
+}
 
+inline static void moss__cleanup_swapchain_image_views (void)
+{
   if (g_engine.swapchain_image_views != NULL)
   {
     for (uint32_t i = 0; i < g_engine.swapchain_image_count; ++i)
     {
       vkDestroyImageView (g_engine.device, g_engine.swapchain_image_views[ i ], NULL);
     }
-    free (g_engine.swapchain_image_views);
+    free ((void *)g_engine.swapchain_image_views);
     g_engine.swapchain_image_views = NULL;
   }
+}
 
+inline static void moss__cleanup_swapchain_images (void)
+{
   if (g_engine.swapchain_images != NULL)
   {
-    free (g_engine.swapchain_images);
+    free ((void *)g_engine.swapchain_images);
     g_engine.swapchain_images = NULL;
   }
+}
 
+inline static void moss__cleanup_swapchain_handle (void)
+{
   if (g_engine.swapchain != VK_NULL_HANDLE)
   {
     vkDestroySwapchainKHR (g_engine.device, g_engine.swapchain, NULL);
     g_engine.swapchain = VK_NULL_HANDLE;
   }
+}
 
-  g_engine.swapchain_images        = NULL;
-  g_engine.swapchain_image_count   = 0;
-  g_engine.swapchain_image_format  = 0;
-  g_engine.swapchain_extent.width  = 0;
-  g_engine.swapchain_extent.height = 0;
-  g_engine.swapchain_image_views   = NULL;
-  g_engine.swapchain_framebuffers  = NULL;
+inline static void moss__cleanup_swapchain (void)
+{
+  moss__cleanup_swapchain_framebuffers ( );
+  moss__cleanup_swapchain_image_views ( );
+  moss__cleanup_swapchain_images ( );
+  moss__cleanup_swapchain_handle ( );
+
+  g_engine.swapchain_image_count  = 0;
+  g_engine.swapchain_image_format = 0;
+  g_engine.swapchain_extent       = (VkExtent2D) {.width = 0, .height = 0};
 }
 
 inline static void moss__wait_while_window_is_minimized (void)
