@@ -25,6 +25,10 @@
 #include "src/internal/log.h"
 #include "vulkan/vulkan_core.h"
 
+/*=============================================================================
+    STRUCTURES
+  =============================================================================*/
+
 /*
   @brief Required info for Vulkan image view creation.
 */
@@ -35,14 +39,18 @@ typedef struct
   VkFormat format; /* Image view format. */
 } Moss__VkImageViewCreateInfo;
 
+/*=============================================================================
+    FUNCTIONS
+  =============================================================================*/
+
 /*
   @brief Creates Vulkan image view instance.
   @param info Vulkan image view creation info.
   @return On success returns valid image view handler, otherwise VK_NULL_HANDLE.
 */
-VkImageView moss__create_vk_image_view (const Moss__VkImageViewCreateInfo *const info)
+inline static VkImageView
+moss__create_vk_image_view (const Moss__VkImageViewCreateInfo *const info)
 {
-  // Set up create info
   static const VkImageSubresourceRange subresource_range = {
     .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
     .baseMipLevel   = 0,
@@ -69,12 +77,10 @@ VkImageView moss__create_vk_image_view (const Moss__VkImageViewCreateInfo *const
     .subresourceRange = subresource_range,
   };
 
-  // Try to create image view
   VkImageView    image_view;
   const VkResult result =
     vkCreateImageView (info->device, &create_info, NULL, &image_view);
 
-  // Return
   if (result != VK_SUCCESS)
   {
     moss__error (

@@ -13,7 +13,7 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  @file src/internal/vk_instance_utils.c
+  @file src/internal/vulkan/utils/instance.h
   @brief Vulkan instance utility functions.
   @author Ilya Buravov (ilburale@gmail.com)
 */
@@ -24,6 +24,10 @@
 
 #include <vulkan/vulkan.h>
 
+/*=============================================================================
+    STRUCTURES
+  =============================================================================*/
+
 /*
   @brief Vulkan instance extensions.
 */
@@ -32,6 +36,10 @@ typedef struct
   const char *const *names; /* Extension names. */
   const size_t       count; /* Extension count. */
 } Moss__VkInstanceExtensions;
+
+/*=============================================================================
+    FUNCTIONS
+  =============================================================================*/
 
 /*
   @brief Returns a list of required Vulkan instance extensions.
@@ -70,3 +78,4 @@ inline static uint32_t moss__get_required_vk_instance_flags (void)
   return 0;
 #endif
 }
+

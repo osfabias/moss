@@ -31,7 +31,8 @@ set(MOSS_COMPILE_OPTIONS
   -Wall
   -Wextra
   -Wpedantic
-  -Werror
+
+  -Wno-gnu-zero-variadic-macro-arguments
   # add new clang or gnu compile options here...
 )
 
@@ -73,8 +74,8 @@ include(CMakeInfo.txt)
 #-----------------------------------------------------------------------------
 # Define source files for the library
 set(MOSS_SOURCE_FILES
-  src/crate.c
   src/engine.c
+  src/crate.c
   src/stb_image.c
   # add new source files here...
 )

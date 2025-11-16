@@ -7,7 +7,7 @@
 # ///
 """
 Script to analyze malloc calls per commit in git history.
-Shows a graph with commit time on horizontal axis and malloc call count on vertical axis.
+Shows a graph with days on horizontal axis and malloc call count on vertical axis.
 
 Usage with uv:
     uv run analyze_malloc.py
@@ -24,20 +24,10 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
 
-# Python regex used to COUNT matches in text from git grep.
-# This supports word boundaries and \s.
-MALLOC_REGEX = re.compile(r"\b(malloc|calloc|realloc)\s*\(")
-
-# Pattern used for git grep (POSIX ERE, no \s there).
-# [[:space:]] works for spaces/tabs etc.
-GIT_GREP_PATTERN = r"(malloc|calloc|realloc)[[:space:]]*\("
-
-
 def get_git_commits():
-    """Get list of commits with their commit times and hashes."""
-    # %ct = committer date, UNIX timestamp
+    """Get list of commits with their dates and hashes."""
     result = subprocess.run(
-        ["git", "log", "--pretty=format:%H|%ct", "--reverse"],
+        ["git", "log", "--pretty=format:%H|%ai", "--reverse"],
         capture_output=True,
         text=True,
         check=True,
@@ -47,78 +37,80 @@ def get_git_commits():
     for line in result.stdout.strip().split("\n"):
         if not line:
             continue
-        parts = line.split("|", 1)
-        if len(parts) != 2:
-            continue
-
-        commit_hash, ts_str = parts
-        try:
-            timestamp = int(ts_str.strip())
-            date = datetime.fromtimestamp(timestamp)
-        except ValueError:
-            # Ignore malformed lines
-            continue
-
-        commits.append((commit_hash, date))
+        parts = line.split("|")
+        if len(parts) == 2:
+            commit_hash, date_str = parts
+            # Parse date string (format: 2025-01-15 10:30:45 +0000)
+            date = datetime.strptime(date_str.split(" ")[0], "%Y-%m-%d")
+            commits.append((commit_hash, date))
 
     return commits
 
 
 def count_malloc_in_commit(commit_hash, source_dirs=None):
-    """
-    Count malloc/calloc/realloc calls in a specific commit using git grep.
-
-    We use git grep to quickly retrieve candidate lines, then apply a Python
-    regex with word boundaries to count the actual calls.
-
-    This correctly counts:
-        malloc(sizeof(int));
-        malloc (sizeof(int));
-        calloc (10, sizeof(int));
-        realloc (ptr, new_size);
-    """
+    """Count malloc calls in source files for a specific commit."""
     if source_dirs is None:
         source_dirs = ["src", "include"]
 
-    # git grep command:
-    #   git grep -h -E "<pattern>" <commit> -- <paths...>
-    cmd = [
-        "git",
-        "grep",
-        "-h",  # suppress filenames, only lines
-        "-E",
-        GIT_GREP_PATTERN,
-        commit_hash,
-        "--",
-        *source_dirs,
-    ]
+    total_count = 0
 
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-    )
+    # Get list of C/C++ source files in the commit
+    try:
+        result = subprocess.run(
+            ["git", "ls-tree", "-r", "--name-only", commit_hash],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
 
-    # git grep exit codes:
-    #   0 = matches found
-    #   1 = no matches
-    #   >1 = real error
-    if result.returncode not in (0, 1):
-        err = result.stderr.strip()
-        if err:
-            print(f"[warn] git grep failed for {commit_hash}: {err}")
-        return 0
+        files = result.stdout.strip().split("\n")
 
-    if not result.stdout:
-        return 0
+        for file_path in files:
+            # Only check C/C++ source files in specified directories
+            if not any(file_path.startswith(d) for d in source_dirs):
+                continue
 
-    return len(MALLOC_REGEX.findall(result.stdout))
+            if not (
+                file_path.endswith(".c")
+                or file_path.endswith(".cpp")
+                or file_path.endswith(".h")
+                or file_path.endswith(".hpp")
+            ):
+                continue
+
+            # Get file content at this commit
+            try:
+                file_result = subprocess.run(
+                    ["git", "show", f"{commit_hash}:{file_path}"],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+
+                content = file_result.stdout
+
+                # Count malloc calls (including malloc, calloc, realloc)
+                # Pattern matches: malloc(, calloc(, realloc(
+                malloc_pattern = r"\b(malloc|calloc|realloc)\s*\("
+                matches = re.findall(malloc_pattern, content)
+                total_count += len(matches)
+
+            except subprocess.CalledProcessError:
+                # File might not exist in this commit, skip it
+                continue
+
+    except subprocess.CalledProcessError:
+        # Commit might not have any files, return 0
+        pass
+
+    return total_count
 
 
 def main():
     """Main function to analyze and plot malloc calls."""
     print("Analyzing git history for malloc calls...")
 
+    # Get all commits
     commits = get_git_commits()
     print(f"Found {len(commits)} commits")
 
@@ -126,6 +118,7 @@ def main():
         print("No commits found!")
         return
 
+    # Count malloc calls for each commit
     dates = []
     counts = []
 
@@ -138,20 +131,25 @@ def main():
         if (i + 1) % 10 == 0 or i == len(commits) - 1:
             print(f"Processed {i + 1}/{len(commits)} commits...")
 
+    # Create plot
     print("Creating plot...")
     fig, ax = plt.subplots(figsize=(12, 6))
 
     ax.plot(dates, counts, marker="o", markersize=3, linewidth=1, alpha=0.7)
-    ax.set_xlabel("Commit time", fontsize=12)
+    ax.set_xlabel("Date", fontsize=12)
     ax.set_ylabel("Number of malloc/calloc/realloc calls", fontsize=12)
     ax.set_title("Malloc Calls per Commit Over Time", fontsize=14, fontweight="bold")
     ax.grid(True, alpha=0.3)
 
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d\n%H:%M"))
+    # Format x-axis dates
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
     ax.xaxis.set_major_locator(mdates.AutoDateLocator())
-    plt.xticks(rotation=0, ha="center")
+    plt.xticks(rotation=45, ha="right")
+
+    # Adjust layout
     plt.tight_layout()
 
+    # Print statistics
     print("\nStatistics:")
     print(f"  Total commits analyzed: {len(commits)}")
     print(f"  Total malloc calls (latest): {counts[-1] if counts else 0}")
@@ -159,6 +157,7 @@ def main():
     print(f"  Minimum malloc calls: {min(counts) if counts else 0}")
     print(f"  Average malloc calls: {sum(counts) / len(counts) if counts else 0:.2f}")
 
+    # Show plot
     plt.show()
 
 

@@ -25,9 +25,9 @@
 #include <vulkan/vulkan.h>
 
 #include "moss/result.h"
+
 #include "src/internal/log.h"
 #include "src/internal/vulkan/utils/command_buffer.h"
-#include "vulkan/vulkan_core.h"
 
 /*=============================================================================
     STRUCTURES
@@ -104,21 +104,33 @@ inline static MossResult moss__copy_vk_buffer (const Moss__CopyVkBufferInfo *con
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult moss__copy_buffer_to_image (
-  VkDevice      device,
-  VkCommandPool command_pool,
-  VkQueue       transfer_queue,
-  VkBuffer      buffer,
-  VkImage       image,
-  uint32_t      width,
-  uint32_t      height
-)
+/*
+  @brief Required info to perform copy operation from buffer to image.
+*/
+typedef struct
+{
+  VkDevice      device;         /* Logical device. */
+  VkCommandPool command_pool;   /* Command pool to perform operation with. */
+  VkQueue       transfer_queue; /* Queue to be used as a transfer queue. */
+  VkBuffer      buffer;         /* Source buffer to copy data from. */
+  VkImage       image;          /* Destination image to copy data to. */
+  uint32_t      width;          /* Image width. */
+  uint32_t      height;         /* Image height. */
+} Moss__CopyVkBufferToImageInfo;
+
+/*
+  @brief Copies data from Vulkan buffer to image.
+  @param info Required info to perform copy.
+  @return Return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
+*/
+inline static MossResult
+moss__copy_buffer_to_image (const Moss__CopyVkBufferToImageInfo *const info)
 {
   VkCommandBuffer command_buffer;
   {  // Begin one time command buffer
     const Moss__BeginOneTimeVkCommandBufferInfo begin_info = {
-      .device       = device,
-      .command_pool = command_pool,
+      .device       = info->device,
+      .command_pool = info->command_pool,
     };
     command_buffer = moss__begin_one_time_vk_command_buffer (&begin_info);
 
@@ -129,7 +141,7 @@ inline static MossResult moss__copy_buffer_to_image (
     }
   }
 
-  VkBufferImageCopy region = {
+  const VkBufferImageCopy region = {
     .bufferOffset      = 0,
     .bufferRowLength   = 0,
     .bufferImageHeight = 0,
@@ -139,14 +151,14 @@ inline static MossResult moss__copy_buffer_to_image (
     .imageSubresource.baseArrayLayer = 0,
     .imageSubresource.layerCount     = 1,
 
-    .imageOffset = (VkOffset3D) {     0,      0, 0 },
-    .imageExtent = (VkExtent3D) { width, height, 1 },
+    .imageOffset = (VkOffset3D) { 0, 0, 0 },
+    .imageExtent = (VkExtent3D) { info->width, info->height, 1 },
   };
 
   vkCmdCopyBufferToImage (
     command_buffer,
-    buffer,
-    image,
+    info->buffer,
+    info->image,
     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
     1,
     &region
@@ -154,13 +166,13 @@ inline static MossResult moss__copy_buffer_to_image (
 
   {  // End one time Vulkan command buffer
     const Moss__EndOneTimeVkCommandBufferInfo end_info = {
-      .device         = device,
-      .command_pool   = command_pool,
+      .device         = info->device,
+      .command_pool   = info->command_pool,
       .command_buffer = command_buffer,
-      .queue          = transfer_queue,
+      .queue          = info->transfer_queue,
     };
     const MossResult result = moss__end_one_time_vk_command_buffer (&end_info);
-    if (result == MOSS_RESULT_ERROR)
+    if (result != MOSS_RESULT_SUCCESS)
     {
       moss__error ("Failed to end one time Vulkan command buffer.\n");
       return MOSS_RESULT_ERROR;

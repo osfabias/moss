@@ -13,7 +13,7 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  @file src/internal/vk_command_pool_utils.h
+  @file src/internal/vulkan/utils/command_pool.h
   @brief Vulkan command pool utility functions.
   @author Ilya Buravov (ilburale@gmail.com)
 */
@@ -25,30 +25,45 @@
 #include <vulkan/vulkan.h>
 
 #include "moss/result.h"
+
 #include "src/internal/log.h"
+
+/*=============================================================================
+    STRUCTURES
+  =============================================================================*/
+
+/*
+  @brief Required info to create Vulkan command pool.
+*/
+typedef struct
+{
+  VkDevice       device;            /* Logical device to create command pool on. */
+  uint32_t       queue_family_index; /* Queue family index to assign command pool to. */
+  VkCommandPool *out_command_pool;  /* Output variable that created command pool handle
+                                        will be written to. */
+} Moss__CreateVkCommandPoolInfo;
+
+/*=============================================================================
+    FUNCTIONS
+  =============================================================================*/
 
 /*
   @brief Creates Vulkan command pool.
-  @param device Logical device to create command pool on.
-  @param queue_family_index Queue family index to assign coomand pool to.
-  @param out_command_pool Output variable that created command poll handle will be written
-  to.
+  @param info Required info to create command pool.
   @return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
-inline static MossResult moss__create_command_pool (
-  const VkDevice       device,
-  const uint32_t       queue_family_index,
-  VkCommandPool *const out_command_pool
-)
+inline static MossResult
+moss__create_command_pool (const Moss__CreateVkCommandPoolInfo *const info)
 {
   const VkCommandPoolCreateInfo pool_info = {
     .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+    .pNext            = NULL,
     .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-    .queueFamilyIndex = queue_family_index,
+    .queueFamilyIndex = info->queue_family_index,
   };
 
   const VkResult result =
-    vkCreateCommandPool (device, &pool_info, NULL, out_command_pool);
+    vkCreateCommandPool (info->device, &pool_info, NULL, info->out_command_pool);
 
   if (result != VK_SUCCESS)
   {
@@ -58,3 +73,4 @@ inline static MossResult moss__create_command_pool (
 
   return MOSS_RESULT_SUCCESS;
 }
+

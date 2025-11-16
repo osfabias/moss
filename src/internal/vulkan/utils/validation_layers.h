@@ -13,7 +13,7 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  @file src/internal/vk_validation_layers_utils.c
+  @file src/internal/vulkan/utils/validation_layers.h
   @brief Vulkan validation layers utility functions
   @author Ilya Buravov (ilburale@gmail.com)
 */
@@ -28,6 +28,10 @@
 
 #include <vulkan/vulkan.h>
 
+/*=============================================================================
+    STRUCTURES
+  =============================================================================*/
+
 /*
   @brief Vulkan validation layers.
 */
@@ -36,6 +40,10 @@ typedef struct
   const char *const *names; /* Layer names. */
   const uint32_t     count; /* Layer count. */
 } Moss__VkValidationLayers;
+
+/*=============================================================================
+    FUNCTIONS
+  =============================================================================*/
 
 inline static Moss__VkValidationLayers moss__get_vk_validation_layers (void)
 {
@@ -90,3 +98,4 @@ inline static bool moss__check_vk_validation_layer_support (void)
 
   return true;
 }
+
