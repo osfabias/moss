@@ -21,11 +21,11 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "moss/apidef.h"
 #include "moss/app_info.h"
 #include "moss/result.h"
-#include "moss/window_config.h"
 
 /*=============================================================================
     STRUCTURES
@@ -37,12 +37,25 @@
 typedef struct MossEngine MossEngine;
 
 /*
+  @brief Callback function to get window framebuffer size.
+  @details This callback is called whenever the engine needs to know the current
+           framebuffer size (e.g., when creating or recreating the swapchain).
+  @param width Pointer to store the framebuffer width in pixels.
+  @param height Pointer to store the framebuffer height in pixels.
+  @note The callback must provide valid width and height values.
+*/
+typedef void (*MossGetWindowFramebufferSizeCallback) (uint32_t *width, uint32_t *height);
+
+/*
   @brief Moss engine configuration.
 */
 typedef struct
 {
-  const MossAppInfo      *app_info;      /* Application info. */
-  const MossWindowConfig *window_config; /* Window configuration. */
+  const MossAppInfo                      *app_info;      /* Application info. */
+  MossGetWindowFramebufferSizeCallback    get_window_framebuffer_size; /* Callback to get framebuffer size. */
+#ifdef __APPLE__
+  void                                   *metal_layer;   /* Metal layer (CAMetalLayer*). */
+#endif
 } MossEngineConfig;
 
 /*=============================================================================

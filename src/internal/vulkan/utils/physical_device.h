@@ -27,8 +27,6 @@
 
 #include <vulkan/vulkan.h>
 
-#include <stuffy/vulkan.h>
-
 #include "src/internal/log.h"
 #include "vulkan/vulkan_core.h"
 
@@ -135,7 +133,12 @@ moss_vk__find_queue_families (const Moss__FindQueueFamiliesInfo *const info)
     }
 
     VkBool32 present_support = false;
-    vkGetPhysicalDeviceSurfaceSupportKHR (info->device, i, info->surface, &present_support);
+    vkGetPhysicalDeviceSurfaceSupportKHR (
+      info->device,
+      i,
+      info->surface,
+      &present_support
+    );
 
     if (present_support)
     {
@@ -175,8 +178,9 @@ typedef struct
   @param info Required info to check device queue support.
   @return True if all required queues are supported, otherwise false.
 */
-inline static bool
-moss_vk__check_device_queues_support (const Moss__CheckDeviceQueuesSupportInfo *const info)
+inline static bool moss_vk__check_device_queues_support (
+  const Moss__CheckDeviceQueuesSupportInfo *const info
+)
 {
 #ifndef NDEBUG
   VkPhysicalDeviceProperties device_properties;
@@ -223,8 +227,7 @@ typedef struct
   @param info Required info to check device extension support.
   @return True if all required extensions are supported, otherwise false.
 */
-inline static bool
-moss_vk__check_device_extension_support (
+inline static bool moss_vk__check_device_extension_support (
   const Moss__CheckDeviceExtensionSupportInfo *const info
 )
 {
@@ -296,8 +299,9 @@ typedef struct
   @param info Required info to check device format support.
   @return True if all required formats are supported, otherwise false.
 */
-inline static bool
-moss_vk__check_device_format_support (const Moss__CheckDeviceFormatSupportInfo *const info)
+inline static bool moss_vk__check_device_format_support (
+  const Moss__CheckDeviceFormatSupportInfo *const info
+)
 {
   uint32_t format_count;
   vkGetPhysicalDeviceSurfaceFormatsKHR (info->device, info->surface, &format_count, NULL);
@@ -327,8 +331,9 @@ typedef struct
   @param info Required info to check if physical device is suitable.
   @return True if device is suitable, false otherwise.
 */
-inline static bool
-moss_vk__is_physical_device_suitable (const Moss__IsPhysicalDeviceSuitableInfo *const info)
+inline static bool moss_vk__is_physical_device_suitable (
+  const Moss__IsPhysicalDeviceSuitableInfo *const info
+)
 {
   const Moss__CheckDeviceQueuesSupportInfo queues_info = {
     .device  = info->device,
@@ -355,9 +360,9 @@ moss_vk__is_physical_device_suitable (const Moss__IsPhysicalDeviceSuitableInfo *
 */
 typedef struct
 {
-  VkInstance          instance;    /* Vulkan instance. */
-  VkSurfaceKHR        surface;     /* Surface to check presentation support. */
-  VkPhysicalDevice   *out_device;  /* Pointer to store selected physical device. */
+  VkInstance        instance;   /* Vulkan instance. */
+  VkSurfaceKHR      surface;    /* Surface to check presentation support. */
+  VkPhysicalDevice *out_device; /* Pointer to store selected physical device. */
 } Moss__SelectPhysicalDeviceInfo;
 
 /*
@@ -403,4 +408,3 @@ moss_vk__select_physical_device (const Moss__SelectPhysicalDeviceInfo *const inf
   moss__error ("Failed to find a suitable GPU.\n");
   return VK_ERROR_INITIALIZATION_FAILED;
 }
-

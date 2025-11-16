@@ -27,20 +27,18 @@
 #include <time.h>
 
 #include <vulkan/vulkan.h>
+#ifdef __APPLE__
+#  include <vulkan/vulkan_metal.h>
+#endif
 
 #include <cglm/cglm.h>
 
 #include <src/internal/stb_image.h>
 
-#include <stuffy/app.h>
-#include <stuffy/vulkan.h>
-#include <stuffy/window.h>
-
 #include "moss/app_info.h"
 #include "moss/engine.h"
 #include "moss/result.h"
 #include "moss/vertex.h"
-#include "moss/window_config.h"
 
 #include "src/internal/app_info.h"
 #include "src/internal/crate.h"
@@ -88,9 +86,11 @@ static const uint16_t g_indices[ 6 ] = { 0, 1, 2, 2, 3, 0 };
 */
 struct MossEngine
 {
-  /* === Window === */
-  /* Window handle. */
-  StuffyWindow *window;
+  /* === Metal layer === */
+  /* Metal layer for surface creation on macOS. */
+  void *metal_layer;
+  /* Callback to get window framebuffer size. */
+  MossGetWindowFramebufferSizeCallback get_window_framebuffer_size;
 
   /* === Vulkan instance and surface === */
   /* Vulkan instance. */
@@ -195,8 +195,10 @@ struct MossEngine
 static void moss__init_engine_state (MossEngine *engine)
 {
   *engine = (MossEngine){
-  /* Window. */
-  .window = NULL,
+  /* Metal layer. */
+  .metal_layer = NULL,
+  /* Framebuffer size callback. */
+  .get_window_framebuffer_size = NULL,
 
   /* Vulkan instance and surface. */
   .api_instance = VK_NULL_HANDLE,
@@ -252,7 +254,7 @@ static void moss__init_engine_state (MossEngine *engine)
 
   /* Frame state. */
   .current_frame = 0,
-  };
+};
 }
 
 /*=============================================================================
@@ -266,34 +268,6 @@ static void moss__init_engine_state (MossEngine *engine)
 */
 inline static MossResult
 moss__create_api_instance (MossEngine *engine, const MossAppInfo *app_info);
-
-/*
-  @brief Initializes stuffy app.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
-inline static MossResult moss__init_stuffy_app (void);
-
-/*
-  @brief Deinitializes stuffy app.
-*/
-inline static void moss__deinit_stuffy_app (void);
-
-/*
-  @brief Creates stuffy window config out of moss window config.
-  @param window_config A pointer to a moss window cofig.
-  @return Returns stuffy window config that corresponds to the passed moss config.
-*/
-inline static StuffyWindowConfig
-moss__create_stuffy_window_config (const MossWindowConfig *window_config);
-
-/*
-  @brief Creates window.
-  @param window_config Window configuration.
-  @param app_name Application name for window title.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
-inline static MossResult
-moss__open_window (MossEngine *engine, const MossWindowConfig *window_config);
 
 /*
   @brief Creates window surface.
@@ -521,11 +495,6 @@ inline static void moss__cleanup_swapchain_handle (MossEngine *engine);
 inline static void moss__cleanup_swapchain (MossEngine *engine);
 
 /*
-  @brief Waits until window gets maximized.
-*/
-inline static void moss__wait_while_window_is_minimized (MossEngine *engine);
-
-/*
   @brief Recreates swap chain.
   @param width Window width.
   @param height Window height.
@@ -555,15 +524,27 @@ MossEngine *moss_create_engine (const MossEngineConfig *const config)
 
   moss__init_engine_state (engine);
 
-  if (moss__init_stuffy_app ( ) != MOSS_RESULT_SUCCESS)
+#ifdef __APPLE__
+  // Store metal_layer from config
+  engine->metal_layer = config->metal_layer;
+  if (engine->metal_layer == NULL)
   {
+    moss__error ("metal_layer must be provided in config.\n");
     free (engine);
     return NULL;
   }
+#else
+  moss__error ("Metal layer is only supported on macOS.\n");
+  free (engine);
+  return NULL;
+#endif
 
-  if (moss__open_window (engine, config->window_config) != MOSS_RESULT_SUCCESS)
+  // Store framebuffer size callback
+  engine->get_window_framebuffer_size = config->get_window_framebuffer_size;
+  if (engine->get_window_framebuffer_size == NULL)
   {
-    moss_destroy_engine ((MossEngine *)engine);
+    moss__error ("get_window_framebuffer_size callback must be provided in config.\n");
+    free (engine);
     return NULL;
   }
 
@@ -629,10 +610,11 @@ MossEngine *moss_create_engine (const MossEngineConfig *const config)
 
   moss__init_buffer_sharing_mode (engine);
 
-  const StuffyExtent2D framebuffer_size =
-    stuffy_window_get_framebuffer_size (engine->window);
-  if (moss__create_swapchain (engine, framebuffer_size.width, framebuffer_size.height) !=
-      MOSS_RESULT_SUCCESS)
+  // Get framebuffer size from callback
+  uint32_t width, height;
+  engine->get_window_framebuffer_size (&width, &height);
+
+  if (moss__create_swapchain (engine, width, height) != MOSS_RESULT_SUCCESS)
   {
     moss_destroy_engine ((MossEngine *)engine);
     return NULL;
@@ -898,13 +880,6 @@ void moss_destroy_engine (MossEngine *const engine)
     engine->api_instance = VK_NULL_HANDLE;
   }
 
-  if (engine->window != NULL)
-  {
-    stuffy_window_close (engine->window);
-    engine->window = NULL;
-  }
-
-  moss__deinit_stuffy_app ( );
 
   engine->current_frame = 0;
 
@@ -918,15 +893,6 @@ void moss_destroy_engine (MossEngine *const engine)
 */
 MossResult moss_update_engine (MossEngine *const engine)
 {
-  // Update app state (process events, but don't stop if window wants to close)
-  stuffy_app_update ( );
-
-  // If window is closed, skip rendering but continue running
-  if (engine->window == NULL || stuffy_window_should_close (engine->window))
-  {
-    return MOSS_RESULT_SUCCESS;
-  }
-
   const VkFence     in_flight_fence = engine->in_flight_fences[ engine->current_frame ];
   const VkSemaphore image_available_semaphore =
     engine->image_available_semaphores[ engine->current_frame ];
@@ -951,13 +917,10 @@ MossResult moss_update_engine (MossEngine *const engine)
   if (result == VK_ERROR_OUT_OF_DATE_KHR)
   {
     // Swap chain is out of date, need to recreate before we can acquire image
-    const StuffyExtent2D framebuffer_size =
-      stuffy_window_get_framebuffer_size (engine->window);
-    return moss__recreate_swapchain (
-      engine,
-      framebuffer_size.width,
-      framebuffer_size.height
-    );
+    // Get current framebuffer size from callback
+    uint32_t width, height;
+    engine->get_window_framebuffer_size (&width, &height);
+    return moss__recreate_swapchain (engine, width, height);
   }
 
   if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
@@ -1012,13 +975,10 @@ MossResult moss_update_engine (MossEngine *const engine)
   if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
   {
     // Swap chain is out of date or suboptimal, need to recreate
-    const StuffyExtent2D framebuffer_size =
-      stuffy_window_get_framebuffer_size (engine->window);
-    if (moss__recreate_swapchain (
-          engine,
-          framebuffer_size.width,
-          framebuffer_size.height
-        ) != MOSS_RESULT_SUCCESS)
+    // Get current framebuffer size from callback
+    uint32_t width, height;
+    engine->get_window_framebuffer_size (&width, &height);
+    if (moss__recreate_swapchain (engine, width, height) != MOSS_RESULT_SUCCESS)
     {
       return MOSS_RESULT_ERROR;
     }
@@ -1094,63 +1054,23 @@ moss__create_api_instance (MossEngine *const engine, const MossAppInfo *const ap
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult moss__init_stuffy_app (void)
-{
-  if (stuffy_app_init ( ) != 0)
-  {
-    moss__error ("Failed to initialize stuffy app.\n");
-    return MOSS_RESULT_ERROR;
-  }
-  return MOSS_RESULT_SUCCESS;
-}
-
-inline static void moss__deinit_stuffy_app (void) { stuffy_app_deinit ( ); }
-
-inline static StuffyWindowConfig
-moss__create_stuffy_window_config (const MossWindowConfig *const window_config)
-{
-  const StuffyWindowRect window_rect = {
-    .x      = 128,
-    .y      = 128,
-    .width  = window_config->width,
-    .height = window_config->height,
-  };
-
-  const StuffyWindowConfig result_config = {
-    .rect       = window_rect,
-    .title      = window_config->title,
-    .style_mask = STUFFY_WINDOW_STYLE_TITLED_BIT | STUFFY_WINDOW_STYLE_CLOSABLE_BIT |
-                  STUFFY_WINDOW_STYLE_RESIZABLE_BIT | STUFFY_WINDOW_STYLE_ICONIFIABLE_BIT,
-  };
-
-  return result_config;
-}
-
-inline static MossResult
-moss__open_window (MossEngine *const engine, const MossWindowConfig *window_config)
-{
-  const StuffyWindowConfig stuffy_window_config =
-    moss__create_stuffy_window_config (window_config);
-
-  engine->window = stuffy_window_open (&stuffy_window_config);
-  if (engine->window == NULL)
-  {
-    moss__error ("Failed to create window.\n");
-    return MOSS_RESULT_ERROR;
-  }
-
-  return MOSS_RESULT_SUCCESS;
-}
-
 inline static MossResult moss__create_surface (MossEngine *const engine)
 {
-  const StuffyVkSurfaceCreateInfo create_info = {
-    .window    = engine->window,
-    .instance  = engine->api_instance,
-    .allocator = NULL,
+#ifdef __APPLE__
+  const VkMetalSurfaceCreateInfoEXT surface_create_info = {
+    .sType  = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT,
+    .pNext  = NULL,
+    .flags  = 0,
+    .pLayer = engine->metal_layer,
   };
 
-  const VkResult result = stuffy_vk_create_surface (&create_info, &engine->surface);
+  const VkResult result = vkCreateMetalSurfaceEXT (
+    engine->api_instance,
+    &surface_create_info,
+    NULL,
+    &engine->surface
+  );
+
   if (result != VK_SUCCESS)
   {
     moss__error ("Failed to create window surface. Error code: %d.\n", result);
@@ -1158,6 +1078,10 @@ inline static MossResult moss__create_surface (MossEngine *const engine)
   }
 
   return MOSS_RESULT_SUCCESS;
+#else
+  moss__error ("Metal layer is only supported on macOS.\n");
+  return MOSS_RESULT_ERROR;
+#endif
 }
 
 inline static MossResult moss__create_logical_device (MossEngine *const engine)
@@ -2279,22 +2203,12 @@ inline static void moss__cleanup_swapchain (MossEngine *const engine)
   engine->swapchain_extent       = (VkExtent2D) { .width = 0, .height = 0 };
 }
 
-inline static void moss__wait_while_window_is_minimized (MossEngine *const engine)
+inline static MossResult moss__recreate_swapchain (
+  MossEngine *const engine,
+  const uint32_t    width,
+  const uint32_t    height
+)
 {
-  StuffyWindowRect rect = stuffy_window_get_rect (engine->window);
-
-  while (rect.width == 0 || rect.height == 0)
-  {
-    rect = stuffy_window_get_rect (engine->window);
-    stuffy_app_update ( );
-  }
-}
-
-inline static MossResult
-moss__recreate_swapchain (MossEngine *const engine, uint32_t width, uint32_t height)
-{
-  moss__wait_while_window_is_minimized (engine);
-
   vkDeviceWaitIdle (engine->device);
 
   moss__cleanup_swapchain (engine);
