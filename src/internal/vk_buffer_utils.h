@@ -25,8 +25,8 @@
 #include <vulkan/vulkan.h>
 
 #include "moss/result.h"
-#include "src/internal/log.h"
-#include "vulkan/vulkan_core.h"
+
+#include "src/internal/single_time_cmdbuf.h"
 
 /*
   @brief Info required to perform copy operation on two buffers.
@@ -49,36 +49,8 @@ typedef struct
 inline static MossResult moss__copy_vk_buffer (const Moss__CopyVkBufferInfo *info)
 {
   // Allocate command buffer
-  VkCommandBuffer command_buffer;
-  {
-    const VkCommandBufferAllocateInfo alloc_info = {
-      .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-      .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-      .commandPool        = info->command_pool,
-      .commandBufferCount = 1,
-    };
-    const VkResult result =
-      vkAllocateCommandBuffers (info->device, &alloc_info, &command_buffer);
-    if (result != VK_SUCCESS)
-    {
-      moss__error ("Failed to allocate command buffer: %d.\n", result);
-      return MOSS_RESULT_ERROR;
-    }
-  }
-
-  {  // Begin command buffer
-    const VkCommandBufferBeginInfo begin_info = {
-      .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-      .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-    };
-    const VkResult result = vkBeginCommandBuffer (command_buffer, &begin_info);
-    if (result != VK_SUCCESS)
-    {
-      vkFreeCommandBuffers (info->device, info->command_pool, 1, &command_buffer);
-      moss__error ("Failed to begin command buffer: %d.\n", result);
-      return MOSS_RESULT_ERROR;
-    }
-  }
+  VkCommandBuffer command_buffer =
+    moss__begin_single_time_command_buffer (info->device, info->command_pool);
 
   // Add copy command
   const VkBufferCopy copy_region = {
@@ -94,35 +66,56 @@ inline static MossResult moss__copy_vk_buffer (const Moss__CopyVkBufferInfo *inf
     &copy_region
   );
 
-  vkEndCommandBuffer (command_buffer);
-
-  {  // Submit command buffer
-    const VkSubmitInfo submit_info = { .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                                       .commandBufferCount = 1,
-                                       .pCommandBuffers    = &command_buffer };
-
-    const VkResult result =
-      vkQueueSubmit (info->transfer_queue, 1, &submit_info, VK_NULL_HANDLE);
-    if (result != VK_SUCCESS)
-    {
-      vkFreeCommandBuffers (info->device, info->command_pool, 1, &command_buffer);
-      moss__error ("Failed to submit queue: %d.\n", result);
-      return MOSS_RESULT_ERROR;
-    }
-  }
-
-  {  // Wait until queue is idle
-    const VkResult result = vkQueueWaitIdle (info->transfer_queue);
-    if (result != VK_SUCCESS)
-    {
-      vkFreeCommandBuffers (info->device, info->command_pool, 1, &command_buffer);
-      moss__error ("Failed to try wait for queue idle: %d.\n", result);
-      return MOSS_RESULT_ERROR;
-    }
-  }
-
-  // Clean up
-  vkFreeCommandBuffers (info->device, info->command_pool, 1, &command_buffer);
+  moss__end_single_time_command_buffer (
+    info->device,
+    info->command_pool,
+    command_buffer,
+    info->transfer_queue
+  );
 
   return MOSS_RESULT_SUCCESS;
+}
+
+inline static void moss__copy_buffer_to_image (
+  VkDevice      device,
+  VkCommandPool command_pool,
+  VkQueue       transfer_queue,
+  VkBuffer      buffer,
+  VkImage       image,
+  uint32_t      width,
+  uint32_t      height
+)
+{
+  VkCommandBuffer command_buffer =
+    moss__begin_single_time_command_buffer (device, command_pool);
+
+  VkBufferImageCopy region = {
+    .bufferOffset      = 0,
+    .bufferRowLength   = 0,
+    .bufferImageHeight = 0,
+
+    .imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+    .imageSubresource.mipLevel       = 0,
+    .imageSubresource.baseArrayLayer = 0,
+    .imageSubresource.layerCount     = 1,
+
+    .imageOffset = (VkOffset3D) {     0,      0, 0 },
+    .imageExtent = (VkExtent3D) { width, height, 1 },
+  };
+
+  vkCmdCopyBufferToImage (
+    command_buffer,
+    buffer,
+    image,
+    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    1,
+    &region
+  );
+
+  moss__end_single_time_command_buffer (
+    device,
+    command_pool,
+    command_buffer,
+    transfer_queue
+  );
 }

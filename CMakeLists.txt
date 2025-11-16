@@ -31,8 +31,7 @@ set(MOSS_COMPILE_OPTIONS
   -Wall
   -Wextra
   -Wpedantic
-
-  -Wno-gnu-zero-variadic-macro-arguments
+  -Werror
   # add new clang or gnu compile options here...
 )
 

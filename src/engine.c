@@ -18,6 +18,7 @@
   @author Ilya Buravov (ilburale@gmail.com)
 */
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -28,6 +29,8 @@
 #include <vulkan/vulkan.h>
 
 #include <cglm/cglm.h>
+
+#include <src/internal/stb_image.h>
 
 #include <stuffy/app.h>
 #include <stuffy/vulkan.h>
@@ -42,16 +45,18 @@
 #include "src/internal/app_info.h"
 #include "src/internal/crate.h"
 #include "src/internal/log.h"
+#include "src/internal/memory_utils.h"
 #include "src/internal/shaders.h"
 #include "src/internal/uniform_buffer_object.h"
 #include "src/internal/vertex.h"
+#include "src/internal/vk_buffer_utils.h"
 #include "src/internal/vk_command_pool_utils.h"
+#include "src/internal/vk_image_utils.h"
 #include "src/internal/vk_instance_utils.h"
 #include "src/internal/vk_physical_device_utils.h"
 #include "src/internal/vk_shader_utils.h"
 #include "src/internal/vk_swapchain_utils.h"
 #include "src/internal/vk_validation_layers_utils.h"
-#include "vulkan/vk_platform.h"
 #include "vulkan/vulkan_core.h"
 
 /*=============================================================================
@@ -60,10 +65,10 @@
 
 /* Vertex array just for implementing vertex buffers. */
 static const MossVertex g_verticies[ 4 ] = {
-  { { -0.5F, -0.5F }, { 1.0F, 0.0F, 0.0F } },
-  {  { 0.5F, -0.5F }, { 0.0F, 1.0F, 0.0F } },
-  {   { 0.5F, 0.5F }, { 0.0F, 0.0F, 1.0F } },
-  {  { -0.5F, 0.5F }, { 1.0F, 1.0F, 1.0F } }
+  { { -0.5F, -0.5F }, { 1.0F, 0.0F, 0.0F }, { 1.0F, 0.0F } },
+  {  { 0.5F, -0.5F }, { 0.0F, 1.0F, 0.0F }, { 0.0F, 0.0F } },
+  {   { 0.5F, 0.5F }, { 0.0F, 0.0F, 1.0F }, { 0.0F, 1.0F } },
+  {  { -0.5F, 0.5F }, { 1.0F, 1.0F, 1.0F }, { 1.0F, 1.0F } }
 };
 
 /* Index array just for implementing index buffers. */
@@ -147,7 +152,15 @@ typedef struct
   /* Graphics pipeline. */
   VkPipeline graphics_pipeline;
 
-  /* === Vertex and index buffers === */
+  /* === Vertex and index buffers, texture image :3 === */
+  /* Texture image. */
+  VkImage texture_image;
+  /* Texture image view. */
+  VkImageView texture_image_view;
+  /* Texture image memory. */
+  VkDeviceMemory texture_image_memory;
+  /* Sampler. */
+  VkSampler sampler;
   /* Vertex crate. */
   Moss__Crate vertex_crate;
   /* Index crate. */
@@ -372,6 +385,24 @@ inline static MossResult moss__create_graphics_pipeline (void);
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
 inline static MossResult moss__create_framebuffers (void);
+
+/*
+  @brief Creates texture image.
+  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
+*/
+inline static MossResult moss__create_texture_image (void);
+
+/*
+  @brief Creates texture image view.
+  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
+*/
+inline static MossResult moss__create_texture_image_view (void);
+
+/*
+  @brief Creates texture sampler.
+  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
+*/
+inline static MossResult moss__create_texture_sampler (void);
 
 /*
   @brief Creates vertex buffer.
@@ -611,6 +642,47 @@ MossResult moss_engine_init (const MossEngineConfig *const config)
     return MOSS_RESULT_ERROR;
   }
 
+  // Create general command pool
+  if (moss__create_command_pool (
+        g_engine.device,
+        g_engine.queue_family_indices.graphics_family,
+        &g_engine.general_command_pool
+      ) != MOSS_RESULT_SUCCESS)
+  {
+    moss_engine_deinit ( );
+    return MOSS_RESULT_ERROR;
+  }
+
+  // Create transfer command pool
+  if (moss__create_command_pool (
+        g_engine.device,
+        g_engine.queue_family_indices.transfer_family,
+        &g_engine.transfer_command_pool
+      ) != MOSS_RESULT_SUCCESS)
+  {
+    moss_engine_deinit ( );
+    return MOSS_RESULT_ERROR;
+  }
+
+  if (moss__create_texture_image ( ) != MOSS_RESULT_SUCCESS)
+  {
+    moss_engine_deinit ( );
+    return MOSS_RESULT_ERROR;
+  }
+
+  if (moss__create_texture_image_view ( ) != MOSS_RESULT_SUCCESS)
+  {
+    moss_engine_deinit ( );
+    return MOSS_RESULT_ERROR;
+  }
+
+  if (moss__create_texture_sampler ( ) != MOSS_RESULT_SUCCESS)
+  {
+    moss_engine_deinit ( );
+    return MOSS_RESULT_ERROR;
+  }
+
+
   if (moss__create_descriptor_pool ( ) != MOSS_RESULT_SUCCESS)
   {
     moss_engine_deinit ( );
@@ -638,28 +710,6 @@ MossResult moss_engine_init (const MossEngineConfig *const config)
   }
 
   if (moss__create_framebuffers ( ) != MOSS_RESULT_SUCCESS)
-  {
-    moss_engine_deinit ( );
-    return MOSS_RESULT_ERROR;
-  }
-
-  // Create general command pool
-  if (moss__create_command_pool (
-        g_engine.device,
-        g_engine.queue_family_indices.graphics_family,
-        &g_engine.general_command_pool
-      ) != MOSS_RESULT_SUCCESS)
-  {
-    moss_engine_deinit ( );
-    return MOSS_RESULT_ERROR;
-  }
-
-  // Create transfer command pool
-  if (moss__create_command_pool (
-        g_engine.device,
-        g_engine.queue_family_indices.transfer_family,
-        &g_engine.transfer_command_pool
-      ) != MOSS_RESULT_SUCCESS)
   {
     moss_engine_deinit ( );
     return MOSS_RESULT_ERROR;
@@ -739,6 +789,30 @@ void moss_engine_deinit (void)
     moss__destroy_crate (&g_engine.index_crate);
 
     moss__destroy_crate (&g_engine.vertex_crate);
+
+    if (g_engine.sampler != VK_NULL_HANDLE)
+    {
+      vkDestroySampler (g_engine.device, g_engine.sampler, NULL);
+      g_engine.sampler = VK_NULL_HANDLE;
+    }
+
+    if (g_engine.texture_image_view != VK_NULL_HANDLE)
+    {
+      vkDestroyImageView (g_engine.device, g_engine.texture_image_view, NULL);
+      g_engine.texture_image_view = VK_NULL_HANDLE;
+    }
+
+    if (g_engine.texture_image != VK_NULL_HANDLE)
+    {
+      vkDestroyImage (g_engine.device, g_engine.texture_image, NULL);
+      g_engine.texture_image = VK_NULL_HANDLE;
+    }
+
+    if (g_engine.texture_image_memory != VK_NULL_HANDLE)
+    {
+      vkFreeMemory (g_engine.device, g_engine.texture_image_memory, NULL);
+      g_engine.texture_image_memory = VK_NULL_HANDLE;
+    }
 
     if (g_engine.graphics_pipeline != VK_NULL_HANDLE)
     {
@@ -1377,6 +1451,10 @@ inline static MossResult moss__create_descriptor_pool (void)
      .type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
      .descriptorCount = MAX_FRAMES_IN_FLIGHT,
      },
+    {
+     .type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+     .descriptorCount = MAX_FRAMES_IN_FLIGHT,
+     }
   };
 
   const VkDescriptorPoolCreateInfo create_info = {
@@ -1409,6 +1487,12 @@ inline static MossResult moss__create_descriptor_set_layout (void)
      .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
      .descriptorCount = 1,
      .stageFlags      = VK_SHADER_STAGE_VERTEX_BIT,
+     },
+    {
+     .binding         = 1,
+     .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+     .descriptorCount = 1,
+     .stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT,
      },
   };
 
@@ -1461,7 +1545,8 @@ inline static MossResult moss__allocate_descriptor_sets (void)
 inline static void moss__configure_descriptor_sets (void)
 {
   VkDescriptorBufferInfo buffer_infos[ MAX_FRAMES_IN_FLIGHT ];
-  VkWriteDescriptorSet   descriptor_writes[ MAX_FRAMES_IN_FLIGHT ];
+  VkDescriptorImageInfo  image_infos[ MAX_FRAMES_IN_FLIGHT ];
+  VkWriteDescriptorSet   descriptor_writes[ MAX_FRAMES_IN_FLIGHT * 2 ];
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
   {
@@ -1479,6 +1564,25 @@ inline static void moss__configure_descriptor_sets (void)
       .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       .descriptorCount = 1,
       .pBufferInfo     = &buffer_infos[ i ],
+    };
+  }
+
+  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+  {
+    image_infos[ i ] = (VkDescriptorImageInfo) {
+      .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+      .sampler     = g_engine.sampler,
+      .imageView   = g_engine.texture_image_view,
+    };
+
+    descriptor_writes[ MAX_FRAMES_IN_FLIGHT + i ] = (VkWriteDescriptorSet) {
+      .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet          = g_engine.descriptor_sets[ i ],
+      .dstBinding      = 1,
+      .dstArrayElement = 0,
+      .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .descriptorCount = 1,
+      .pImageInfo      = &image_infos[ i ],
     };
   }
 
@@ -1687,6 +1791,222 @@ inline static MossResult moss__create_framebuffers (void)
       }
       return MOSS_RESULT_ERROR;
     }
+  }
+
+  return MOSS_RESULT_SUCCESS;
+}
+
+inline static MossResult moss__create_texture_image (void)
+{
+  // Load texture
+  int texture_width, texture_height, texture_channels;  // NOLINT
+
+  const stbi_uc *const pixels = stbi_load (
+    "textures/texture.jpg",
+    &texture_width,
+    &texture_height,
+    &texture_channels,
+    STBI_rgb_alpha
+  );
+  if (pixels == NULL)
+  {
+    moss__error ("Failed to load texture.");
+    return MOSS_RESULT_ERROR;
+  }
+
+  Moss__Crate staging_crate;
+  {  // Create staging crate
+    const Moss__CrateCreateInfo create_info = {
+      .device          = g_engine.device,
+      .physical_device = g_engine.physical_device,
+      .size            = (VkDeviceSize)(texture_width * texture_height * 4),
+      .usage        = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+      .sharing_mode = g_engine.buffer_sharing_mode,
+      .shared_queue_family_index_count = g_engine.shared_queue_family_index_count,
+      .shared_queue_family_indices     = g_engine.shared_queue_family_indices,
+      .memory_properties =
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    };
+    const MossResult result = moss__create_crate (&create_info, &staging_crate);
+    if (result != MOSS_RESULT_SUCCESS)
+    {
+      moss__error ("Failed to create staging crate.");
+      return MOSS_RESULT_ERROR;
+    }
+  }
+
+  // Copy pixels into the buffer
+  void *data;
+  vkMapMemory (g_engine.device, staging_crate.memory, 0, staging_crate.size, 0, &data);
+  memcpy (data, pixels, staging_crate.size);
+  vkUnmapMemory (g_engine.device, staging_crate.memory);
+
+  // Free pixels
+  stbi_image_free ((void *)pixels);
+
+  {  // It's time for texture image!
+    const VkImageCreateInfo create_info = {
+      .sType     = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+      .imageType = VK_IMAGE_TYPE_2D,
+      .extent =
+        (VkExtent3D) { .width = texture_height, .height = texture_height, .depth = 1 },
+      .mipLevels     = 1,
+      .arrayLayers   = 1,
+      .format        = VK_FORMAT_R8G8B8A8_SRGB,
+      .tiling        = VK_IMAGE_TILING_OPTIMAL,
+      .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+      .usage         = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+      .sharingMode   = g_engine.buffer_sharing_mode,
+      .queueFamilyIndexCount = g_engine.shared_queue_family_index_count,
+      .pQueueFamilyIndices   = g_engine.shared_queue_family_indices,
+      .samples               = VK_SAMPLE_COUNT_1_BIT,
+    };
+    const VkResult result =
+      vkCreateImage (g_engine.device, &create_info, NULL, &g_engine.texture_image);
+    if (result != VK_SUCCESS)
+    {
+      moss__destroy_crate (&staging_crate);
+      moss__error ("Failed to create image: %d.\n", result);
+      return MOSS_RESULT_ERROR;
+    }
+  }
+
+  {  // And allocating some memory
+    VkMemoryRequirements memory_requirements;
+    vkGetImageMemoryRequirements (
+      g_engine.device,
+      g_engine.texture_image,
+      &memory_requirements
+    );
+
+    uint32_t suitable_memory_type;
+    if (moss__select_suitable_memory_type (
+          g_engine.physical_device,
+          memory_requirements.memoryTypeBits,
+          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+          &suitable_memory_type
+        ) != MOSS_RESULT_SUCCESS)
+    {
+      moss__destroy_crate (&staging_crate);
+      vkDestroyImage (g_engine.device, g_engine.texture_image, NULL);
+      moss__error ("Failed to find suitable memory type.");
+      return MOSS_RESULT_ERROR;
+    }
+
+    const VkMemoryAllocateInfo alloc_info = {
+      .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+      .allocationSize  = memory_requirements.size,
+      .memoryTypeIndex = suitable_memory_type,
+    };
+    const VkResult result = vkAllocateMemory (
+      g_engine.device,
+      &alloc_info,
+      NULL,
+      &g_engine.texture_image_memory
+    );
+    if (result != VK_SUCCESS)
+    {
+      moss__destroy_crate (&staging_crate);
+      vkDestroyImage (g_engine.device, g_engine.texture_image, NULL);
+      moss__error ("Failed to allocate memory for the texture: %d.", result);
+      return MOSS_RESULT_ERROR;
+    }
+  }
+
+  vkBindImageMemory (
+    g_engine.device,
+    g_engine.texture_image,
+    g_engine.texture_image_memory,
+    0
+  );
+
+  moss__transition_image_layout (
+    g_engine.device,
+    g_engine.transfer_command_pool,
+    g_engine.transfer_queue,
+    g_engine.texture_image,
+    VK_IMAGE_LAYOUT_UNDEFINED,
+    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+  );
+
+  moss__copy_buffer_to_image (
+    g_engine.device,
+    g_engine.transfer_command_pool,
+    g_engine.transfer_queue,
+    staging_crate.buffer,
+    g_engine.texture_image,
+    texture_width,
+    texture_height
+  );
+
+  moss__transition_image_layout (
+    g_engine.device,
+    g_engine.transfer_command_pool,
+    g_engine.transfer_queue,
+    g_engine.texture_image,
+    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+  );
+
+  moss__destroy_crate (&staging_crate);
+
+  return MOSS_RESULT_SUCCESS;
+}
+
+inline static MossResult moss__create_texture_image_view (void)
+{
+  const VkImageSubresourceRange subresource_range = {
+    .layerCount     = 1,
+    .levelCount     = 1,
+    .baseArrayLayer = 0,
+    .baseMipLevel   = 0,
+    .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+  };
+
+  const VkImageViewCreateInfo create_info = {
+    .sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+    .image            = g_engine.texture_image,
+    .viewType         = VK_IMAGE_VIEW_TYPE_2D,
+    .format           = VK_FORMAT_R8G8B8A8_SRGB,
+    .subresourceRange = subresource_range,
+  };
+
+  const VkResult result =
+    vkCreateImageView (g_engine.device, &create_info, NULL, &g_engine.texture_image_view);
+  if (result != VK_SUCCESS)
+  {
+    moss__error ("Failed to create image view: %d.", result);
+    return MOSS_RESULT_ERROR;
+  }
+  return MOSS_RESULT_SUCCESS;
+}
+
+inline static MossResult moss__create_texture_sampler (void)
+{
+  const VkSamplerCreateInfo create_info = {
+    .sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+    .magFilter               = VK_FILTER_NEAREST,
+    .minFilter               = VK_FILTER_NEAREST,
+    .addressModeU            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeV            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeW            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .anisotropyEnable        = VK_FALSE,
+    .borderColor             = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+    .unnormalizedCoordinates = VK_FALSE,
+    .compareEnable           = VK_FALSE,
+    .compareOp               = VK_COMPARE_OP_ALWAYS,
+    .mipmapMode              = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+    .mipLodBias              = 0.0F,
+    .minLod                  = 0.0F,
+    .maxLod                  = 0.0F,
+  };
+
+  const VkResult result =
+    vkCreateSampler (g_engine.device, &create_info, NULL, &g_engine.sampler);
+  if (result != VK_SUCCESS)
+  {
+    moss__error ("Failed to create sampler: %d.", result);
+    return MOSS_RESULT_ERROR;
   }
 
   return MOSS_RESULT_SUCCESS;

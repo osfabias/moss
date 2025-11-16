@@ -10,3 +10,10 @@ file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/shaders
      PATTERN "*.vert"
      PATTERN "*.frag"
 )
+
+# Copy textures directory to build directory.
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/textures
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
+     FILES_MATCHING
+     PATTERN "*.jpg"
+)
