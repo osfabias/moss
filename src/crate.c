@@ -29,7 +29,8 @@
 #include "src/internal/crate.h"
 #include "src/internal/log.h"
 #include "src/internal/memory_utils.h"
-#include "src/internal/vk_buffer_utils.h"
+
+#include "src/internal/vulkan/utils/buffer.h"
 
 MossResult
 moss__create_crate (const Moss__CrateCreateInfo *const info, Moss__Crate *const out_crate)

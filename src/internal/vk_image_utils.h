@@ -20,13 +20,14 @@
 
 #pragma once
 
-#include "src/internal/single_time_cmdbuf.h"
-#include "vulkan/vulkan_core.h"
 #include <stdint.h>
 
 #include <vulkan/vulkan.h>
 
-void moss__transition_image_layout (
+#include "moss/result.h"
+#include "src/internal/vulkan/utils/command_buffer.h"
+
+MossResult moss__transition_image_layout (
   const VkDevice      device,
   const VkCommandPool command_pool,
   const VkQueue       transfer_queue,
@@ -35,8 +36,22 @@ void moss__transition_image_layout (
   const VkImageLayout new_layout
 )
 {
-  VkCommandBuffer command_buffer =
-    moss__begin_single_time_command_buffer (device, command_pool);
+  VkCommandBuffer command_buffer;
+  {
+    // Begin one time vk command buffer
+    const Moss__BeginOneTimeVkCommandBufferInfo begin_info = {
+      .device       = device,
+      .command_pool = command_pool,
+    };
+    command_buffer = moss__begin_one_time_vk_command_buffer (&begin_info);
+
+    if (command_buffer == VK_NULL_HANDLE)
+    {
+      moss__error ("Failed to begin one time Vulkan command buffer.\n");
+      return MOSS_RESULT_ERROR;
+    }
+  }
+
 
   VkImageMemoryBarrier barrier = {
     .sType     = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -91,10 +106,21 @@ void moss__transition_image_layout (
     &barrier
   );
 
-  moss__end_single_time_command_buffer (
-    device,
-    command_pool,
-    command_buffer,
-    transfer_queue
-  );
+  {  // End one time command buffer
+    const Moss__EndOneTimeVkCommandBufferInfo end_info = {
+      .device         = device,
+      .command_pool   = command_pool,
+      .command_buffer = command_buffer,
+      .queue          = transfer_queue,
+    };
+    const MossResult result = moss__end_one_time_vk_command_buffer (&end_info);
+
+    if (result != MOSS_RESULT_SUCCESS)
+    {
+      moss__error ("Failed to end one time Vulkan command buffer.");
+      return MOSS_RESULT_ERROR;
+    }
+  }
+
+  return MOSS_RESULT_SUCCESS;
 }

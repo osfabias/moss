@@ -49,7 +49,6 @@
 #include "src/internal/shaders.h"
 #include "src/internal/uniform_buffer_object.h"
 #include "src/internal/vertex.h"
-#include "src/internal/vk_buffer_utils.h"
 #include "src/internal/vk_command_pool_utils.h"
 #include "src/internal/vk_image_utils.h"
 #include "src/internal/vk_instance_utils.h"
@@ -57,6 +56,7 @@
 #include "src/internal/vk_shader_utils.h"
 #include "src/internal/vk_swapchain_utils.h"
 #include "src/internal/vk_validation_layers_utils.h"
+#include "src/internal/vulkan/utils/buffer.h"
 #include "src/internal/vulkan/utils/image_view.h"
 #include "vulkan/vulkan_core.h"
 

@@ -22,8 +22,6 @@
 
 #include <vulkan/vulkan.h>
 
-#include "moss/result.h"
-
 #include "src/internal/log.h"
 #include "vulkan/vulkan_core.h"
 
