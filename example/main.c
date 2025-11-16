@@ -27,7 +27,7 @@
 
 static const MossAppInfo moss_app_info = {
   .app_name    = "Moss Example Application",
-  .app_version = {0, 1, 0},
+  .app_version = { 0, 1, 0 },
 };
 
 static const MossWindowConfig window_config = {
@@ -43,17 +43,16 @@ int main (void)
     .window_config = &window_config,
   };
 
-  if (moss_engine_init (&moss_engine_config) != MOSS_RESULT_SUCCESS)
+  MossEngine *const engine = moss_create_engine (&moss_engine_config);
+  if (engine == NULL) { return EXIT_FAILURE; }
+
+  // Application continues running even if window is closed
+  while (true)
   {
-    return EXIT_FAILURE;
+    if (moss_update_engine (engine) != MOSS_RESULT_SUCCESS) { break; }
   }
 
-  while (!moss_engine_should_close ( ))
-  {
-    if (moss_engine_draw_frame ( ) != MOSS_RESULT_SUCCESS) { break; }
-  }
-
-  moss_engine_deinit ( );
+  moss_destroy_engine (engine);
 
   return EXIT_SUCCESS;
 }

@@ -27,6 +27,15 @@
 #include "moss/result.h"
 #include "moss/window_config.h"
 
+/*=============================================================================
+    STRUCTURES
+  =============================================================================*/
+
+/*
+  @brief Moss engine.
+*/
+typedef struct MossEngine MossEngine;
+
 /*
   @brief Moss engine configuration.
 */
@@ -36,28 +45,26 @@ typedef struct
   const MossWindowConfig *window_config; /* Window configuration. */
 } MossEngineConfig;
 
+/*=============================================================================
+    FUNCTIONS
+  =============================================================================*/
+
 /*
-  @brief Initializes graphics engine.
+  @brief Creates engine instance.
   @param config Engine configuration.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
+  @return On success returns valid pointer to engine state, otherwise returns NULL.
 */
-__MOSS_API__ MossResult moss_engine_init (const MossEngineConfig *config);
+__MOSS_API__ MossEngine *moss_create_engine (const MossEngineConfig *config);
 
 /*
-  @brief Deinitializes engine instance.
+  @brief Destroys engine instance.
   @details Cleans up all reserved memory and destroys all GraphicsAPI objects.
+  @param engine Engine handler.
 */
-__MOSS_API__ void moss_engine_deinit (void);
+__MOSS_API__ void moss_destroy_engine (MossEngine *engine);
 
 /*
-  @brief Draws a frame.
-  @details Renders the current frame to the swap chain.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
+  @brief Draws and presents a frame.
+  @return On success return MOSS_RESULT_SUCCESS, otherwise returns MOSS_RESULT_ERROR.
 */
-__MOSS_API__ MossResult moss_engine_draw_frame (void);
-
-/*
-  @brief Checks if the window should close.
-  @return Returns true if window should close, false otherwise.
-*/
-__MOSS_API__ bool moss_engine_should_close (void);
+__MOSS_API__ MossResult moss_update_engine (MossEngine *engine);
