@@ -55,7 +55,7 @@ typedef struct
   @param info Required info to perform copy.
   @return Return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
-inline static MossResult moss__copy_vk_buffer (const Moss__CopyVkBufferInfo *const info)
+inline static MossResult moss_vk__copy_buffer (const Moss__CopyVkBufferInfo *const info)
 {
   VkCommandBuffer command_buffer;
   {  // Begin one time vk command buffer
@@ -63,7 +63,7 @@ inline static MossResult moss__copy_vk_buffer (const Moss__CopyVkBufferInfo *con
       .device       = info->device,
       .command_pool = info->command_pool,
     };
-    command_buffer = moss__begin_one_time_vk_command_buffer (&begin_info);
+    command_buffer = moss_vk__begin_one_time_command_buffer (&begin_info);
     if (command_buffer == VK_NULL_HANDLE)
     {
       moss__error ("Failed to begin one time Vulkan command buffer.\n");
@@ -92,7 +92,7 @@ inline static MossResult moss__copy_vk_buffer (const Moss__CopyVkBufferInfo *con
       .command_buffer = command_buffer,
       .queue          = info->transfer_queue,
     };
-    const MossResult result = moss__end_one_time_vk_command_buffer (&end_info);
+    const MossResult result = moss_vk__end_one_time_command_buffer (&end_info);
 
     if (result != MOSS_RESULT_SUCCESS)
     {
@@ -124,7 +124,7 @@ typedef struct
   @return Return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
 inline static MossResult
-moss__copy_buffer_to_image (const Moss__CopyVkBufferToImageInfo *const info)
+moss_vk__copy_buffer_to_image (const Moss__CopyVkBufferToImageInfo *const info)
 {
   VkCommandBuffer command_buffer;
   {  // Begin one time command buffer
@@ -132,7 +132,7 @@ moss__copy_buffer_to_image (const Moss__CopyVkBufferToImageInfo *const info)
       .device       = info->device,
       .command_pool = info->command_pool,
     };
-    command_buffer = moss__begin_one_time_vk_command_buffer (&begin_info);
+    command_buffer = moss_vk__begin_one_time_command_buffer (&begin_info);
 
     if (command_buffer == VK_NULL_HANDLE)
     {
@@ -171,7 +171,7 @@ moss__copy_buffer_to_image (const Moss__CopyVkBufferToImageInfo *const info)
       .command_buffer = command_buffer,
       .queue          = info->transfer_queue,
     };
-    const MossResult result = moss__end_one_time_vk_command_buffer (&end_info);
+    const MossResult result = moss_vk__end_one_time_command_buffer (&end_info);
     if (result != MOSS_RESULT_SUCCESS)
     {
       moss__error ("Failed to end one time Vulkan command buffer.\n");

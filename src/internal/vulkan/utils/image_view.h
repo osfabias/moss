@@ -49,7 +49,7 @@ typedef struct
   @return On success returns valid image view handler, otherwise VK_NULL_HANDLE.
 */
 inline static VkImageView
-moss__create_vk_image_view (const Moss__VkImageViewCreateInfo *const info)
+moss_vk__create_image_view (const Moss__VkImageViewCreateInfo *const info)
 {
   static const VkImageSubresourceRange subresource_range = {
     .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,

@@ -75,7 +75,7 @@ typedef struct
   @return VK_SUCCESS on success, error code otherwise.
 */
 inline static VkResult
-moss__read_shader_file (const Moss__ReadShaderFileInfo *const info)
+moss_vk__read_shader_file (const Moss__ReadShaderFileInfo *const info)
 {
   FILE *file = fopen (info->file_path, "rb");
   if (file == NULL)
@@ -126,7 +126,7 @@ moss__read_shader_file (const Moss__ReadShaderFileInfo *const info)
   @return VK_SUCCESS on success, error code otherwise.
 */
 inline static VkResult
-moss__create_shader_module (const Moss__CreateShaderModuleInfo *const info)
+moss_vk__create_shader_module (const Moss__CreateShaderModuleInfo *const info)
 {
   const VkShaderModuleCreateInfo create_info = {
     .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -152,7 +152,7 @@ moss__create_shader_module (const Moss__CreateShaderModuleInfo *const info)
   @return VK_SUCCESS on success, error code otherwise.
 */
 inline static VkResult
-moss__create_shader_module_from_file (const Moss__CreateShaderModuleFromFileInfo *const info)
+moss_vk__create_shader_module_from_file (const Moss__CreateShaderModuleFromFileInfo *const info)
 {
   uint32_t *code      = NULL;
   size_t    code_size = 0;
@@ -162,7 +162,7 @@ moss__create_shader_module_from_file (const Moss__CreateShaderModuleFromFileInfo
     .out_code      = &code,
     .out_code_size = &code_size,
   };
-  VkResult result = moss__read_shader_file (&read_info);
+  VkResult result = moss_vk__read_shader_file (&read_info);
   if (result != VK_SUCCESS) { return result; }
 
   const Moss__CreateShaderModuleInfo create_info = {
@@ -171,7 +171,7 @@ moss__create_shader_module_from_file (const Moss__CreateShaderModuleFromFileInfo
     .code_size         = code_size,
     .out_shader_module = info->out_shader_module,
   };
-  result = moss__create_shader_module (&create_info);
+  result = moss_vk__create_shader_module (&create_info);
 
   free (code);
 

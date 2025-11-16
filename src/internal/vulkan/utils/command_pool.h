@@ -53,7 +53,7 @@ typedef struct
   @return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
 inline static MossResult
-moss__create_command_pool (const Moss__CreateVkCommandPoolInfo *const info)
+moss_vk__create_command_pool (const Moss__CreateVkCommandPoolInfo *const info)
 {
   const VkCommandPoolCreateInfo pool_info = {
     .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,

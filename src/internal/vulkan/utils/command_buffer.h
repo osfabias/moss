@@ -60,7 +60,7 @@ typedef struct
   @return Returns valid command buffer handler on success,
           otherwise returns VK_NULL_HANDLE.
 */
-inline static VkCommandBuffer moss__begin_one_time_vk_command_buffer (
+inline static VkCommandBuffer moss_vk__begin_one_time_command_buffer (
   const Moss__BeginOneTimeVkCommandBufferInfo *const info
 )
 {
@@ -114,7 +114,7 @@ inline static VkCommandBuffer moss__begin_one_time_vk_command_buffer (
   @param info End one time Vulkan command buffer info.
   @return Returns MOSS_RESULT_OK on success, otherwise returns MOSS_RESULT_ERROR.
 */
-inline static MossResult moss__end_one_time_vk_command_buffer (
+inline static MossResult moss_vk__end_one_time_command_buffer (
   const Moss__EndOneTimeVkCommandBufferInfo *const info
 )
 {

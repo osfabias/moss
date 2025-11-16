@@ -579,7 +579,7 @@ MossResult moss_engine_init (const MossEngineConfig *const config)
       .surface    = g_engine.surface,
       .out_device = &g_engine.physical_device,
     };
-    if (moss__select_physical_device (&select_info) != VK_SUCCESS)
+    if (moss_vk__select_physical_device (&select_info) != VK_SUCCESS)
     {
       moss_engine_deinit ( );
       return MOSS_RESULT_ERROR;
@@ -591,7 +591,7 @@ MossResult moss_engine_init (const MossEngineConfig *const config)
       .device  = g_engine.physical_device,
       .surface = g_engine.surface,
     };
-    g_engine.queue_family_indices = moss__find_queue_families (&find_info);
+    g_engine.queue_family_indices = moss_vk__find_queue_families (&find_info);
   }
 
   if (moss__create_logical_device ( ) != MOSS_RESULT_SUCCESS)
@@ -657,7 +657,7 @@ MossResult moss_engine_init (const MossEngineConfig *const config)
       .queue_family_index = g_engine.queue_family_indices.graphics_family,
       .out_command_pool  = &g_engine.general_command_pool,
     };
-    if (moss__create_command_pool (&create_info) != MOSS_RESULT_SUCCESS)
+    if (moss_vk__create_command_pool (&create_info) != MOSS_RESULT_SUCCESS)
     {
       moss_engine_deinit ( );
       return MOSS_RESULT_ERROR;
@@ -671,7 +671,7 @@ MossResult moss_engine_init (const MossEngineConfig *const config)
       .queue_family_index = g_engine.queue_family_indices.transfer_family,
       .out_command_pool   = &g_engine.transfer_command_pool,
     };
-    if (moss__create_command_pool (&create_info) != MOSS_RESULT_SUCCESS)
+    if (moss_vk__create_command_pool (&create_info) != MOSS_RESULT_SUCCESS)
     {
       moss_engine_deinit ( );
       return MOSS_RESULT_ERROR;
@@ -1057,10 +1057,10 @@ inline static MossResult moss__create_api_instance (const MossAppInfo *const app
 
   if (enable_validation_layers)
   {
-    if (moss__check_vk_validation_layer_support ( ))
+    if (moss_vk__check_validation_layer_support ( ))
     {
       const Moss__VkValidationLayers validation_layers =
-        moss__get_vk_validation_layers ( );
+        moss_vk__get_validation_layers ( );
       validation_layer_count = validation_layers.count;
       validation_layer_names = validation_layers.names;
     }
@@ -1074,7 +1074,7 @@ inline static MossResult moss__create_api_instance (const MossAppInfo *const app
   // Set up other required info
   const VkApplicationInfo          vk_app_info = moss__create_vk_app_info (app_info);
   const Moss__VkInstanceExtensions extensions =
-    moss__get_required_vk_instance_extensions ( );
+    moss_vk__get_required_instance_extensions ( );
 
   // Make instance create info
   const VkInstanceCreateInfo instance_create_info = {
@@ -1084,7 +1084,7 @@ inline static MossResult moss__create_api_instance (const MossAppInfo *const app
     .enabledExtensionCount   = extensions.count,
     .enabledLayerCount       = validation_layer_count,
     .ppEnabledLayerNames     = validation_layer_names,
-    .flags                   = moss__get_required_vk_instance_flags ( ),
+    .flags                   = moss_vk__get_required_instance_flags ( ),
   };
 
   const VkResult result =
@@ -1168,7 +1168,7 @@ inline static MossResult moss__create_surface (void)
 inline static MossResult moss__create_logical_device (void)
 {
   const Moss__VkPhysicalDeviceExtensions extensions =
-    moss__get_required_vk_device_extensions ( );
+    moss_vk__get_required_device_extensions ( );
 
   uint32_t                queue_create_info_count = 0;
   VkDeviceQueueCreateInfo queue_create_infos[ 3 ];
@@ -1259,18 +1259,18 @@ moss__create_swapchain (const uint32_t width, const uint32_t height)
     .surface = g_engine.surface,
   };
   const Moss__SwapChainSupportDetails swapchain_support =
-    moss__query_swapchain_support (&query_info);
+    moss_vk__query_swapchain_support (&query_info);
 
-  const VkSurfaceFormatKHR surface_format = moss__choose_swap_surface_format (
+  const VkSurfaceFormatKHR surface_format = moss_vk__choose_swap_surface_format (
     swapchain_support.formats,
     swapchain_support.format_count
   );
-  const VkPresentModeKHR present_mode = moss__choose_swap_present_mode (
+  const VkPresentModeKHR present_mode = moss_vk__choose_swap_present_mode (
     swapchain_support.present_modes,
     swapchain_support.present_mode_count
   );
   const VkExtent2D extent =
-    moss__choose_swap_extent (&swapchain_support.capabilities, width, height);
+    moss_vk__choose_swap_extent (&swapchain_support.capabilities, width, height);
 
   VkSwapchainCreateInfoKHR create_info = {
     .sType            = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
@@ -1355,7 +1355,7 @@ inline static MossResult moss__create_swapchain_image_views (void)
   for (uint32_t i = 0; i < g_engine.swapchain_image_count; ++i)
   {
     info.image                   = g_engine.swapchain_images[ i ];
-    const VkImageView image_view = moss__create_vk_image_view (&info);
+    const VkImageView image_view = moss_vk__create_image_view (&info);
 
     if (image_view == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
 
@@ -1601,7 +1601,7 @@ inline static MossResult moss__create_graphics_pipeline (void)
       .file_path         = MOSS__VERT_SHADER_PATH,
       .out_shader_module = &vert_shader_module,
     };
-    if (moss__create_shader_module_from_file (&create_info) != VK_SUCCESS)
+    if (moss_vk__create_shader_module_from_file (&create_info) != VK_SUCCESS)
     {
       return MOSS_RESULT_ERROR;
     }
@@ -1613,7 +1613,7 @@ inline static MossResult moss__create_graphics_pipeline (void)
       .file_path         = MOSS__FRAG_SHADER_PATH,
       .out_shader_module = &frag_shader_module,
     };
-    if (moss__create_shader_module_from_file (&create_info) != VK_SUCCESS)
+    if (moss_vk__create_shader_module_from_file (&create_info) != VK_SUCCESS)
     {
       vkDestroyShaderModule (g_engine.device, vert_shader_module, NULL);
       return MOSS_RESULT_ERROR;
@@ -1930,7 +1930,7 @@ inline static MossResult moss__create_texture_image (void)
       .old_layout     = VK_IMAGE_LAYOUT_UNDEFINED,
       .new_layout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
     };
-    if (moss__transition_image_layout (&transition_info) != MOSS_RESULT_SUCCESS)
+    if (moss_vk__transition_image_layout (&transition_info) != MOSS_RESULT_SUCCESS)
     {
       moss__destroy_crate (&staging_crate);
       vkFreeMemory (g_engine.device, g_engine.texture_image_memory, NULL);
@@ -1949,7 +1949,7 @@ inline static MossResult moss__create_texture_image (void)
       .width          = texture_width,
       .height         = texture_height,
     };
-    if (moss__copy_buffer_to_image (&copy_info) != MOSS_RESULT_SUCCESS)
+    if (moss_vk__copy_buffer_to_image (&copy_info) != MOSS_RESULT_SUCCESS)
     {
       moss__destroy_crate (&staging_crate);
       vkFreeMemory (g_engine.device, g_engine.texture_image_memory, NULL);
@@ -1967,7 +1967,7 @@ inline static MossResult moss__create_texture_image (void)
       .old_layout     = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
       .new_layout     = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
     };
-    if (moss__transition_image_layout (&transition_info) != MOSS_RESULT_SUCCESS)
+    if (moss_vk__transition_image_layout (&transition_info) != MOSS_RESULT_SUCCESS)
     {
       moss__destroy_crate (&staging_crate);
       vkFreeMemory (g_engine.device, g_engine.texture_image_memory, NULL);
@@ -1988,7 +1988,7 @@ inline static MossResult moss__create_texture_image_view (void)
     .image  = g_engine.texture_image,
     .format = VK_FORMAT_R8G8B8A8_SRGB,
   };
-  const VkImageView image_view = moss__create_vk_image_view (&info);
+  const VkImageView image_view = moss_vk__create_image_view (&info);
 
   if (image_view == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
 

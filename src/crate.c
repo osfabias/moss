@@ -162,7 +162,7 @@ MossResult moss__fill_crate (const Moss__FillCrateInfo *const info)
       .source_buffer      = staging_crate.buffer,
       .size               = staging_crate.size,
     };
-    const MossResult result = moss__copy_vk_buffer (&copy_info);
+    const MossResult result = moss_vk__copy_buffer (&copy_info);
     if (result != MOSS_RESULT_SUCCESS)
     {
       moss__error ("Failed to copy vulkan buffer.\n");

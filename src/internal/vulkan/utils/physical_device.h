@@ -64,7 +64,7 @@ typedef struct
   =============================================================================*/
 
 inline static Moss__VkPhysicalDeviceExtensions
-moss__get_required_vk_device_extensions (void)
+moss_vk__get_required_device_extensions (void)
 {
 #ifdef __APPLE__
   static const char *const extension_names[] = {
@@ -99,7 +99,7 @@ typedef struct
   @return Queue family indices structure.
 */
 inline static Moss__QueueFamilyIndices
-moss__find_queue_families (const Moss__FindQueueFamiliesInfo *const info)
+moss_vk__find_queue_families (const Moss__FindQueueFamiliesInfo *const info)
 {
   Moss__QueueFamilyIndices indices = {
     .graphics_family_found = false,
@@ -176,7 +176,7 @@ typedef struct
   @return True if all required queues are supported, otherwise false.
 */
 inline static bool
-moss__check_device_queues_support (const Moss__CheckDeviceQueuesSupportInfo *const info)
+moss_vk__check_device_queues_support (const Moss__CheckDeviceQueuesSupportInfo *const info)
 {
 #ifndef NDEBUG
   VkPhysicalDeviceProperties device_properties;
@@ -187,7 +187,7 @@ moss__check_device_queues_support (const Moss__CheckDeviceQueuesSupportInfo *con
     .device  = info->device,
     .surface = info->surface,
   };
-  const Moss__QueueFamilyIndices indices = moss__find_queue_families (&find_info);
+  const Moss__QueueFamilyIndices indices = moss_vk__find_queue_families (&find_info);
 
   if (!indices.present_family_found)
   {
@@ -224,7 +224,7 @@ typedef struct
   @return True if all required extensions are supported, otherwise false.
 */
 inline static bool
-moss__check_device_extension_support (
+moss_vk__check_device_extension_support (
   const Moss__CheckDeviceExtensionSupportInfo *const info
 )
 {
@@ -234,7 +234,7 @@ moss__check_device_extension_support (
 #endif
 
   const Moss__VkPhysicalDeviceExtensions required_extensions =
-    moss__get_required_vk_device_extensions ( );
+    moss_vk__get_required_device_extensions ( );
 
   uint32_t available_extension_count;
   vkEnumerateDeviceExtensionProperties (
@@ -297,7 +297,7 @@ typedef struct
   @return True if all required formats are supported, otherwise false.
 */
 inline static bool
-moss__check_device_format_support (const Moss__CheckDeviceFormatSupportInfo *const info)
+moss_vk__check_device_format_support (const Moss__CheckDeviceFormatSupportInfo *const info)
 {
   uint32_t format_count;
   vkGetPhysicalDeviceSurfaceFormatsKHR (info->device, info->surface, &format_count, NULL);
@@ -328,24 +328,24 @@ typedef struct
   @return True if device is suitable, false otherwise.
 */
 inline static bool
-moss__is_physical_device_suitable (const Moss__IsPhysicalDeviceSuitableInfo *const info)
+moss_vk__is_physical_device_suitable (const Moss__IsPhysicalDeviceSuitableInfo *const info)
 {
   const Moss__CheckDeviceQueuesSupportInfo queues_info = {
     .device  = info->device,
     .surface = info->surface,
   };
-  if (!moss__check_device_queues_support (&queues_info)) { return false; }
+  if (!moss_vk__check_device_queues_support (&queues_info)) { return false; }
 
   const Moss__CheckDeviceExtensionSupportInfo extension_info = {
     .device = info->device,
   };
-  if (!moss__check_device_extension_support (&extension_info)) { return false; }
+  if (!moss_vk__check_device_extension_support (&extension_info)) { return false; }
 
   const Moss__CheckDeviceFormatSupportInfo format_info = {
     .device  = info->device,
     .surface = info->surface,
   };
-  if (!moss__check_device_format_support (&format_info)) { return false; }
+  if (!moss_vk__check_device_format_support (&format_info)) { return false; }
 
   return true;
 }
@@ -366,7 +366,7 @@ typedef struct
   @return VK_SUCCESS on success, error code otherwise.
 */
 inline static VkResult
-moss__select_physical_device (const Moss__SelectPhysicalDeviceInfo *const info)
+moss_vk__select_physical_device (const Moss__SelectPhysicalDeviceInfo *const info)
 {
   uint32_t device_count = 0;
   vkEnumeratePhysicalDevices (info->instance, &device_count, NULL);
@@ -391,7 +391,7 @@ moss__select_physical_device (const Moss__SelectPhysicalDeviceInfo *const info)
       .device  = devices[ i ],
       .surface = info->surface,
     };
-    if (moss__is_physical_device_suitable (&suitable_info))
+    if (moss_vk__is_physical_device_suitable (&suitable_info))
     {
       *info->out_device = devices[ i ];
 

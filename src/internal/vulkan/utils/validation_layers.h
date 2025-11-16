@@ -45,7 +45,7 @@ typedef struct
     FUNCTIONS
   =============================================================================*/
 
-inline static Moss__VkValidationLayers moss__get_vk_validation_layers (void)
+inline static Moss__VkValidationLayers moss_vk__get_validation_layers (void)
 {
   static const char *const validation_layer_names[] = {"VK_LAYER_KHRONOS_validation"};
 
@@ -60,7 +60,7 @@ inline static Moss__VkValidationLayers moss__get_vk_validation_layers (void)
 /*
   @brief Checks if validation layers are available.
 */
-inline static bool moss__check_vk_validation_layer_support (void)
+inline static bool moss_vk__check_validation_layer_support (void)
 {
   uint32_t available_layer_count;
   vkEnumerateInstanceLayerProperties (&available_layer_count, NULL);
@@ -77,7 +77,7 @@ inline static bool moss__check_vk_validation_layer_support (void)
   vkEnumerateInstanceLayerProperties (&available_layer_count, available_layers);
 
   const Moss__VkValidationLayers required_validation_layers =
-    moss__get_vk_validation_layers ( );
+    moss_vk__get_validation_layers ( );
 
   for (uint32_t i = 0; i < required_validation_layers.count; ++i)
   {

@@ -55,7 +55,7 @@ typedef struct
   @return Return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
 inline static MossResult
-moss__transition_image_layout (const Moss__TransitionVkImageLayoutInfo *const info)
+moss_vk__transition_image_layout (const Moss__TransitionVkImageLayoutInfo *const info)
 {
   VkCommandBuffer command_buffer;
   {  // Begin one time command buffer
@@ -63,7 +63,7 @@ moss__transition_image_layout (const Moss__TransitionVkImageLayoutInfo *const in
       .device       = info->device,
       .command_pool = info->command_pool,
     };
-    command_buffer = moss__begin_one_time_vk_command_buffer (&begin_info);
+    command_buffer = moss_vk__begin_one_time_command_buffer (&begin_info);
 
     if (command_buffer == VK_NULL_HANDLE)
     {
@@ -132,7 +132,7 @@ moss__transition_image_layout (const Moss__TransitionVkImageLayoutInfo *const in
       .command_buffer = command_buffer,
       .queue          = info->transfer_queue,
     };
-    const MossResult result = moss__end_one_time_vk_command_buffer (&end_info);
+    const MossResult result = moss_vk__end_one_time_command_buffer (&end_info);
 
     if (result != MOSS_RESULT_SUCCESS)
     {
