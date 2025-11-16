@@ -7,7 +7,7 @@
 # ///
 """
 Script to analyze malloc calls per commit in git history.
-Shows a graph with days on horizontal axis and malloc call count on vertical axis.
+Shows a graph with commit time on horizontal axis and malloc call count on vertical axis.
 
 Usage with uv:
     uv run analyze_malloc.py
@@ -25,9 +25,10 @@ import matplotlib.dates as mdates
 
 
 def get_git_commits():
-    """Get list of commits with their dates and hashes."""
+    """Get list of commits with their strict commit times and hashes."""
+    # %cI = committer date, strict ISO 8601 format (e.g. 2025-01-15T10:30:45+00:00)
     result = subprocess.run(
-        ["git", "log", "--pretty=format:%H|%ai", "--reverse"],
+        ["git", "log", "--pretty=format:%H|%cI", "--reverse"],
         capture_output=True,
         text=True,
         check=True,
@@ -37,11 +38,12 @@ def get_git_commits():
     for line in result.stdout.strip().split("\n"):
         if not line:
             continue
-        parts = line.split("|")
+        parts = line.split("|", 1)
         if len(parts) == 2:
             commit_hash, date_str = parts
-            # Parse date string (format: 2025-01-15 10:30:45 +0000)
-            date = datetime.strptime(date_str.split(" ")[0], "%Y-%m-%d")
+            # Parse strict ISO 8601 datetime with timezone
+            # Example: 2025-01-15T10:30:45+00:00
+            date = datetime.fromisoformat(date_str.strip())
             commits.append((commit_hash, date))
 
     return commits
@@ -90,7 +92,6 @@ def count_malloc_in_commit(commit_hash, source_dirs=None):
                 content = file_result.stdout
 
                 # Count malloc calls (including malloc, calloc, realloc)
-                # Pattern matches: malloc(, calloc(, realloc(
                 malloc_pattern = r"\b(malloc|calloc|realloc)\s*\("
                 matches = re.findall(malloc_pattern, content)
                 total_count += len(matches)
@@ -136,15 +137,15 @@ def main():
     fig, ax = plt.subplots(figsize=(12, 6))
 
     ax.plot(dates, counts, marker="o", markersize=3, linewidth=1, alpha=0.7)
-    ax.set_xlabel("Date", fontsize=12)
+    ax.set_xlabel("Commit time", fontsize=12)
     ax.set_ylabel("Number of malloc/calloc/realloc calls", fontsize=12)
     ax.set_title("Malloc Calls per Commit Over Time", fontsize=14, fontweight="bold")
     ax.grid(True, alpha=0.3)
 
-    # Format x-axis dates
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+    # Format x-axis dates: show both date and time
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d\n%H:%M"))
     ax.xaxis.set_major_locator(mdates.AutoDateLocator())
-    plt.xticks(rotation=45, ha="right")
+    plt.xticks(rotation=0, ha="center")
 
     # Adjust layout
     plt.tight_layout()
