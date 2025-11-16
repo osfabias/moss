@@ -336,7 +336,7 @@ inline static MossResult moss__create_swapchain (uint32_t width, uint32_t height
   @brief Creates image views for swap chain images.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-inline static MossResult moss__create_image_views (void);
+inline static MossResult moss__create_swapchain_image_views (void);
 
 /*
   @brief Creates render pass.
@@ -625,7 +625,7 @@ MossResult moss_engine_init (const MossEngineConfig *const config)
     return MOSS_RESULT_ERROR;
   }
 
-  if (moss__create_image_views ( ) != MOSS_RESULT_SUCCESS)
+  if (moss__create_swapchain_image_views ( ) != MOSS_RESULT_SUCCESS)
   {
     moss_engine_deinit ( );
     return MOSS_RESULT_ERROR;
@@ -1327,7 +1327,7 @@ moss__create_swapchain (const uint32_t width, const uint32_t height)
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult moss__create_image_views (void)
+inline static MossResult moss__create_swapchain_image_views (void)
 {
   Moss__VkImageViewCreateInfo info = {
     .device = g_engine.device,
@@ -2263,7 +2263,10 @@ inline static MossResult moss__recreate_swapchain (uint32_t width, uint32_t heig
   {
     return MOSS_RESULT_ERROR;
   }
-  if (moss__create_image_views ( ) != MOSS_RESULT_SUCCESS) { return MOSS_RESULT_ERROR; }
+  if (moss__create_swapchain_image_views ( ) != MOSS_RESULT_SUCCESS)
+  {
+    return MOSS_RESULT_ERROR;
+  }
   if (moss__create_framebuffers ( ) != MOSS_RESULT_SUCCESS) { return MOSS_RESULT_ERROR; }
 
   return MOSS_RESULT_SUCCESS;
