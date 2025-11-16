@@ -57,6 +57,7 @@
 #include "src/internal/vk_shader_utils.h"
 #include "src/internal/vk_swapchain_utils.h"
 #include "src/internal/vk_validation_layers_utils.h"
+#include "src/internal/vulkan/utils/image_view.h"
 #include "vulkan/vulkan_core.h"
 
 /*=============================================================================
@@ -1328,43 +1329,20 @@ moss__create_swapchain (const uint32_t width, const uint32_t height)
 
 inline static MossResult moss__create_image_views (void)
 {
+  Moss__VkImageViewCreateInfo info = {
+    .device = g_engine.device,
+    .image  = VK_NULL_HANDLE,
+    .format = g_engine.swapchain_image_format,
+  };
+
   for (uint32_t i = 0; i < g_engine.swapchain_image_count; ++i)
   {
-    const VkImageViewCreateInfo create_info = {
-      .sType    = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-      .image    = g_engine.swapchain_images[ i ],
-      .viewType = VK_IMAGE_VIEW_TYPE_2D,
-      .format   = g_engine.swapchain_image_format,
-      .components =
-        {
-                     .r = VK_COMPONENT_SWIZZLE_IDENTITY,
-                     .g = VK_COMPONENT_SWIZZLE_IDENTITY,
-                     .b = VK_COMPONENT_SWIZZLE_IDENTITY,
-                     .a = VK_COMPONENT_SWIZZLE_IDENTITY,
-                     },
-      .subresourceRange = {
-                     .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
-                     .baseMipLevel   = 0,
-                     .levelCount     = 1,
-                     .baseArrayLayer = 0,
-                     .layerCount     = 1,
-                     },
-    };
+    info.image                   = g_engine.swapchain_images[ i ];
+    const VkImageView image_view = moss__create_vk_image_view (&info);
 
-    if (vkCreateImageView (
-          g_engine.device,
-          &create_info,
-          NULL,
-          &g_engine.swapchain_image_views[ i ]
-        ) != VK_SUCCESS)
-    {
-      moss__error ("Failed to create image view %u.\n", i);
-      for (uint32_t j = 0; j < i; ++j)
-      {
-        vkDestroyImageView (g_engine.device, g_engine.swapchain_image_views[ j ], NULL);
-      }
-      return MOSS_RESULT_ERROR;
-    }
+    if (image_view == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
+
+    g_engine.swapchain_image_views[ i ] = image_view;
   }
 
   return MOSS_RESULT_SUCCESS;
@@ -1955,29 +1933,16 @@ inline static MossResult moss__create_texture_image (void)
 
 inline static MossResult moss__create_texture_image_view (void)
 {
-  const VkImageSubresourceRange subresource_range = {
-    .layerCount     = 1,
-    .levelCount     = 1,
-    .baseArrayLayer = 0,
-    .baseMipLevel   = 0,
-    .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+  const Moss__VkImageViewCreateInfo info = {
+    .device = g_engine.device,
+    .image  = g_engine.texture_image,
+    .format = VK_FORMAT_R8G8B8A8_SRGB,
   };
+  const VkImageView image_view = moss__create_vk_image_view (&info);
 
-  const VkImageViewCreateInfo create_info = {
-    .sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-    .image            = g_engine.texture_image,
-    .viewType         = VK_IMAGE_VIEW_TYPE_2D,
-    .format           = VK_FORMAT_R8G8B8A8_SRGB,
-    .subresourceRange = subresource_range,
-  };
+  if (image_view == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
 
-  const VkResult result =
-    vkCreateImageView (g_engine.device, &create_info, NULL, &g_engine.texture_image_view);
-  if (result != VK_SUCCESS)
-  {
-    moss__error ("Failed to create image view: %d.", result);
-    return MOSS_RESULT_ERROR;
-  }
+  g_engine.texture_image_view = image_view;
   return MOSS_RESULT_SUCCESS;
 }
 
