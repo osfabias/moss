@@ -23,8 +23,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include <vulkan/vulkan.h>
+
+#include <cglm/cglm.h>
 
 #include <stuffy/app.h>
 #include <stuffy/vulkan.h>
@@ -40,6 +43,7 @@
 #include "src/internal/crate.h"
 #include "src/internal/log.h"
 #include "src/internal/shaders.h"
+#include "src/internal/uniform_buffer_object.h"
 #include "src/internal/vertex.h"
 #include "src/internal/vk_command_pool_utils.h"
 #include "src/internal/vk_instance_utils.h"
@@ -47,6 +51,7 @@
 #include "src/internal/vk_shader_utils.h"
 #include "src/internal/vk_swapchain_utils.h"
 #include "src/internal/vk_validation_layers_utils.h"
+#include "vulkan/vk_platform.h"
 #include "vulkan/vulkan_core.h"
 
 /*=============================================================================
@@ -68,10 +73,10 @@ static const uint16_t g_indices[ 6 ] = { 0, 1, 2, 2, 3, 0 };
     ENGINE STATE
   =============================================================================*/
 
-#define MAX_FRAMES_IN_FLIGHT (uint32_t)(2)
+#define MAX_FRAMES_IN_FLIGHT (size_t)(2)
 
 /* Max image count in swapchain. */
-#define MAX_SWAPCHAIN_IMAGE_COUNT (uint32_t)(4)
+#define MAX_SWAPCHAIN_IMAGE_COUNT (size_t)(4)
 
 /*
   @brief Engine state.
@@ -131,6 +136,12 @@ typedef struct
   /* === Render pipeline === */
   /* Render pass. */
   VkRenderPass render_pass;
+  /* Descriptor pool. */
+  VkDescriptorPool descriptor_pool;
+  /* Descriptor set. */
+  VkDescriptorSet descriptor_sets[ MAX_FRAMES_IN_FLIGHT ];
+  /* Descriptor set layout. */
+  VkDescriptorSetLayout descriptor_set_layout;
   /* Pipeline layout. */
   VkPipelineLayout pipeline_layout;
   /* Graphics pipeline. */
@@ -141,6 +152,10 @@ typedef struct
   Moss__Crate vertex_crate;
   /* Index crate. */
   Moss__Crate index_crate;
+  /* Uniform crates. */
+  Moss__Crate uniform_crates[ MAX_FRAMES_IN_FLIGHT ];
+  /* Uniform buffer mapped memory blocks. */
+  void *uniform_buffer_mapped_memory_blocks[ MAX_FRAMES_IN_FLIGHT ];
 
   /* === Command buffers === */
   /* General command pool. */
@@ -203,9 +218,12 @@ static Moss__Engine g_engine = {
   .framebuffer_resize_requsted = false,
 
   /* Render pipeline. */
-  .render_pass       = VK_NULL_HANDLE,
-  .pipeline_layout   = VK_NULL_HANDLE,
-  .graphics_pipeline = VK_NULL_HANDLE,
+  .render_pass           = VK_NULL_HANDLE,
+  .descriptor_pool       = VK_NULL_HANDLE,
+  .descriptor_sets       = {VK_NULL_HANDLE, VK_NULL_HANDLE},
+  .descriptor_set_layout = VK_NULL_HANDLE,
+  .pipeline_layout       = VK_NULL_HANDLE,
+  .graphics_pipeline     = VK_NULL_HANDLE,
 
   /* Vertex buffers. */
   .vertex_crate = {0},
@@ -320,6 +338,30 @@ inline static VkPipelineVertexInputStateCreateInfo
 moss__create_vk_pipeline_vertex_input_state_info (void);
 
 /*
+  @brief Creates descriptor pool.
+  @return Returns MOSS_RESULT_SUCCESS on successs, MOSS_RESULT_ERROR otherwise.
+*/
+inline static MossResult moss__create_descriptor_pool (void);
+
+/*
+  @brief Creates descriptor set layout.
+  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
+*/
+inline static MossResult moss__create_descriptor_set_layout (void);
+
+/*
+  @brief Allocates descriptor set.
+  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
+*/
+inline static MossResult moss__allocate_descriptor_sets (void);
+
+/*
+  @brief Sets up descriptor sets.
+  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
+*/
+inline static void moss__configure_descriptor_sets (void);
+
+/*
   @brief Creates graphics pipeline.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
@@ -354,6 +396,12 @@ inline static MossResult moss__create_index_crate (void);
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
 inline static MossResult moss__fill_index_crate (void);
+
+/*
+  @brief Creates uniform crates.
+  @return Returns MOSS_RESULT_SUCCESS on successs, MOSS_RESULT_ERROR otherwise.
+*/
+inline static MossResult moss__create_uniform_crates (void);
 
 /*
   @brief Creates command buffers.
@@ -458,6 +506,11 @@ inline static void moss__wait_while_window_is_minimized (void);
 */
 inline static MossResult moss__recreate_swapchain (uint32_t width, uint32_t height);
 
+/*
+  @brief Updates uniform data.
+*/
+inline static void moss__update_uniform_data (void);
+
 /*=============================================================================
     PUBLIC API FUNCTIONS IMPLEMENTATION
   =============================================================================*/
@@ -551,6 +604,32 @@ MossResult moss_engine_init (const MossEngineConfig *const config)
     moss_engine_deinit ( );
     return MOSS_RESULT_ERROR;
   }
+
+  if (moss__create_uniform_crates ( ) != MOSS_RESULT_SUCCESS)
+  {
+    moss_engine_deinit ( );
+    return MOSS_RESULT_ERROR;
+  }
+
+  if (moss__create_descriptor_pool ( ) != MOSS_RESULT_SUCCESS)
+  {
+    moss_engine_deinit ( );
+    return MOSS_RESULT_ERROR;
+  }
+
+  if (moss__create_descriptor_set_layout ( ) != MOSS_RESULT_SUCCESS)
+  {
+    moss_engine_deinit ( );
+    return MOSS_RESULT_ERROR;
+  }
+
+  if (moss__allocate_descriptor_sets ( ) != MOSS_RESULT_SUCCESS)
+  {
+    moss_engine_deinit ( );
+    return MOSS_RESULT_ERROR;
+  }
+
+  moss__configure_descriptor_sets ( );
 
   if (moss__create_graphics_pipeline ( ) != MOSS_RESULT_SUCCESS)
   {
@@ -652,6 +731,11 @@ void moss_engine_deinit (void)
       g_engine.general_command_pool = VK_NULL_HANDLE;
     }
 
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+      moss__destroy_crate (&g_engine.uniform_crates[ i ]);
+    }
+
     moss__destroy_crate (&g_engine.index_crate);
 
     moss__destroy_crate (&g_engine.vertex_crate);
@@ -666,6 +750,29 @@ void moss_engine_deinit (void)
     {
       vkDestroyPipelineLayout (g_engine.device, g_engine.pipeline_layout, NULL);
       g_engine.pipeline_layout = VK_NULL_HANDLE;
+    }
+
+    vkFreeDescriptorSets (
+      g_engine.device,
+      g_engine.descriptor_pool,
+      MAX_FRAMES_IN_FLIGHT,
+      g_engine.descriptor_sets
+    );
+
+    if (g_engine.descriptor_pool != VK_NULL_HANDLE)
+    {
+      vkDestroyDescriptorPool (g_engine.device, g_engine.descriptor_pool, NULL);
+      g_engine.descriptor_pool = VK_NULL_HANDLE;
+    }
+
+    if (g_engine.descriptor_set_layout != VK_NULL_HANDLE)
+    {
+      vkDestroyDescriptorSetLayout (
+        g_engine.device,
+        g_engine.descriptor_set_layout,
+        NULL
+      );
+      g_engine.descriptor_set_layout = VK_NULL_HANDLE;
     }
 
     if (g_engine.render_pass != VK_NULL_HANDLE)
@@ -765,6 +872,8 @@ MossResult moss_engine_draw_frame (void)
 
   vkResetCommandBuffer (command_buffer, 0);
   moss__record_command_buffer (command_buffer, current_image_index);
+
+  moss__update_uniform_data ( );
 
   const VkSemaphore wait_semaphores[] = { image_available_semaphore };
   const size_t      wait_semaphore_count =
@@ -1123,7 +1232,7 @@ moss__create_swapchain (const uint32_t width, const uint32_t height)
   if (g_engine.swapchain_image_count > MAX_SWAPCHAIN_IMAGE_COUNT)
   {
     moss__error (
-      "Real swapchain image count is bigger than expected. (%d > %d)",
+      "Real swapchain image count is bigger than expected. (%d > %zu)",
       g_engine.swapchain_image_count,
       MAX_SWAPCHAIN_IMAGE_COUNT
     );
@@ -1261,6 +1370,127 @@ moss__create_vk_pipeline_vertex_input_state_info (void)
   return info;
 }
 
+inline static MossResult moss__create_descriptor_pool (void)
+{
+  const VkDescriptorPoolSize pool_sizes[] = {
+    {
+     .type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+     .descriptorCount = MAX_FRAMES_IN_FLIGHT,
+     },
+  };
+
+  const VkDescriptorPoolCreateInfo create_info = {
+    .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+    .poolSizeCount = sizeof (pool_sizes) / sizeof (pool_sizes[ 0 ]),
+    .pPoolSizes    = pool_sizes,
+    .maxSets       = MAX_FRAMES_IN_FLIGHT,
+    .flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+  };
+
+  const VkResult result = vkCreateDescriptorPool (
+    g_engine.device,
+    &create_info,
+    NULL,
+    &g_engine.descriptor_pool
+  );
+  if (result != VK_SUCCESS)
+  {
+    moss__error ("Failed to create descriptor pool: %d.", result);
+    return MOSS_RESULT_ERROR;
+  }
+  return MOSS_RESULT_SUCCESS;
+}
+
+inline static MossResult moss__create_descriptor_set_layout (void)
+{
+  const VkDescriptorSetLayoutBinding layout_bindings[] = {
+    {
+     .binding         = 0,
+     .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+     .descriptorCount = 1,
+     .stageFlags      = VK_SHADER_STAGE_VERTEX_BIT,
+     },
+  };
+
+  const VkDescriptorSetLayoutCreateInfo create_info = {
+    .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .bindingCount = sizeof (layout_bindings) / sizeof (layout_bindings[ 0 ]),
+    .pBindings    = layout_bindings,
+  };
+
+  const VkResult result = vkCreateDescriptorSetLayout (
+    g_engine.device,
+    &create_info,
+    NULL,
+    &g_engine.descriptor_set_layout
+  );
+  if (result != VK_SUCCESS)
+  {
+    moss__error ("Failed to create Vulkan descriptor layout: %d.", result);
+    return MOSS_RESULT_ERROR;
+  }
+  return MOSS_RESULT_SUCCESS;
+}
+
+inline static MossResult moss__allocate_descriptor_sets (void)
+{
+  VkDescriptorSetLayout layouts[ MAX_FRAMES_IN_FLIGHT ];
+  for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+  {
+    layouts[ i ] = g_engine.descriptor_set_layout;
+  }
+
+  const VkDescriptorSetAllocateInfo alloc_info = {
+    .sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .descriptorSetCount = MAX_FRAMES_IN_FLIGHT,
+    .pSetLayouts        = layouts,
+    .descriptorPool     = g_engine.descriptor_pool
+  };
+
+  const VkResult result =
+    vkAllocateDescriptorSets (g_engine.device, &alloc_info, g_engine.descriptor_sets);
+  if (result != VK_SUCCESS)
+  {
+    moss__error ("Failed to allocate descriptor sets: %d.\n", result);
+    return MOSS_RESULT_ERROR;
+  }
+
+  return MOSS_RESULT_SUCCESS;
+}
+
+inline static void moss__configure_descriptor_sets (void)
+{
+  VkDescriptorBufferInfo buffer_infos[ MAX_FRAMES_IN_FLIGHT ];
+  VkWriteDescriptorSet   descriptor_writes[ MAX_FRAMES_IN_FLIGHT ];
+
+  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+  {
+    buffer_infos[ i ] = (VkDescriptorBufferInfo) {
+      .offset = 0,
+      .buffer = g_engine.uniform_crates[ i ].buffer,
+      .range  = g_engine.uniform_crates[ i ].size,
+    };
+
+    descriptor_writes[ i ] = (VkWriteDescriptorSet) {
+      .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet          = g_engine.descriptor_sets[ i ],
+      .dstBinding      = 0,
+      .dstArrayElement = 0,
+      .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .descriptorCount = 1,
+      .pBufferInfo     = &buffer_infos[ i ],
+    };
+  }
+
+  vkUpdateDescriptorSets (
+    g_engine.device,
+    sizeof (descriptor_writes) / sizeof (descriptor_writes[ 0 ]),
+    descriptor_writes,
+    0,
+    NULL
+  );
+}
+
 inline static MossResult moss__create_graphics_pipeline (void)
 {
   VkShaderModule vert_shader_module;
@@ -1326,7 +1556,7 @@ inline static MossResult moss__create_graphics_pipeline (void)
     .polygonMode             = VK_POLYGON_MODE_FILL,
     .lineWidth               = 1.0F,
     .cullMode                = VK_CULL_MODE_BACK_BIT,
-    .frontFace               = VK_FRONT_FACE_CLOCKWISE,
+    .frontFace               = VK_FRONT_FACE_COUNTER_CLOCKWISE,
     .depthBiasEnable         = VK_FALSE,
   };
 
@@ -1349,10 +1579,12 @@ inline static MossResult moss__create_graphics_pipeline (void)
     .pAttachments    = &color_blend_attachment,
   };
 
+  const VkDescriptorSetLayout set_layouts[] = { g_engine.descriptor_set_layout };
+
   const VkPipelineLayoutCreateInfo pipeline_layout_info = {
     .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-    .setLayoutCount         = 0,
-    .pSetLayouts            = NULL,
+    .setLayoutCount         = sizeof (set_layouts) / sizeof (set_layouts[ 0 ]),
+    .pSetLayouts            = set_layouts,
     .pushConstantRangeCount = 0,
     .pPushConstantRanges    = NULL,
   };
@@ -1367,7 +1599,7 @@ inline static MossResult moss__create_graphics_pipeline (void)
     moss__error ("Failed to create pipeline layout.\n");
     vkDestroyShaderModule (g_engine.device, frag_shader_module, NULL);
     vkDestroyShaderModule (g_engine.device, vert_shader_module, NULL);
-    return VK_ERROR_INITIALIZATION_FAILED;
+    return MOSS_RESULT_ERROR;
   }
 
   const VkDynamicState dynamic_states[] = {
@@ -1524,6 +1756,47 @@ inline static MossResult moss__fill_index_crate (void)
   return moss__fill_crate (&fill_info);
 }
 
+inline static MossResult moss__create_uniform_crates (void)
+{
+  const Moss__CrateCreateInfo create_info = {
+    .size  = sizeof (g_verticies),
+    .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+    .memory_properties =
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+    .sharing_mode                    = g_engine.buffer_sharing_mode,
+    .shared_queue_family_index_count = g_engine.shared_queue_family_index_count,
+    .shared_queue_family_indices     = g_engine.shared_queue_family_indices,
+    .device                          = g_engine.device,
+    .physical_device                 = g_engine.physical_device,
+  };
+
+  for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+  {
+    const MossResult result =
+      moss__create_crate (&create_info, &g_engine.uniform_crates[ i ]);
+    if (result != MOSS_RESULT_SUCCESS)
+    {
+      for (uint32_t j = i; j >= 0; --j)
+      {
+        moss__destroy_crate (&g_engine.uniform_crates[ j ]);
+      }
+      moss__error ("Failed to create vertex crate.\n");
+      return result;
+    }
+
+    vkMapMemory (
+      g_engine.device,
+      g_engine.uniform_crates[ i ].memory,
+      0,
+      g_engine.uniform_crates[ i ].size,
+      0,
+      &g_engine.uniform_buffer_mapped_memory_blocks[ i ]
+    );
+  }
+
+  return MOSS_RESULT_SUCCESS;
+}
+
 inline static MossResult moss__create_general_command_buffers (void)
 {
   const VkCommandBufferAllocateInfo alloc_info = {
@@ -1610,6 +1883,17 @@ moss__record_command_buffer (VkCommandBuffer command_buffer, uint32_t image_inde
     g_engine.index_crate.buffer,
     0,
     VK_INDEX_TYPE_UINT16
+  );
+
+  vkCmdBindDescriptorSets (
+    command_buffer,
+    VK_PIPELINE_BIND_POINT_GRAPHICS,
+    g_engine.pipeline_layout,
+    0,
+    1,
+    &g_engine.descriptor_sets[ g_engine.current_frame ],
+    0,
+    NULL
   );
 
   vkCmdDrawIndexed (
@@ -1700,10 +1984,43 @@ inline static MossResult moss__recreate_swapchain (uint32_t width, uint32_t heig
   return MOSS_RESULT_SUCCESS;
 }
 
-/*
-  @brief Creates image available semaphores.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
+inline static void moss__update_uniform_data (void)
+{
+  struct timespec time;
+  clock_gettime (CLOCK_MONOTONIC, &time);
+
+  const float current_nanoseconds =
+    ((float)time.tv_sec * 1000.0F) + ((float)time.tv_nsec / 1000000.0F);
+
+  Moss__UniformBufferObject ubo;
+
+  vec3 rotate_axis = { 0.0F, 0.0F, 1.0F };
+  glm_mat4_identity (ubo.model);
+  glm_rotate (ubo.model, current_nanoseconds * glm_rad (0.1F), rotate_axis);
+
+  vec3 eye    = { 2.0F, 2.0F, 2.0F };
+  vec3 center = { 0.0F, 0.0F, 0.0F };
+  vec3 up     = { 0.0F, 0.0F, 1.0F };
+  glm_mat4_identity (ubo.view);
+  glm_lookat (eye, center, up, ubo.view);
+
+  glm_perspective (
+    glm_rad (45.0F),
+    g_engine.swapchain_extent.width / g_engine.swapchain_extent.height,
+    0.1F,
+    10.0F,
+    ubo.proj
+  );
+
+  ubo.proj[ 1 ][ 1 ] *= -1;
+
+  memcpy (
+    g_engine.uniform_buffer_mapped_memory_blocks[ g_engine.current_frame ],
+    &ubo,
+    sizeof (ubo)
+  );
+}
+
 inline static MossResult moss__create_image_available_semaphores (void)
 {
   if (g_engine.device == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
@@ -1729,10 +2046,6 @@ inline static MossResult moss__create_image_available_semaphores (void)
   return MOSS_RESULT_SUCCESS;
 }
 
-/*
-  @brief Creates render finished semaphores.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
 inline static MossResult moss__create_render_finished_semaphores (void)
 {
   if (g_engine.device == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
@@ -1758,10 +2071,6 @@ inline static MossResult moss__create_render_finished_semaphores (void)
   return MOSS_RESULT_SUCCESS;
 }
 
-/*
-  @brief Creates in-flight fences.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
 inline static MossResult moss__create_in_flight_fences (void)
 {
   if (g_engine.device == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
@@ -1784,10 +2093,6 @@ inline static MossResult moss__create_in_flight_fences (void)
   return MOSS_RESULT_SUCCESS;
 }
 
-/*
-  @brief Creates synchronization objects (semaphores and fences).
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
 inline static MossResult moss__create_synchronization_objects (void)
 {
   if (moss__create_image_available_semaphores ( ) != MOSS_RESULT_SUCCESS)
@@ -1808,10 +2113,6 @@ inline static MossResult moss__create_synchronization_objects (void)
   return MOSS_RESULT_SUCCESS;
 }
 
-/*
-  @brief Cleans up semaphores array.
-  @param semaphores Array of semaphores to clean up.
-*/
 inline static void moss__cleanup_semaphores (VkSemaphore *semaphores)
 {
   for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
@@ -1823,10 +2124,6 @@ inline static void moss__cleanup_semaphores (VkSemaphore *semaphores)
   }
 }
 
-/*
-  @brief Cleans up fences array.
-  @param fences Array of fences to clean up.
-*/
 inline static void moss__cleanup_fences (VkFence *fences)
 {
   for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
@@ -1838,33 +2135,21 @@ inline static void moss__cleanup_fences (VkFence *fences)
   }
 }
 
-/*
-  @brief Cleans up image available semaphores.
-*/
 inline static void moss__cleanup_image_available_semaphores (void)
 {
   moss__cleanup_semaphores (g_engine.image_available_semaphores);
 }
 
-/*
-  @brief Cleans up render finished semaphores.
-*/
 inline static void moss__cleanup_render_finished_semaphores (void)
 {
   moss__cleanup_semaphores (g_engine.render_finished_semaphores);
 }
 
-/*
-  @brief Cleans up in-flight fences.
-*/
 inline static void moss__cleanup_in_flight_fences (void)
 {
   moss__cleanup_fences (g_engine.in_flight_fences);
 }
 
-/*
-  @brief Cleans up synchronization objects.
-*/
 inline static void moss__cleanup_synchronization_objects (void)
 {
   moss__cleanup_in_flight_fences ( );
