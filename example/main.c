@@ -18,42 +18,90 @@
   @author Ilya Buravov (ilburale@gmail.com)
 */
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 
 #include <moss/engine.h>
 #include <moss/result.h>
-#include <moss/window_config.h>
+
+#include <stuffy/app.h>
+#include <stuffy/window.h>
 
 static const MossAppInfo moss_app_info = {
   .app_name    = "Moss Example Application",
-  .app_version = {0, 1, 0},
+  .app_version = { 0, 1, 0 },
 };
 
-static const MossWindowConfig window_config = {
-  .title  = "Moss Example Application",
-  .width  = 640,
-  .height = 360,
-};
+static StuffyWindow *g_window = NULL;
+
+static void get_window_framebuffer_size (uint32_t *width, uint32_t *height)
+{
+  const StuffyExtent2D extent = stuffy_window_get_framebuffer_size (g_window);
+  *width                      = extent.width;
+  *height                     = extent.height;
+}
 
 int main (void)
 {
-  const MossEngineConfig moss_engine_config = {
-    .app_info      = &moss_app_info,
-    .window_config = &window_config,
+  // Initialize stuffy app
+  if (stuffy_app_init ( ) != 0) { return EXIT_FAILURE; }
+
+  // Create window
+  const StuffyWindowConfig window_config = {
+    .title      = "Moss Example Application",
+    .rect       = { .x = 128, .y = 128, .width = 640, .height = 360 },
+    .style_mask = STUFFY_WINDOW_STYLE_TITLED_BIT | STUFFY_WINDOW_STYLE_CLOSABLE_BIT |
+                  STUFFY_WINDOW_STYLE_RESIZABLE_BIT | STUFFY_WINDOW_STYLE_ICONIFIABLE_BIT,
   };
 
-  if (moss_engine_init (&moss_engine_config) != MOSS_RESULT_SUCCESS)
+  g_window = stuffy_window_open (&window_config);
+  if (g_window == NULL)
   {
+    stuffy_app_deinit ( );
     return EXIT_FAILURE;
   }
 
-  while (!moss_engine_should_close ( ))
+#ifdef __APPLE__
+  // Get metal layer from window
+  void *metal_layer = stuffy_window_get_metal_layer (g_window);
+  if (metal_layer == NULL)
   {
-    if (moss_engine_draw_frame ( ) != MOSS_RESULT_SUCCESS) { break; }
+    stuffy_window_close (g_window);
+    stuffy_app_deinit ( );
+    return EXIT_FAILURE;
+  }
+#endif
+
+  // Create engine
+  const MossEngineConfig moss_engine_config = {
+    .app_info                    = &moss_app_info,
+    .get_window_framebuffer_size = get_window_framebuffer_size,
+#ifdef __APPLE__
+    .metal_layer = metal_layer,
+#endif
+  };
+
+  MossEngine *const engine = moss_create_engine (&moss_engine_config);
+  if (engine == NULL)
+  {
+    stuffy_window_close (g_window);
+    stuffy_app_deinit ( );
+    return EXIT_FAILURE;
   }
 
-  moss_engine_deinit ( );
+  // Main loop
+  while (!stuffy_window_should_close (g_window))
+  {
+    stuffy_app_update ( );
+
+    if (moss_update_engine (engine) != MOSS_RESULT_SUCCESS) { break; }
+  }
+
+  // Cleanup
+  moss_destroy_engine (engine);
+  stuffy_window_close (g_window);
+  stuffy_app_deinit ( );
 
   return EXIT_SUCCESS;
 }

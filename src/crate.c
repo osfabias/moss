@@ -29,7 +29,7 @@
 #include "src/internal/crate.h"
 #include "src/internal/log.h"
 #include "src/internal/memory_utils.h"
-#include "src/internal/vk_buffer_utils.h"
+#include "src/internal/vulkan/utils/buffer.h"
 
 MossResult
 moss__create_crate (const Moss__CrateCreateInfo *const info, Moss__Crate *const out_crate)
@@ -124,16 +124,16 @@ MossResult moss__fill_crate (const Moss__FillCrateInfo *const info)
   Moss__Crate staging_crate;
   {
     const Moss__CrateCreateInfo create_info = {
-      .size  = dst_crate->size,
-      .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+      .device          = dst_crate->original_device,
+      .physical_device = dst_crate->original_physical_device,
+      .size            = dst_crate->size,
+      .usage           = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
       .memory_properties =
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 
       .sharing_mode                    = dst_crate->sharing_mode,
       .shared_queue_family_index_count = dst_crate->shared_queue_family_index_count,
       .shared_queue_family_indices     = dst_crate->shared_queue_family_indices,
-      .device                          = dst_crate->original_device,
-      .physical_device                 = dst_crate->original_physical_device,
     };
     moss__create_crate (&create_info, &staging_crate);
   }
@@ -162,7 +162,7 @@ MossResult moss__fill_crate (const Moss__FillCrateInfo *const info)
       .source_buffer      = staging_crate.buffer,
       .size               = staging_crate.size,
     };
-    const MossResult result = moss__copy_vk_buffer (&copy_info);
+    const MossResult result = moss_vk__copy_buffer (&copy_info);
     if (result != MOSS_RESULT_SUCCESS)
     {
       moss__error ("Failed to copy vulkan buffer.\n");

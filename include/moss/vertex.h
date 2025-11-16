@@ -32,6 +32,7 @@
 */
 typedef struct
 {
-  vec2 position; /* Vertex position. */
-  vec3 color;    /* Vertex color. */
+  vec2 position;       /* Vertex position. */
+  vec3 color;          /* Vertex color. */
+  vec2 texture_coords; /* Texture coordinates. */
 } MossVertex;

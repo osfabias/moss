@@ -21,43 +21,63 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "moss/apidef.h"
 #include "moss/app_info.h"
 #include "moss/result.h"
-#include "moss/window_config.h"
+
+/*=============================================================================
+    STRUCTURES
+  =============================================================================*/
+
+/*
+  @brief Moss engine.
+*/
+typedef struct MossEngine MossEngine;
+
+/*
+  @brief Callback function to get window framebuffer size.
+  @details This callback is called whenever the engine needs to know the current
+           framebuffer size (e.g., when creating or recreating the swapchain).
+  @param width Pointer to store the framebuffer width in pixels.
+  @param height Pointer to store the framebuffer height in pixels.
+  @note The callback must provide valid width and height values.
+*/
+typedef void (*MossGetWindowFramebufferSizeCallback) (uint32_t *width, uint32_t *height);
 
 /*
   @brief Moss engine configuration.
 */
 typedef struct
 {
-  const MossAppInfo      *app_info;      /* Application info. */
-  const MossWindowConfig *window_config; /* Window configuration. */
+  const MossAppInfo                      *app_info;      /* Application info. */
+  MossGetWindowFramebufferSizeCallback    get_window_framebuffer_size; /* Callback to get framebuffer size. */
+#ifdef __APPLE__
+  void                                   *metal_layer;   /* Metal layer (CAMetalLayer*). */
+#endif
 } MossEngineConfig;
 
+/*=============================================================================
+    FUNCTIONS
+  =============================================================================*/
+
 /*
-  @brief Initializes graphics engine.
+  @brief Creates engine instance.
   @param config Engine configuration.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
+  @return On success returns valid pointer to engine state, otherwise returns NULL.
 */
-__MOSS_API__ MossResult moss_engine_init (const MossEngineConfig *config);
+__MOSS_API__ MossEngine *moss_create_engine (const MossEngineConfig *config);
 
 /*
-  @brief Deinitializes engine instance.
+  @brief Destroys engine instance.
   @details Cleans up all reserved memory and destroys all GraphicsAPI objects.
+  @param engine Engine handler.
 */
-__MOSS_API__ void moss_engine_deinit (void);
+__MOSS_API__ void moss_destroy_engine (MossEngine *engine);
 
 /*
-  @brief Draws a frame.
-  @details Renders the current frame to the swap chain.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
+  @brief Draws and presents a frame.
+  @return On success return MOSS_RESULT_SUCCESS, otherwise returns MOSS_RESULT_ERROR.
 */
-__MOSS_API__ MossResult moss_engine_draw_frame (void);
-
-/*
-  @brief Checks if the window should close.
-  @return Returns true if window should close, false otherwise.
-*/
-__MOSS_API__ bool moss_engine_should_close (void);
+__MOSS_API__ MossResult moss_update_engine (MossEngine *engine);

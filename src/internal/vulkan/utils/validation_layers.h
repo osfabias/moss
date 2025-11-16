@@ -13,7 +13,7 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  @file src/internal/vk_validation_layers_utils.c
+  @file src/internal/vulkan/utils/validation_layers.h
   @brief Vulkan validation layers utility functions
   @author Ilya Buravov (ilburale@gmail.com)
 */
@@ -28,6 +28,10 @@
 
 #include <vulkan/vulkan.h>
 
+/*=============================================================================
+    STRUCTURES
+  =============================================================================*/
+
 /*
   @brief Vulkan validation layers.
 */
@@ -37,7 +41,11 @@ typedef struct
   const uint32_t     count; /* Layer count. */
 } Moss__VkValidationLayers;
 
-inline static Moss__VkValidationLayers moss__get_vk_validation_layers (void)
+/*=============================================================================
+    FUNCTIONS
+  =============================================================================*/
+
+inline static Moss__VkValidationLayers moss_vk__get_validation_layers (void)
 {
   static const char *const validation_layer_names[] = {"VK_LAYER_KHRONOS_validation"};
 
@@ -52,7 +60,7 @@ inline static Moss__VkValidationLayers moss__get_vk_validation_layers (void)
 /*
   @brief Checks if validation layers are available.
 */
-inline static bool moss__check_vk_validation_layer_support (void)
+inline static bool moss_vk__check_validation_layer_support (void)
 {
   uint32_t available_layer_count;
   vkEnumerateInstanceLayerProperties (&available_layer_count, NULL);
@@ -69,7 +77,7 @@ inline static bool moss__check_vk_validation_layer_support (void)
   vkEnumerateInstanceLayerProperties (&available_layer_count, available_layers);
 
   const Moss__VkValidationLayers required_validation_layers =
-    moss__get_vk_validation_layers ( );
+    moss_vk__get_validation_layers ( );
 
   for (uint32_t i = 0; i < required_validation_layers.count; ++i)
   {
@@ -90,3 +98,4 @@ inline static bool moss__check_vk_validation_layer_support (void)
 
   return true;
 }
+

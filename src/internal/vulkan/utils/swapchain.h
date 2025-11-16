@@ -13,7 +13,7 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  @file src/internal/vk_swapchain_utils.h
+  @file src/internal/vulkan/utils/swapchain.h
   @brief Vulkan swap chain utility functions
   @author Ilya Buravov (ilburale@gmail.com)
 */
@@ -33,6 +33,10 @@
 
 /* Max number of available Vulkan present modes . */
 #define MAX_VULKAN_PRESENT_MODE_COUNT (uint32_t)(265)
+
+/*=============================================================================
+    STRUCTURES
+  =============================================================================*/
 
 /*
   @brief Swap chain support details.
@@ -57,30 +61,52 @@ typedef struct
 } Moss__SwapChainSupportDetails;
 
 /*
+  @brief Required info to query swapchain support.
+*/
+typedef struct
+{
+  VkPhysicalDevice device;  /* Physical device. */
+  VkSurfaceKHR     surface; /* Surface to query. */
+} Moss__QuerySwapchainSupportInfo;
+
+/*=============================================================================
+    FUNCTIONS
+  =============================================================================*/
+
+/*
   @brief Query swap chain support details for a physical device.
-  @param device Physical device.
-  @param surface Surface to query.
+  @param info Required info to query swapchain support.
   @return Swap chain support details. Caller must free formats and present_modes arrays.
 */
 inline static Moss__SwapChainSupportDetails
-moss__query_swapchain_support (VkPhysicalDevice device, VkSurfaceKHR surface)
+moss_vk__query_swapchain_support (const Moss__QuerySwapchainSupportInfo *const info)
 {
   Moss__SwapChainSupportDetails details = {0};
 
-  vkGetPhysicalDeviceSurfaceCapabilitiesKHR (device, surface, &details.capabilities);
+  vkGetPhysicalDeviceSurfaceCapabilitiesKHR (
+    info->device,
+    info->surface,
+    &details.capabilities
+  );
 
-  vkGetPhysicalDeviceSurfaceFormatsKHR (device, surface, &details.format_count, NULL);
+  vkGetPhysicalDeviceSurfaceFormatsKHR (
+    info->device,
+    info->surface,
+    &details.format_count,
+    NULL
+  );
 
   if (details.format_count <= MAX_VULKAN_FORMAT_COUNT)
   {
     vkGetPhysicalDeviceSurfaceFormatsKHR (
-      device,
-      surface,
+      info->device,
+      info->surface,
       &details.format_count,
       details.formats
     );
   }
-  else {
+  else
+  {
     moss__error (
       "Format count exceeded the limit (%d > %d). No formats saved.",
       details.format_count,
@@ -89,8 +115,8 @@ moss__query_swapchain_support (VkPhysicalDevice device, VkSurfaceKHR surface)
   }
 
   vkGetPhysicalDeviceSurfacePresentModesKHR (
-    device,
-    surface,
+    info->device,
+    info->surface,
     &details.present_mode_count,
     NULL
   );
@@ -98,13 +124,14 @@ moss__query_swapchain_support (VkPhysicalDevice device, VkSurfaceKHR surface)
   if (details.present_mode_count <= MAX_VULKAN_PRESENT_MODE_COUNT)
   {
     vkGetPhysicalDeviceSurfacePresentModesKHR (
-      device,
-      surface,
+      info->device,
+      info->surface,
       &details.present_mode_count,
       details.present_modes
     );
   }
-  else {
+  else
+  {
     moss__error (
       "Present mode count exceeded the limit (%d > %d). No formats saved.",
       details.present_mode_count,
@@ -121,7 +148,7 @@ moss__query_swapchain_support (VkPhysicalDevice device, VkSurfaceKHR surface)
   @param format_count Number of available formats.
   @return Selected surface format.
 */
-inline static VkSurfaceFormatKHR moss__choose_swap_surface_format (
+inline static VkSurfaceFormatKHR moss_vk__choose_swap_surface_format (
   const VkSurfaceFormatKHR *available_formats,
   uint32_t                  format_count
 )
@@ -144,7 +171,7 @@ inline static VkSurfaceFormatKHR moss__choose_swap_surface_format (
   @param present_mode_count Number of available present modes.
   @return Selected present mode.
 */
-inline static VkPresentModeKHR moss__choose_swap_present_mode (
+inline static VkPresentModeKHR moss_vk__choose_swap_present_mode (
   const VkPresentModeKHR *available_present_modes,
   uint32_t                present_mode_count
 )
@@ -167,7 +194,7 @@ inline static VkPresentModeKHR moss__choose_swap_present_mode (
   @param height Desired height.
   @return Selected extent.
 */
-inline static VkExtent2D moss__choose_swap_extent (
+inline static VkExtent2D moss_vk__choose_swap_extent (
   const VkSurfaceCapabilitiesKHR *capabilities,
   uint32_t                        width,
   uint32_t                        height
@@ -200,3 +227,4 @@ inline static VkExtent2D moss__choose_swap_extent (
 
   return actual_extent;
 }
+

@@ -13,7 +13,7 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  @file src/internal/vk_instance_utils.c
+  @file src/internal/vulkan/utils/instance.h
   @brief Vulkan instance utility functions.
   @author Ilya Buravov (ilburale@gmail.com)
 */
@@ -24,6 +24,10 @@
 
 #include <vulkan/vulkan.h>
 
+/*=============================================================================
+    STRUCTURES
+  =============================================================================*/
+
 /*
   @brief Vulkan instance extensions.
 */
@@ -33,11 +37,15 @@ typedef struct
   const size_t       count; /* Extension count. */
 } Moss__VkInstanceExtensions;
 
+/*=============================================================================
+    FUNCTIONS
+  =============================================================================*/
+
 /*
   @brief Returns a list of required Vulkan instance extensions.
   @return Instance extensions struct.
 */
-inline static Moss__VkInstanceExtensions moss__get_required_vk_instance_extensions (void)
+inline static Moss__VkInstanceExtensions moss_vk__get_required_instance_extensions (void)
 {
 #ifdef __APPLE__
   static const char *const extension_names[] = {
@@ -62,7 +70,7 @@ inline static Moss__VkInstanceExtensions moss__get_required_vk_instance_extensio
   @brief Returns required Vulkan instance flags.
   @return Vulkan instance flags value.
 */
-inline static uint32_t moss__get_required_vk_instance_flags (void)
+inline static uint32_t moss_vk__get_required_instance_flags (void)
 {
 #ifdef __APPLE__
   return VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
@@ -70,3 +78,4 @@ inline static uint32_t moss__get_required_vk_instance_flags (void)
   return 0;
 #endif
 }
+

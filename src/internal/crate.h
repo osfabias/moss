@@ -25,6 +25,7 @@
 #include <vulkan/vulkan.h>
 
 #include "moss/result.h"
+
 #include "vulkan/vulkan_core.h"
 
 /*
@@ -125,22 +126,11 @@ typedef struct
 
 /*
   @brief Crate creation information structure.
-  @details This structure contains all the parameters needed to create a crate.
-           It specifies the buffer's size, usage, sharing mode, and memory
-           requirements. All fields must be properly initialized before passing
-           to @ref moss__create_crate.
-
-           @note The actual allocated memory size may differ from the requested
-                 @c size due to alignment requirements. The actual size is stored
-                 in the created crate's @c size field.
 */
 typedef struct
 {
-  /* Physical device to allocate memory on. */
   VkPhysicalDevice physical_device;
-
-  /* Logical device to create buffer itself on. */
-  VkDevice device;
+  VkDevice         device;
 
   /* Desired size of the buffer in bytes. */
   VkDeviceSize size;
@@ -184,7 +174,9 @@ typedef struct
 
 /*
   @brief Creates moss crate.
-  @param info Required info for crate creation.
+  @param physical_device Physical device to allocaet buffer memory on.
+  @param device Logical device to create buffer on.
+  @param info Crate creation info.
   @param out_crate Ouput variable where crate handle will be written to.
   @return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */

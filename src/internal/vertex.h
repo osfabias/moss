@@ -90,7 +90,13 @@ moss__get_vk_vertex_input_attribute_description (void)
      .binding  = 0,
      .location = 1,
      .format   = VK_FORMAT_R32G32B32_SFLOAT,
-     .offset   = offsetof (MossVertex,    color),
+     .offset   = offsetof (MossVertex, color),
+     },
+    {
+     .binding  = 0,
+     .location = 2,
+     .format   = VK_FORMAT_R32G32_SFLOAT,
+     .offset   = offsetof (MossVertex, texture_coords),
      }
   };
 
