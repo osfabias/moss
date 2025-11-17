@@ -13,21 +13,29 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  @file src/internal/uniform_buffer_object.h
-  @brief Uniform buffer object struct declaration.
+  @file include/moss/sprite.h
+  @brief Sprite struct declaration.
   @author Ilya Buravov (ilburale@gmail.com)
 */
 
 #pragma once
 
-#include <cglm/mat4.h>
+#include <cglm/vec2.h>
+
+#include "moss/engine.h"
+#include "moss/result.h"
 
 /*
-  @brief Uniform buffer object that describes instance's transform.
+  @brief Sprite.
+  @details Represents info that is used to draw a rectangle.
 */
 typedef struct
 {
-  mat4 model;
-  mat4 view;
-  mat4 proj;
-} Moss__UniformBufferObject;
+  vec2 position; /* World position . */
+  vec2 size;     /* World units size. */
+  struct
+  {
+    vec2 top_left;     /* UV coords of the top left corner on texture altas. */
+    vec2 bottom_right; /* UV coords of the bottom right on texture atlas. */
+  } uv;
+} MossSprite;

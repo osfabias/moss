@@ -51,10 +51,11 @@ typedef void (*MossGetWindowFramebufferSizeCallback) (uint32_t *width, uint32_t 
 */
 typedef struct
 {
-  const MossAppInfo                      *app_info;      /* Application info. */
-  MossGetWindowFramebufferSizeCallback    get_window_framebuffer_size; /* Callback to get framebuffer size. */
+  const MossAppInfo *app_info; /* Application info. */
+  MossGetWindowFramebufferSizeCallback
+    get_window_framebuffer_size; /* Callback to get framebuffer size. */
 #ifdef __APPLE__
-  void                                   *metal_layer;   /* Metal layer (CAMetalLayer*). */
+  void *metal_layer; /* Metal layer (CAMetalLayer*). */
 #endif
 } MossEngineConfig;
 
@@ -77,7 +78,22 @@ __MOSS_API__ MossEngine *moss_create_engine (const MossEngineConfig *config);
 __MOSS_API__ void moss_destroy_engine (MossEngine *engine);
 
 /*
-  @brief Draws and presents a frame.
+  @brief Begins a new frame.
+  @details Acquires the next swap chain image, begins command buffer recording,
+           and begins the render pass. After calling this function, you can call
+           drawing functions like moss_draw_sprite_batch.
+  @param engine Engine handle.
   @return On success return MOSS_RESULT_SUCCESS, otherwise returns MOSS_RESULT_ERROR.
+  @note Must be paired with moss_end_frame.
 */
-__MOSS_API__ MossResult moss_update_engine (MossEngine *engine);
+__MOSS_API__ MossResult moss_begin_frame (MossEngine *engine);
+
+/*
+  @brief Ends the current frame.
+  @details Ends the render pass, ends command buffer recording, submits the command
+           buffer to the graphics queue, and presents the swap chain image.
+  @param engine Engine handle.
+  @return On success return MOSS_RESULT_SUCCESS, otherwise returns MOSS_RESULT_ERROR.
+  @note Must be paired with moss_begin_frame.
+*/
+__MOSS_API__ MossResult moss_end_frame (MossEngine *engine);
