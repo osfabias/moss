@@ -75,8 +75,8 @@ include(CMakeInfo.txt)
 # Define source files for the library
 set(MOSS_SOURCE_FILES
   src/camera.c
-  src/crate.c
   src/engine.c
+  src/sprite_batch.c
   src/stb_image.c
   # add new source files here...
 )

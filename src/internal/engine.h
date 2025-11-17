@@ -26,7 +26,6 @@
 #include "moss/engine.h"
 
 #include "src/internal/config.h"
-#include "src/internal/crate.h"
 #include "src/internal/vulkan/utils/physical_device.h"
 
 /*
@@ -111,12 +110,15 @@ struct MossEngine
   VkDeviceMemory texture_image_memory;
   /* Sampler. */
   VkSampler sampler;
-  /* Vertex crate. */
-  Moss__Crate vertex_crate;
-  /* Index crate. */
-  Moss__Crate index_crate;
-  /* Uniform crates. */
-  Moss__Crate camera_ubo_crates[ MAX_FRAMES_IN_FLIGHT ];
+  /* Vertex buffer. */
+  VkBuffer       vertex_buffer;
+  VkDeviceMemory vertex_buffer_memory;
+  /* Index buffer. */
+  VkBuffer       index_buffer;
+  VkDeviceMemory index_buffer_memory;
+  /* Uniform buffers. */
+  VkBuffer       camera_ubo_buffers[ MAX_FRAMES_IN_FLIGHT ];
+  VkDeviceMemory camera_ubo_memories[ MAX_FRAMES_IN_FLIGHT ];
   /* Uniform buffer mapped memory blocks. */
   void *camera_ubo_buffer_mapped_memory_blocks[ MAX_FRAMES_IN_FLIGHT ];
 
@@ -139,6 +141,8 @@ struct MossEngine
   /* === Frame state === */
   /* Current frame index. */
   uint32_t current_frame;
+  /* Current swap chain image index (set by moss_begin_frame). */
+  uint32_t current_image_index;
 };
 
 /*
@@ -197,8 +201,13 @@ inline static void moss__init_engine_state (MossEngine *engine)
     .graphics_pipeline     = VK_NULL_HANDLE,
 
     /* Vertex buffers. */
-    .vertex_crate = {0},
-    .index_crate  = {0},
+    .vertex_buffer        = VK_NULL_HANDLE,
+    .vertex_buffer_memory = VK_NULL_HANDLE,
+    .index_buffer         = VK_NULL_HANDLE,
+    .index_buffer_memory  = VK_NULL_HANDLE,
+    .camera_ubo_buffers   = { VK_NULL_HANDLE, VK_NULL_HANDLE },
+    .camera_ubo_memories  = { VK_NULL_HANDLE, VK_NULL_HANDLE },
+    .camera_ubo_buffer_mapped_memory_blocks = { NULL, NULL },
 
     /* Command buffers. */
     .general_command_pool    = VK_NULL_HANDLE,
@@ -210,6 +219,7 @@ inline static void moss__init_engine_state (MossEngine *engine)
     .in_flight_fences           = { VK_NULL_HANDLE, VK_NULL_HANDLE },
 
     /* Frame state. */
-    .current_frame = 0,
+    .current_frame      = 0,
+    .current_image_index = 0,
   };
 }

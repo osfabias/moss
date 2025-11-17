@@ -42,7 +42,6 @@
 
 #include "src/internal/app_info.h"
 #include "src/internal/config.h"
-#include "src/internal/crate.h"
 #include "src/internal/engine.h"
 #include "src/internal/log.h"
 #include "src/internal/memory_utils.h"
@@ -191,31 +190,31 @@ inline static MossResult moss__create_texture_sampler (MossEngine *engine);
   @brief Creates vertex buffer.
   @return Returns MOSS_RESULT_SUCCESS on successs, MOSS_RESULT_ERROR otherwise.
 */
-inline static MossResult moss__create_vertex_crate (MossEngine *engine);
+inline static MossResult moss__create_vertex_buffer (MossEngine *engine);
 
 /*
-  @brief Fills vertex crate with vertex data.
+  @brief Fills vertex buffer with vertex data.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-inline static MossResult moss__fill_vertex_crate (MossEngine *engine);
+inline static MossResult moss__fill_vertex_buffer (MossEngine *engine);
 
 /*
   @brief Creates index buffer.
   @return Returns MOSS_RESULT_SUCCESS on successs, MOSS_RESULT_ERROR otherwise.
 */
-inline static MossResult moss__create_index_crate (MossEngine *engine);
+inline static MossResult moss__create_index_buffer (MossEngine *engine);
 
 /*
-  @brief Fills index crate with index data.
+  @brief Fills index buffer with index data.
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-inline static MossResult moss__fill_index_crate (MossEngine *engine);
+inline static MossResult moss__fill_index_buffer (MossEngine *engine);
 
 /*
-  @brief Creates camera ubo crates.
-  @return Returns MOSS_RESULT_SUCCESS on successs, MOSS_RESULT_ERROR otherwise.
+  @brief Creates camera UBO buffers.
+  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-inline static MossResult moss__create_camera_ubo_crates (MossEngine *engine);
+inline static MossResult moss__create_camera_ubo_buffers (MossEngine *engine);
 
 /*
   @brief Creates command buffers.
@@ -278,17 +277,6 @@ inline static void moss__cleanup_in_flight_fences (MossEngine *engine);
   @brief Cleans up synchronization objects.
 */
 inline static void moss__cleanup_synchronization_objects (MossEngine *engine);
-
-/*
-  @brief Records command buffer.
-  @param command_buffer Command buffer to record.
-  @param image_index Swap chain image index.
-*/
-inline static void moss__record_command_buffer (
-  MossEngine     *engine,
-  VkCommandBuffer command_buffer,
-  uint32_t        image_index
-);
 
 /*
   @brief Cleans up swapchain framebuffers.
@@ -448,7 +436,7 @@ MossEngine *moss_create_engine (const MossEngineConfig *const config)
     return NULL;
   }
 
-  if (moss__create_camera_ubo_crates (engine) != MOSS_RESULT_SUCCESS)
+  if (moss__create_camera_ubo_buffers (engine) != MOSS_RESULT_SUCCESS)
   {
     moss_destroy_engine ((MossEngine *)engine);
     return NULL;
@@ -533,25 +521,25 @@ MossEngine *moss_create_engine (const MossEngineConfig *const config)
     return NULL;
   }
 
-  if (moss__create_vertex_crate (engine) != MOSS_RESULT_SUCCESS)
+  if (moss__create_vertex_buffer (engine) != MOSS_RESULT_SUCCESS)
   {
     moss_destroy_engine ((MossEngine *)engine);
     return NULL;
   }
 
-  if (moss__fill_vertex_crate (engine) != MOSS_RESULT_SUCCESS)
+  if (moss__fill_vertex_buffer (engine) != MOSS_RESULT_SUCCESS)
   {
     moss_destroy_engine ((MossEngine *)engine);
     return NULL;
   }
 
-  if (moss__create_index_crate (engine) != MOSS_RESULT_SUCCESS)
+  if (moss__create_index_buffer (engine) != MOSS_RESULT_SUCCESS)
   {
     moss_destroy_engine ((MossEngine *)engine);
     return NULL;
   }
 
-  if (moss__fill_index_crate (engine) != MOSS_RESULT_SUCCESS)
+  if (moss__fill_index_buffer (engine) != MOSS_RESULT_SUCCESS)
   {
     moss_destroy_engine ((MossEngine *)engine);
     return NULL;
@@ -570,6 +558,16 @@ MossEngine *moss_create_engine (const MossEngineConfig *const config)
   }
 
   engine->current_frame = 0;
+
+  // Initialize camera UBO data for all frames
+  for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+  {
+    memcpy (
+      engine->camera_ubo_buffer_mapped_memory_blocks[ i ],
+      &engine->camera,
+      sizeof (engine->camera)
+    );
+  }
 
   return (MossEngine *)engine;
 }
@@ -602,12 +600,24 @@ void moss_destroy_engine (MossEngine *const engine)
 
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
     {
-      moss__destroy_crate (&engine->camera_ubo_crates[ i ]);
+      moss_vk__destroy_buffer (
+        engine->device,
+        engine->camera_ubo_buffers[ i ],
+        engine->camera_ubo_memories[ i ]
+      );
     }
 
-    moss__destroy_crate (&engine->index_crate);
+    moss_vk__destroy_buffer (
+      engine->device,
+      engine->index_buffer,
+      engine->index_buffer_memory
+    );
 
-    moss__destroy_crate (&engine->vertex_crate);
+    moss_vk__destroy_buffer (
+      engine->device,
+      engine->vertex_buffer,
+      engine->vertex_buffer_memory
+    );
 
     if (engine->sampler != VK_NULL_HANDLE)
     {
@@ -703,17 +713,15 @@ void moss_destroy_engine (MossEngine *const engine)
 }
 
 /*
-  @brief Draws and presents a frame.
+  @brief Begins a new frame.
   @param engine Engine handler.
   @return On success return MOSS_RESULT_SUCCESS, otherwise returns MOSS_RESULT_ERROR.
 */
-MossResult moss_update_engine (MossEngine *const engine)
+MossResult moss_begin_frame (MossEngine *const engine)
 {
   const VkFence     in_flight_fence = engine->in_flight_fences[ engine->current_frame ];
   const VkSemaphore image_available_semaphore =
     engine->image_available_semaphores[ engine->current_frame ];
-  const VkSemaphore render_finished_semaphore =
-    engine->render_finished_semaphores[ engine->current_frame ];
   const VkCommandBuffer command_buffer =
     engine->general_command_buffers[ engine->current_frame ];
 
@@ -745,10 +753,99 @@ MossResult moss_update_engine (MossEngine *const engine)
     return MOSS_RESULT_ERROR;
   }
 
-  vkResetCommandBuffer (command_buffer, 0);
-  moss__record_command_buffer (engine, command_buffer, current_image_index);
+  engine->current_image_index = current_image_index;
 
+  vkResetCommandBuffer (command_buffer, 0);
+
+  const VkCommandBufferBeginInfo begin_info = {
+    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+  };
+
+  if (vkBeginCommandBuffer (command_buffer, &begin_info) != VK_SUCCESS)
+  {
+    moss__error ("Failed to begin recording command buffer.\n");
+    return MOSS_RESULT_ERROR;
+  }
+
+  const VkRenderPassBeginInfo render_pass_info = {
+    .sType       = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+    .renderPass  = engine->render_pass,
+    .framebuffer = engine->swapchain_framebuffers[ current_image_index ],
+    .renderArea  = {
+      .offset = {0, 0},
+      .extent = engine->swapchain_extent,
+    },
+    .clearValueCount = 1,
+    .pClearValues    = (const VkClearValue[]) {
+      {.color = {{0.1F, 0.1F, 0.2F, 1.0F}}},  // Dark blue-gray background
+    },
+  };
+
+  vkCmdBeginRenderPass (command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+
+  vkCmdBindPipeline (
+    command_buffer,
+    VK_PIPELINE_BIND_POINT_GRAPHICS,
+    engine->graphics_pipeline
+  );
+
+  const VkViewport viewport = {
+    .x        = 0.0F,
+    .y        = 0.0F,
+    .width    = (float)engine->swapchain_extent.width,
+    .height   = (float)engine->swapchain_extent.height,
+    .minDepth = 0.0F,
+    .maxDepth = 1.0F,
+  };
+
+  const VkRect2D scissor = {
+    .offset = { 0, 0 },
+    .extent = engine->swapchain_extent,
+  };
+
+  vkCmdSetViewport (command_buffer, 0, 1, &viewport);
+  vkCmdSetScissor (command_buffer, 0, 1, &scissor);
+
+  vkCmdBindDescriptorSets (
+    command_buffer,
+    VK_PIPELINE_BIND_POINT_GRAPHICS,
+    engine->pipeline_layout,
+    0,
+    1,
+    &engine->descriptor_sets[ engine->current_frame ],
+    0,
+    NULL
+  );
+
+  // Update camera UBO data before rendering
   moss__update_camera_ubo_data (engine);
+
+  return MOSS_RESULT_SUCCESS;
+}
+
+/*
+  @brief Ends the current frame.
+  @param engine Engine handler.
+  @return On success return MOSS_RESULT_SUCCESS, otherwise returns MOSS_RESULT_ERROR.
+*/
+MossResult moss_end_frame (MossEngine *const engine)
+{
+  const VkSemaphore image_available_semaphore =
+    engine->image_available_semaphores[ engine->current_frame ];
+  const VkSemaphore render_finished_semaphore =
+    engine->render_finished_semaphores[ engine->current_frame ];
+  const VkCommandBuffer command_buffer =
+    engine->general_command_buffers[ engine->current_frame ];
+  const VkFence  in_flight_fence     = engine->in_flight_fences[ engine->current_frame ];
+  const uint32_t current_image_index = engine->current_image_index;
+
+  vkCmdEndRenderPass (command_buffer);
+
+  if (vkEndCommandBuffer (command_buffer) != VK_SUCCESS)
+  {
+    moss__error ("Failed to end recording command buffer.\n");
+    return MOSS_RESULT_ERROR;
+  }
 
   const VkSemaphore wait_semaphores[] = { image_available_semaphore };
   const size_t      wait_semaphore_count =
@@ -786,7 +883,7 @@ MossResult moss_update_engine (MossEngine *const engine)
     .pImageIndices      = &current_image_index,
   };
 
-  result = vkQueuePresentKHR (engine->present_queue, &present_info);
+  VkResult result = vkQueuePresentKHR (engine->present_queue, &present_info);
 
   if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
   {
@@ -1279,10 +1376,17 @@ inline static void moss__configure_descriptor_sets (MossEngine *const engine)
 
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
   {
+    VkMemoryRequirements memory_requirements;
+    vkGetBufferMemoryRequirements (
+      engine->device,
+      engine->camera_ubo_buffers[ i ],
+      &memory_requirements
+    );
+
     buffer_infos[ i ] = (VkDescriptorBufferInfo) {
       .offset = 0,
-      .buffer = engine->camera_ubo_crates[ i ].buffer,
-      .range  = engine->camera_ubo_crates[ i ].size,
+      .buffer = engine->camera_ubo_buffers[ i ],
+      .range  = memory_requirements.size,
     };
 
     descriptor_writes[ i ] = (VkWriteDescriptorSet) {
@@ -1394,7 +1498,7 @@ inline static MossResult moss__create_graphics_pipeline (MossEngine *const engin
     .rasterizerDiscardEnable = VK_FALSE,
     .polygonMode             = VK_POLYGON_MODE_FILL,
     .lineWidth               = 1.0F,
-    .cullMode                = VK_CULL_MODE_BACK_BIT,
+    .cullMode                = VK_CULL_MODE_NONE,
     .frontFace               = VK_FRONT_FACE_COUNTER_CLOCKWISE,
     .depthBiasEnable         = VK_FALSE,
   };
@@ -1533,7 +1637,7 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
   int texture_width, texture_height, texture_channels;  // NOLINT
 
   const stbi_uc *const pixels = stbi_load (
-    "textures/texture.jpg",
+    "textures/atlas.png",
     &texture_width,
     &texture_height,
     &texture_channels,
@@ -1545,32 +1649,41 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
     return MOSS_RESULT_ERROR;
   }
 
-  Moss__Crate staging_crate;
-  {  // Create staging crate
-    const Moss__CrateCreateInfo create_info = {
-      .device          = engine->device,
+  VkBuffer       staging_buffer;
+  VkDeviceMemory staging_buffer_memory;
+  {  // Create staging buffer
+    const Moss__CreateVkBufferInfo create_info = {
       .physical_device = engine->physical_device,
+      .device          = engine->device,
       .size            = (VkDeviceSize)(texture_width * texture_height * 4),
-      .usage        = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      .sharing_mode = engine->buffer_sharing_mode,
+      .usage           = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+      .memory_properties =
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+      .sharing_mode                    = engine->buffer_sharing_mode,
       .shared_queue_family_index_count = engine->shared_queue_family_index_count,
       .shared_queue_family_indices     = engine->shared_queue_family_indices,
-      .memory_properties =
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
     };
-    const MossResult result = moss__create_crate (&create_info, &staging_crate);
+    const MossResult result =
+      moss_vk__create_buffer (&create_info, &staging_buffer, &staging_buffer_memory);
     if (result != MOSS_RESULT_SUCCESS)
     {
-      moss__error ("Failed to create staging crate.");
+      moss__error ("Failed to create staging buffer.");
       return MOSS_RESULT_ERROR;
     }
   }
 
   // Copy pixels into the buffer
   void *data;
-  vkMapMemory (engine->device, staging_crate.memory, 0, staging_crate.size, 0, &data);
-  memcpy (data, pixels, staging_crate.size);
-  vkUnmapMemory (engine->device, staging_crate.memory);
+  vkMapMemory (
+    engine->device,
+    staging_buffer_memory,
+    0,
+    (VkDeviceSize)(texture_width * texture_height * 4),
+    0,
+    &data
+  );
+  memcpy (data, pixels, (size_t)(texture_width * texture_height * 4));
+  vkUnmapMemory (engine->device, staging_buffer_memory);
 
   // Free pixels
   stbi_image_free ((void *)pixels);
@@ -1580,7 +1693,7 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
       .sType     = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
       .imageType = VK_IMAGE_TYPE_2D,
       .extent =
-        (VkExtent3D) { .width = texture_height, .height = texture_height, .depth = 1 },
+        (VkExtent3D) { .width = texture_width, .height = texture_height, .depth = 1 },
       .mipLevels     = 1,
       .arrayLayers   = 1,
       .format        = VK_FORMAT_R8G8B8A8_SRGB,
@@ -1596,7 +1709,7 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
       vkCreateImage (engine->device, &create_info, NULL, &engine->texture_image);
     if (result != VK_SUCCESS)
     {
-      moss__destroy_crate (&staging_crate);
+      moss_vk__destroy_buffer (engine->device, staging_buffer, staging_buffer_memory);
       moss__error ("Failed to create image: %d.\n", result);
       return MOSS_RESULT_ERROR;
     }
@@ -1618,7 +1731,7 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
           &suitable_memory_type
         ) != MOSS_RESULT_SUCCESS)
     {
-      moss__destroy_crate (&staging_crate);
+      moss_vk__destroy_buffer (engine->device, staging_buffer, staging_buffer_memory);
       vkDestroyImage (engine->device, engine->texture_image, NULL);
       moss__error ("Failed to find suitable memory type.");
       return MOSS_RESULT_ERROR;
@@ -1633,7 +1746,7 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
       vkAllocateMemory (engine->device, &alloc_info, NULL, &engine->texture_image_memory);
     if (result != VK_SUCCESS)
     {
-      moss__destroy_crate (&staging_crate);
+      moss_vk__destroy_buffer (engine->device, staging_buffer, staging_buffer_memory);
       vkDestroyImage (engine->device, engine->texture_image, NULL);
       moss__error ("Failed to allocate memory for the texture: %d.", result);
       return MOSS_RESULT_ERROR;
@@ -1658,7 +1771,7 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
     };
     if (moss_vk__transition_image_layout (&transition_info) != MOSS_RESULT_SUCCESS)
     {
-      moss__destroy_crate (&staging_crate);
+      moss_vk__destroy_buffer (engine->device, staging_buffer, staging_buffer_memory);
       vkFreeMemory (engine->device, engine->texture_image_memory, NULL);
       vkDestroyImage (engine->device, engine->texture_image, NULL);
       return MOSS_RESULT_ERROR;
@@ -1670,14 +1783,14 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
       .device         = engine->device,
       .command_pool   = engine->transfer_command_pool,
       .transfer_queue = engine->transfer_queue,
-      .buffer         = staging_crate.buffer,
+      .buffer         = staging_buffer,
       .image          = engine->texture_image,
       .width          = texture_width,
       .height         = texture_height,
     };
     if (moss_vk__copy_buffer_to_image (&copy_info) != MOSS_RESULT_SUCCESS)
     {
-      moss__destroy_crate (&staging_crate);
+      moss_vk__destroy_buffer (engine->device, staging_buffer, staging_buffer_memory);
       vkFreeMemory (engine->device, engine->texture_image_memory, NULL);
       vkDestroyImage (engine->device, engine->texture_image, NULL);
       return MOSS_RESULT_ERROR;
@@ -1695,14 +1808,14 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
     };
     if (moss_vk__transition_image_layout (&transition_info) != MOSS_RESULT_SUCCESS)
     {
-      moss__destroy_crate (&staging_crate);
+      moss_vk__destroy_buffer (engine->device, staging_buffer, staging_buffer_memory);
       vkFreeMemory (engine->device, engine->texture_image_memory, NULL);
       vkDestroyImage (engine->device, engine->texture_image, NULL);
       return MOSS_RESULT_ERROR;
     }
   }
 
-  moss__destroy_crate (&staging_crate);
+  moss_vk__destroy_buffer (engine->device, staging_buffer, staging_buffer_memory);
 
   return MOSS_RESULT_SUCCESS;
 }
@@ -1753,103 +1866,154 @@ inline static MossResult moss__create_texture_sampler (MossEngine *const engine)
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult moss__create_vertex_crate (MossEngine *const engine)
+inline static MossResult moss__create_vertex_buffer (MossEngine *const engine)
 {
-  const Moss__CrateCreateInfo create_info = {
-    .size  = sizeof (g_verticies),
+  const Moss__CreateVkBufferInfo create_info = {
+    .physical_device = engine->physical_device,
+    .device          = engine->device,
+    .size            = sizeof (g_verticies),
     .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
     .memory_properties               = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
     .sharing_mode                    = engine->buffer_sharing_mode,
     .shared_queue_family_index_count = engine->shared_queue_family_index_count,
     .shared_queue_family_indices     = engine->shared_queue_family_indices,
-    .device                          = engine->device,
-    .physical_device                 = engine->physical_device,
   };
 
-  const MossResult result = moss__create_crate (&create_info, &engine->vertex_crate);
-  if (result != MOSS_RESULT_SUCCESS) { moss__error ("Failed to create vertex crate.\n"); }
+  const MossResult result = moss_vk__create_buffer (
+    &create_info,
+    &engine->vertex_buffer,
+    &engine->vertex_buffer_memory
+  );
+  if (result != MOSS_RESULT_SUCCESS)
+  {
+    moss__error ("Failed to create vertex buffer.\n");
+  }
 
   return result;
 }
 
-inline static MossResult moss__fill_vertex_crate (MossEngine *const engine)
+inline static MossResult moss__fill_vertex_buffer (MossEngine *const engine)
 {
-  const Moss__FillCrateInfo fill_info = {
-    .destination_crate = &engine->vertex_crate,
-    .source_memory     = (void *)g_verticies,
-    .size              = sizeof (g_verticies),
-    .transfer_queue    = engine->transfer_queue,
-    .command_pool      = engine->transfer_command_pool,
+  VkMemoryRequirements memory_requirements;
+  vkGetBufferMemoryRequirements (
+    engine->device,
+    engine->vertex_buffer,
+    &memory_requirements
+  );
+
+  const Moss__FillVkBufferInfo fill_info = {
+    .physical_device                 = engine->physical_device,
+    .device                          = engine->device,
+    .destination_buffer              = engine->vertex_buffer,
+    .buffer_size                     = memory_requirements.size,
+    .source_data                     = (void *)g_verticies,
+    .data_size                       = sizeof (g_verticies),
+    .command_pool                    = engine->transfer_command_pool,
+    .transfer_queue                  = engine->transfer_queue,
+    .sharing_mode                    = engine->buffer_sharing_mode,
+    .shared_queue_family_index_count = engine->shared_queue_family_index_count,
+    .shared_queue_family_indices     = engine->shared_queue_family_indices,
   };
 
-  return moss__fill_crate (&fill_info);
+  return moss_vk__fill_buffer (&fill_info);
 }
 
-inline static MossResult moss__create_index_crate (MossEngine *const engine)
+inline static MossResult moss__create_index_buffer (MossEngine *const engine)
 {
-  const Moss__CrateCreateInfo create_info = {
-    .size  = sizeof (g_verticies),
+  const Moss__CreateVkBufferInfo create_info = {
+    .physical_device = engine->physical_device,
+    .device          = engine->device,
+    .size            = sizeof (g_indices),
     .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
     .memory_properties               = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
     .sharing_mode                    = engine->buffer_sharing_mode,
     .shared_queue_family_index_count = engine->shared_queue_family_index_count,
     .shared_queue_family_indices     = engine->shared_queue_family_indices,
-    .device                          = engine->device,
-    .physical_device                 = engine->physical_device,
   };
 
-  const MossResult result = moss__create_crate (&create_info, &engine->index_crate);
-  if (result != MOSS_RESULT_SUCCESS) { moss__error ("Failed to create vertex crate.\n"); }
+  const MossResult result = moss_vk__create_buffer (
+    &create_info,
+    &engine->index_buffer,
+    &engine->index_buffer_memory
+  );
+  if (result != MOSS_RESULT_SUCCESS) { moss__error ("Failed to create index buffer.\n"); }
 
   return result;
 }
 
-inline static MossResult moss__fill_index_crate (MossEngine *const engine)
+inline static MossResult moss__fill_index_buffer (MossEngine *const engine)
 {
-  const Moss__FillCrateInfo fill_info = {
-    .destination_crate = &engine->index_crate,
-    .source_memory     = (void *)g_indices,
-    .size              = sizeof (g_indices),
-    .transfer_queue    = engine->transfer_queue,
-    .command_pool      = engine->transfer_command_pool,
+  VkMemoryRequirements memory_requirements;
+  vkGetBufferMemoryRequirements (
+    engine->device,
+    engine->index_buffer,
+    &memory_requirements
+  );
+
+  const Moss__FillVkBufferInfo fill_info = {
+    .physical_device                 = engine->physical_device,
+    .device                          = engine->device,
+    .destination_buffer              = engine->index_buffer,
+    .buffer_size                     = memory_requirements.size,
+    .source_data                     = (void *)g_indices,
+    .data_size                       = sizeof (g_indices),
+    .command_pool                    = engine->transfer_command_pool,
+    .transfer_queue                  = engine->transfer_queue,
+    .sharing_mode                    = engine->buffer_sharing_mode,
+    .shared_queue_family_index_count = engine->shared_queue_family_index_count,
+    .shared_queue_family_indices     = engine->shared_queue_family_indices,
   };
 
-  return moss__fill_crate (&fill_info);
+  return moss_vk__fill_buffer (&fill_info);
 }
 
-inline static MossResult moss__create_camera_ubo_crates (MossEngine *const engine)
+inline static MossResult moss__create_camera_ubo_buffers (MossEngine *const engine)
 {
-  const Moss__CrateCreateInfo create_info = {
-    .size  = sizeof (engine->camera),
-    .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+  const Moss__CreateVkBufferInfo create_info = {
+    .physical_device = engine->physical_device,
+    .device          = engine->device,
+    .size            = sizeof (engine->camera),
+    .usage           = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
     .memory_properties =
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
     .sharing_mode                    = engine->buffer_sharing_mode,
     .shared_queue_family_index_count = engine->shared_queue_family_index_count,
     .shared_queue_family_indices     = engine->shared_queue_family_indices,
-    .device                          = engine->device,
-    .physical_device                 = engine->physical_device,
   };
 
   for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
   {
-    const MossResult result =
-      moss__create_crate (&create_info, &engine->camera_ubo_crates[ i ]);
+    const MossResult result = moss_vk__create_buffer (
+      &create_info,
+      &engine->camera_ubo_buffers[ i ],
+      &engine->camera_ubo_memories[ i ]
+    );
     if (result != MOSS_RESULT_SUCCESS)
     {
       for (uint32_t j = i; j >= 0; --j)
       {
-        moss__destroy_crate (&engine->camera_ubo_crates[ j ]);
+        moss_vk__destroy_buffer (
+          engine->device,
+          engine->camera_ubo_buffers[ j ],
+          engine->camera_ubo_memories[ j ]
+        );
       }
-      moss__error ("Failed to create vertex crate.\n");
+      moss__error ("Failed to create camera UBO buffer.\n");
       return result;
     }
 
+    VkMemoryRequirements memory_requirements;
+    vkGetBufferMemoryRequirements (
+      engine->device,
+      engine->camera_ubo_buffers[ i ],
+      &memory_requirements
+    );
+
     vkMapMemory (
       engine->device,
-      engine->camera_ubo_crates[ i ].memory,
+      engine->camera_ubo_memories[ i ],
       0,
-      engine->camera_ubo_crates[ i ].size,
+      memory_requirements.size,
       0,
       &engine->camera_ubo_buffer_mapped_memory_blocks[ i ]
     );
@@ -1879,102 +2043,6 @@ inline static MossResult moss__create_general_command_buffers (MossEngine *const
   }
 
   return MOSS_RESULT_SUCCESS;
-}
-
-inline static void moss__record_command_buffer (
-  MossEngine     *engine,
-  VkCommandBuffer command_buffer,
-  uint32_t        image_index
-)
-{
-  const VkCommandBufferBeginInfo begin_info = {
-    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-  };
-
-  if (vkBeginCommandBuffer (command_buffer, &begin_info) != VK_SUCCESS)
-  {
-    moss__error ("Failed to begin recording command buffer.\n");
-    return;
-  }
-
-  const VkRenderPassBeginInfo render_pass_info = {
-    .sType       = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-    .renderPass  = engine->render_pass,
-    .framebuffer = engine->swapchain_framebuffers[ image_index ],
-    .renderArea =
-      {
-                   .offset = {0, 0},
-                   .extent = engine->swapchain_extent,
-                   },
-    .clearValueCount = 1,
-    .pClearValues    = (const VkClearValue[]) {
-                   {.color = {{0.0F, 0.0F, 0.0F, 1.0F}}},
-                   },
-  };
-
-  vkCmdBeginRenderPass (command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-
-  vkCmdBindPipeline (
-    command_buffer,
-    VK_PIPELINE_BIND_POINT_GRAPHICS,
-    engine->graphics_pipeline
-  );
-
-  const VkViewport viewport = {
-    .x        = 0.0F,
-    .y        = 0.0F,
-    .width    = (float)engine->swapchain_extent.width,
-    .height   = (float)engine->swapchain_extent.height,
-    .minDepth = 0.0F,
-    .maxDepth = 1.0F,
-  };
-
-  const VkRect2D scissor = {
-    .offset = { 0, 0 },
-    .extent = engine->swapchain_extent,
-  };
-
-  const VkBuffer     vertex_buffers[]        = { engine->vertex_crate.buffer };
-  const VkDeviceSize vertex_buffer_offsets[] = { 0 };
-
-  vkCmdSetViewport (command_buffer, 0, 1, &viewport);
-  vkCmdSetScissor (command_buffer, 0, 1, &scissor);
-
-  vkCmdBindVertexBuffers (command_buffer, 0, 1, vertex_buffers, vertex_buffer_offsets);
-
-  vkCmdBindIndexBuffer (
-    command_buffer,
-    engine->index_crate.buffer,
-    0,
-    VK_INDEX_TYPE_UINT16
-  );
-
-  vkCmdBindDescriptorSets (
-    command_buffer,
-    VK_PIPELINE_BIND_POINT_GRAPHICS,
-    engine->pipeline_layout,
-    0,
-    1,
-    &engine->descriptor_sets[ engine->current_frame ],
-    0,
-    NULL
-  );
-
-  vkCmdDrawIndexed (
-    command_buffer,
-    sizeof (g_indices) / sizeof (g_indices[ 0 ]),
-    1,
-    0,
-    0,
-    0
-  );
-
-  vkCmdEndRenderPass (command_buffer);
-
-  if (vkEndCommandBuffer (command_buffer) != VK_SUCCESS)
-  {
-    moss__error ("Failed to record command buffer.\n");
-  }
 }
 
 inline static void moss__cleanup_swapchain_framebuffers (MossEngine *const engine)
