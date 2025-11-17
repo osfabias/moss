@@ -13,21 +13,26 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  @file src/internal/uniform_buffer_object.h
-  @brief Uniform buffer object struct declaration.
+  @file src/camera.c
+  @brief Camera struct and function declarations.
   @author Ilya Buravov (ilburale@gmail.com)
 */
 
 #pragma once
 
-#include <cglm/mat4.h>
+#include <cglm/vec2.h>
 
-/*
-  @brief Uniform buffer object that describes instance's transform.
-*/
+#include "moss/engine.h"
+
 typedef struct
 {
-  mat4 model;
-  mat4 view;
-  mat4 proj;
-} Moss__UniformBufferObject;
+  vec2 position;
+  vec2 size;
+} MossCamera;
+
+/*
+  @brief Returns camera handle.
+  @param engine Engine handle.
+  @return Always returns a valid pointer to the engine's camera.
+*/
+MossCamera *moss_get_camera (MossEngine *engine);

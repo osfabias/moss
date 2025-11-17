@@ -41,11 +41,12 @@
 #include "moss/vertex.h"
 
 #include "src/internal/app_info.h"
+#include "src/internal/config.h"
 #include "src/internal/crate.h"
+#include "src/internal/engine.h"
 #include "src/internal/log.h"
 #include "src/internal/memory_utils.h"
 #include "src/internal/shaders.h"
-#include "src/internal/uniform_buffer_object.h"
 #include "src/internal/vertex.h"
 #include "src/internal/vulkan/utils/buffer.h"
 #include "src/internal/vulkan/utils/command_pool.h"
@@ -63,199 +64,14 @@
 
 /* Vertex array just for implementing vertex buffers. */
 static const MossVertex g_verticies[ 4 ] = {
-  { { -0.5F, -0.5F }, { 1.0F, 0.0F, 0.0F }, { 1.0F, 0.0F } },
-  {  { 0.5F, -0.5F }, { 0.0F, 1.0F, 0.0F }, { 0.0F, 0.0F } },
-  {   { 0.5F, 0.5F }, { 0.0F, 0.0F, 1.0F }, { 0.0F, 1.0F } },
-  {  { -0.5F, 0.5F }, { 1.0F, 1.0F, 1.0F }, { 1.0F, 1.0F } }
+  {   { 0.0F, 0.0F }, { 1.0F, 1.0F, 1.0F }, { 0.0F, 1.0F } },
+  {  { 32.0F, 0.0F }, { 0.0F, 1.0F, 0.0F }, { 1.0F, 1.0F } },
+  { { 32.0F, 32.0F }, { 0.0F, 0.0F, 1.0F }, { 1.0F, 0.0F } },
+  {  { 0.0F, 32.0F }, { 1.0F, 1.0F, 1.0F }, { 0.0F, 0.0F } }
 };
 
 /* Index array just for implementing index buffers. */
 static const uint16_t g_indices[ 6 ] = { 0, 1, 2, 2, 3, 0 };
-
-/*=============================================================================
-    ENGINE STATE
-  =============================================================================*/
-
-#define MAX_FRAMES_IN_FLIGHT (size_t)(2)
-
-/* Max image count in swapchain. */
-#define MAX_SWAPCHAIN_IMAGE_COUNT (size_t)(4)
-
-/*
-  @brief Engine state.
-*/
-struct MossEngine
-{
-  /* === Metal layer === */
-  /* Metal layer for surface creation on macOS. */
-  void *metal_layer;
-  /* Callback to get window framebuffer size. */
-  MossGetWindowFramebufferSizeCallback get_window_framebuffer_size;
-
-  /* === Vulkan instance and surface === */
-  /* Vulkan instance. */
-  VkInstance api_instance;
-  /* Window surface. */
-  VkSurfaceKHR surface;
-
-  /* === Physical and logical device === */
-  /* Physical device. */
-  VkPhysicalDevice physical_device;
-  /* Logical device. */
-  VkDevice device;
-  /* Queue family indices. */
-  Moss__QueueFamilyIndices queue_family_indices;
-  /* Graphics queue. */
-  VkQueue graphics_queue;
-  /* Present queue. */
-  VkQueue present_queue;
-  /* Transfer queue. */
-  VkQueue transfer_queue;
-
-  /* === Buffer sharing mode and queue family indices === */
-  /* Buffer sharing mode for buffers shared between graphics and transfer queues. */
-  VkSharingMode buffer_sharing_mode;
-  /* Number of queue family indices that share buffers. */
-  uint32_t shared_queue_family_index_count;
-  /* Queue family indices that share buffers. */
-  uint32_t shared_queue_family_indices[ 2 ];
-
-  /* === Swap chain === */
-  /* Swap chain. */
-  VkSwapchainKHR swapchain;
-  /* Swap chain images. */
-  VkImage swapchain_images[ MAX_SWAPCHAIN_IMAGE_COUNT ];
-  /* Number of swap chain images. */
-  uint32_t swapchain_image_count;
-  /* Swap chain image format. */
-  VkFormat swapchain_image_format;
-  /* Swap chain extent. */
-  VkExtent2D swapchain_extent;
-  /* Swap chain image views. */
-  VkImageView swapchain_image_views[ MAX_SWAPCHAIN_IMAGE_COUNT ];
-  /* Swap chain framebuffers. */
-  VkFramebuffer swapchain_framebuffers[ MAX_SWAPCHAIN_IMAGE_COUNT ];
-
-  /* === Render pipeline === */
-  /* Render pass. */
-  VkRenderPass render_pass;
-  /* Descriptor pool. */
-  VkDescriptorPool descriptor_pool;
-  /* Descriptor set. */
-  VkDescriptorSet descriptor_sets[ MAX_FRAMES_IN_FLIGHT ];
-  /* Descriptor set layout. */
-  VkDescriptorSetLayout descriptor_set_layout;
-  /* Pipeline layout. */
-  VkPipelineLayout pipeline_layout;
-  /* Graphics pipeline. */
-  VkPipeline graphics_pipeline;
-
-  /* === Vertex and index buffers, texture image :3 === */
-  /* Texture image. */
-  VkImage texture_image;
-  /* Texture image view. */
-  VkImageView texture_image_view;
-  /* Texture image memory. */
-  VkDeviceMemory texture_image_memory;
-  /* Sampler. */
-  VkSampler sampler;
-  /* Vertex crate. */
-  Moss__Crate vertex_crate;
-  /* Index crate. */
-  Moss__Crate index_crate;
-  /* Uniform crates. */
-  Moss__Crate uniform_crates[ MAX_FRAMES_IN_FLIGHT ];
-  /* Uniform buffer mapped memory blocks. */
-  void *uniform_buffer_mapped_memory_blocks[ MAX_FRAMES_IN_FLIGHT ];
-
-  /* === Command buffers === */
-  /* General command pool. */
-  VkCommandPool general_command_pool;
-  /* Command buffers. */
-  VkCommandBuffer general_command_buffers[ MAX_FRAMES_IN_FLIGHT ];
-  /* Transfer command pool. */
-  VkCommandPool transfer_command_pool;
-
-  /* === Synchronization objects === */
-  /* Image available semaphores. */
-  VkSemaphore image_available_semaphores[ MAX_FRAMES_IN_FLIGHT ];
-  /* Render finished semaphores. */
-  VkSemaphore render_finished_semaphores[ MAX_FRAMES_IN_FLIGHT ];
-  /* In-flight fences. */
-  VkFence in_flight_fences[ MAX_FRAMES_IN_FLIGHT ];
-
-  /* === Frame state === */
-  /* Current frame index. */
-  uint32_t current_frame;
-};
-
-/*
-  @brief Initialize engine state to default values.
-*/
-static void moss__init_engine_state (MossEngine *engine)
-{
-  *engine = (MossEngine){
-  /* Metal layer. */
-  .metal_layer = NULL,
-  /* Framebuffer size callback. */
-  .get_window_framebuffer_size = NULL,
-
-  /* Vulkan instance and surface. */
-  .api_instance = VK_NULL_HANDLE,
-  .surface      = VK_NULL_HANDLE,
-
-  /* Physical and logical device. */
-  .physical_device                            = VK_NULL_HANDLE,
-  .device                                     = VK_NULL_HANDLE,
-  .graphics_queue                             = VK_NULL_HANDLE,
-  .present_queue                              = VK_NULL_HANDLE,
-  .transfer_queue = VK_NULL_HANDLE,
-  .queue_family_indices = {
-    .graphics_family       = 0,
-    .present_family        = 0,
-    .transfer_family       = 0,
-    .graphics_family_found = false,
-    .present_family_found  = false,
-    .transfer_family_found = false,
-  },
-  .buffer_sharing_mode            = VK_SHARING_MODE_EXCLUSIVE,
-  .shared_queue_family_index_count = 0,
-  .shared_queue_family_indices     = {0, 0},
-
-  /* Swap chain. */
-  .swapchain                   = VK_NULL_HANDLE,
-  .swapchain_images            = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE },
-  .swapchain_image_count       = 0,
-  .swapchain_image_format      = 0,
-  .swapchain_extent            = (VkExtent2D) { .width = 0, .height = 0 },
-  .swapchain_image_views       = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE },
-  .swapchain_framebuffers      = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE },
-
-  /* Render pipeline. */
-  .render_pass           = VK_NULL_HANDLE,
-  .descriptor_pool       = VK_NULL_HANDLE,
-  .descriptor_sets       = {VK_NULL_HANDLE, VK_NULL_HANDLE},
-  .descriptor_set_layout = VK_NULL_HANDLE,
-  .pipeline_layout       = VK_NULL_HANDLE,
-  .graphics_pipeline     = VK_NULL_HANDLE,
-
-  /* Vertex buffers. */
-  .vertex_crate = {0},
-  .index_crate = {0},
-
-  /* Command buffers. */
-  .general_command_pool    = VK_NULL_HANDLE,
-  .general_command_buffers = { VK_NULL_HANDLE, VK_NULL_HANDLE },
-
-  /* Synchronization objects. */
-  .image_available_semaphores = { VK_NULL_HANDLE, VK_NULL_HANDLE },
-  .render_finished_semaphores = { VK_NULL_HANDLE, VK_NULL_HANDLE },
-  .in_flight_fences           = { VK_NULL_HANDLE, VK_NULL_HANDLE },
-
-  /* Frame state. */
-  .current_frame = 0,
-};
-}
 
 /*=============================================================================
     INTERNAL FUNCTION DECLARATIONS
@@ -396,10 +212,10 @@ inline static MossResult moss__create_index_crate (MossEngine *engine);
 inline static MossResult moss__fill_index_crate (MossEngine *engine);
 
 /*
-  @brief Creates uniform crates.
+  @brief Creates camera ubo crates.
   @return Returns MOSS_RESULT_SUCCESS on successs, MOSS_RESULT_ERROR otherwise.
 */
-inline static MossResult moss__create_uniform_crates (MossEngine *engine);
+inline static MossResult moss__create_camera_ubo_crates (MossEngine *engine);
 
 /*
   @brief Creates command buffers.
@@ -504,9 +320,9 @@ inline static MossResult
 moss__recreate_swapchain (MossEngine *engine, uint32_t width, uint32_t height);
 
 /*
-  @brief Updates uniform data.
+  @brief Updates camera ubo data.
 */
-inline static void moss__update_uniform_data (MossEngine *engine);
+inline static void moss__update_camera_ubo_data (MossEngine *engine);
 
 /*=============================================================================
     PUBLIC API FUNCTIONS IMPLEMENTATION
@@ -632,7 +448,7 @@ MossEngine *moss_create_engine (const MossEngineConfig *const config)
     return NULL;
   }
 
-  if (moss__create_uniform_crates (engine) != MOSS_RESULT_SUCCESS)
+  if (moss__create_camera_ubo_crates (engine) != MOSS_RESULT_SUCCESS)
   {
     moss_destroy_engine ((MossEngine *)engine);
     return NULL;
@@ -786,7 +602,7 @@ void moss_destroy_engine (MossEngine *const engine)
 
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
     {
-      moss__destroy_crate (&engine->uniform_crates[ i ]);
+      moss__destroy_crate (&engine->camera_ubo_crates[ i ]);
     }
 
     moss__destroy_crate (&engine->index_crate);
@@ -932,7 +748,7 @@ MossResult moss_update_engine (MossEngine *const engine)
   vkResetCommandBuffer (command_buffer, 0);
   moss__record_command_buffer (engine, command_buffer, current_image_index);
 
-  moss__update_uniform_data (engine);
+  moss__update_camera_ubo_data (engine);
 
   const VkSemaphore wait_semaphores[] = { image_available_semaphore };
   const size_t      wait_semaphore_count =
@@ -1465,8 +1281,8 @@ inline static void moss__configure_descriptor_sets (MossEngine *const engine)
   {
     buffer_infos[ i ] = (VkDescriptorBufferInfo) {
       .offset = 0,
-      .buffer = engine->uniform_crates[ i ].buffer,
-      .range  = engine->uniform_crates[ i ].size,
+      .buffer = engine->camera_ubo_crates[ i ].buffer,
+      .range  = engine->camera_ubo_crates[ i ].size,
     };
 
     descriptor_writes[ i ] = (VkWriteDescriptorSet) {
@@ -2001,10 +1817,10 @@ inline static MossResult moss__fill_index_crate (MossEngine *const engine)
   return moss__fill_crate (&fill_info);
 }
 
-inline static MossResult moss__create_uniform_crates (MossEngine *const engine)
+inline static MossResult moss__create_camera_ubo_crates (MossEngine *const engine)
 {
   const Moss__CrateCreateInfo create_info = {
-    .size  = sizeof (g_verticies),
+    .size  = sizeof (engine->camera),
     .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
     .memory_properties =
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -2018,12 +1834,12 @@ inline static MossResult moss__create_uniform_crates (MossEngine *const engine)
   for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
   {
     const MossResult result =
-      moss__create_crate (&create_info, &engine->uniform_crates[ i ]);
+      moss__create_crate (&create_info, &engine->camera_ubo_crates[ i ]);
     if (result != MOSS_RESULT_SUCCESS)
     {
       for (uint32_t j = i; j >= 0; --j)
       {
-        moss__destroy_crate (&engine->uniform_crates[ j ]);
+        moss__destroy_crate (&engine->camera_ubo_crates[ j ]);
       }
       moss__error ("Failed to create vertex crate.\n");
       return result;
@@ -2031,11 +1847,11 @@ inline static MossResult moss__create_uniform_crates (MossEngine *const engine)
 
     vkMapMemory (
       engine->device,
-      engine->uniform_crates[ i ].memory,
+      engine->camera_ubo_crates[ i ].memory,
       0,
-      engine->uniform_crates[ i ].size,
+      engine->camera_ubo_crates[ i ].size,
       0,
-      &engine->uniform_buffer_mapped_memory_blocks[ i ]
+      &engine->camera_ubo_buffer_mapped_memory_blocks[ i ]
     );
   }
 
@@ -2229,40 +2045,12 @@ inline static MossResult moss__recreate_swapchain (
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static void moss__update_uniform_data (MossEngine *const engine)
+inline static void moss__update_camera_ubo_data (MossEngine *const engine)
 {
-  struct timespec time;
-  clock_gettime (CLOCK_MONOTONIC, &time);
-
-  const float current_nanoseconds =
-    ((float)time.tv_sec * 1000.0F) + ((float)time.tv_nsec / 1000000.0F);
-
-  Moss__UniformBufferObject ubo;
-
-  vec3 rotate_axis = { 0.0F, 0.0F, 1.0F };
-  glm_mat4_identity (ubo.model);
-  glm_rotate (ubo.model, current_nanoseconds * glm_rad (0.1F), rotate_axis);
-
-  vec3 eye    = { 2.0F, 2.0F, 2.0F };
-  vec3 center = { 0.0F, 0.0F, 0.0F };
-  vec3 up     = { 0.0F, 0.0F, 1.0F };
-  glm_mat4_identity (ubo.view);
-  glm_lookat (eye, center, up, ubo.view);
-
-  glm_perspective (
-    glm_rad (45.0F),
-    engine->swapchain_extent.width / engine->swapchain_extent.height,
-    0.1F,
-    10.0F,
-    ubo.proj
-  );
-
-  ubo.proj[ 1 ][ 1 ] *= -1;
-
   memcpy (
-    engine->uniform_buffer_mapped_memory_blocks[ engine->current_frame ],
-    &ubo,
-    sizeof (ubo)
+    engine->camera_ubo_buffer_mapped_memory_blocks[ engine->current_frame ],
+    &engine->camera,
+    sizeof (engine->camera)
   );
 }
 
