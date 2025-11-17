@@ -18,6 +18,7 @@
   @author Ilya Buravov (ilburale@gmail.com)
 */
 
+#include "vulkan/vulkan_core.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -777,7 +778,7 @@ MossResult moss_begin_frame (MossEngine *const engine)
     },
     .clearValueCount = 1,
     .pClearValues    = (const VkClearValue[]) {
-      {.color = {{0.1F, 0.1F, 0.2F, 1.0F}}},  // Dark blue-gray background
+      {.color = {{0.01F, 0.01F, 0.01F, 1.0F}}},
     },
   };
 
@@ -1512,7 +1513,13 @@ inline static MossResult moss__create_graphics_pipeline (MossEngine *const engin
   const VkPipelineColorBlendAttachmentState color_blend_attachment = {
     .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
                       VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
-    .blendEnable = VK_FALSE,
+    .blendEnable         = VK_TRUE,
+    .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+    .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+    .colorBlendOp        = VK_BLEND_OP_ADD,
+    .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+    .alphaBlendOp        = VK_BLEND_OP_ADD,
   };
 
   const VkPipelineColorBlendStateCreateInfo color_blending = {

@@ -46,21 +46,21 @@
 
 struct MossSpriteBatch
 {
-  MossEngine    *original_engine;     /* Engine where this batch was created on. */
-  VkBuffer       buffer;              /* Combined vertex and index buffer. */
-  VkDeviceMemory buffer_memory;       /* Combined buffer memory. */
-  VkBuffer       staging_buffer;      /* Staging buffer. */
-  VkDeviceMemory staging_memory;      /* Staging buffer memory. */
-  void          *mapped_memory;       /* Mapped staging buffer memory. */
-  size_t         buffer_capacity;     /* Total buffer capacity in bytes. */
-  size_t         vertex_data_offset;  /* Offset where vertex data starts in buffer. */
-  size_t         index_data_offset;   /* Offset where index data starts in buffer. */
-  size_t         vertex_data_size;    /* Current vertex data size in bytes. */
-  size_t         index_data_size;     /* Current index data size in bytes. */
-  size_t         vertex_capacity;     /* Maximum vertex capacity in bytes. */
-  size_t         index_capacity;      /* Maximum index capacity in bytes. */
-  uint32_t       index_count;         /* Number of indices. */
-  bool           is_begun;            /* Whether begin has been called. */
+  MossEngine    *original_engine;    /* Engine where this batch was created on. */
+  VkBuffer       buffer;             /* Combined vertex and index buffer. */
+  VkDeviceMemory buffer_memory;      /* Combined buffer memory. */
+  VkBuffer       staging_buffer;     /* Staging buffer. */
+  VkDeviceMemory staging_memory;     /* Staging buffer memory. */
+  void          *mapped_memory;      /* Mapped staging buffer memory. */
+  size_t         buffer_capacity;    /* Total buffer capacity in bytes. */
+  size_t         vertex_data_offset; /* Offset where vertex data starts in buffer. */
+  size_t         index_data_offset;  /* Offset where index data starts in buffer. */
+  size_t         vertex_data_size;   /* Current vertex data size in bytes. */
+  size_t         index_data_size;    /* Current index data size in bytes. */
+  size_t         vertex_capacity;    /* Maximum vertex capacity in bytes. */
+  size_t         index_capacity;     /* Maximum index capacity in bytes. */
+  uint32_t       index_count;        /* Number of indices. */
+  bool           is_begun;           /* Whether begin has been called. */
 };
 
 /*
@@ -251,7 +251,7 @@ MossResult moss_begin_sprite_batch (MossSpriteBatch *sprite_batch)
     }
   }
 
-  sprite_batch->is_begun        = true;
+  sprite_batch->is_begun         = true;
   sprite_batch->vertex_data_size = 0;
   sprite_batch->index_data_size  = 0;
   sprite_batch->index_count      = 0;
@@ -276,13 +276,13 @@ MossResult moss_add_sprites_to_sprite_batch (
     return MOSS_RESULT_ERROR;
   }
 
-  MossVertex *vertices = (MossVertex *)((char *)sprite_batch->mapped_memory +
-                                        sprite_batch->vertex_data_offset +
-                                        sprite_batch->vertex_data_size);
-  uint16_t   *indices  = (uint16_t *)((char *)sprite_batch->mapped_memory +
-                                   sprite_batch->index_data_offset +
-                                   sprite_batch->index_data_size);
-  uint16_t    base_vertex =
+  MossVertex *vertices =
+    (MossVertex *)((char *)sprite_batch->mapped_memory +
+                   sprite_batch->vertex_data_offset + sprite_batch->vertex_data_size);
+  uint16_t *indices =
+    (uint16_t *)((char *)sprite_batch->mapped_memory + sprite_batch->index_data_offset +
+                 sprite_batch->index_data_size);
+  uint16_t base_vertex =
     (uint16_t)((sprite_batch->vertex_data_size) / sizeof (MossVertex));
 
   // Generate vertices and indices for each sprite
@@ -435,7 +435,8 @@ MossResult moss_end_sprite_batch (MossSpriteBatch *sprite_batch)
   return MOSS_RESULT_SUCCESS;
 }
 
-MossResult moss_draw_sprite_batch (MossEngine *engine, MossSpriteBatch *sprite_batch)
+MossResult
+moss_draw_sprite_batch (MossEngine *const engine, MossSpriteBatch *const sprite_batch)
 {
   if (sprite_batch == NULL || engine == NULL)
   {
@@ -463,8 +464,10 @@ MossResult moss_draw_sprite_batch (MossEngine *engine, MossSpriteBatch *sprite_b
     engine->general_command_buffers[ engine->current_frame ];
 
   // Bind vertex buffer with offset
-  const VkBuffer     vertex_buffers[] = { sprite_batch->buffer };
-  const VkDeviceSize vertex_buffer_offsets[] = { (VkDeviceSize)sprite_batch->vertex_data_offset };
+  const VkBuffer     vertex_buffers[]        = { sprite_batch->buffer };
+  const VkDeviceSize vertex_buffer_offsets[] = {
+    (VkDeviceSize)sprite_batch->vertex_data_offset
+  };
   vkCmdBindVertexBuffers (command_buffer, 0, 1, vertex_buffers, vertex_buffer_offsets);
 
   // Bind index buffer with offset
@@ -487,8 +490,8 @@ MossResult moss_draw_sprite_batch (MossEngine *engine, MossSpriteBatch *sprite_b
 
 inline static MossResult moss__create_combined_buffer (
   const Moss__CreateCombinedBufferInfo *const info,
-  VkBuffer                              *out_buffer,
-  VkDeviceMemory                        *out_buffer_memory
+  VkBuffer                                   *out_buffer,
+  VkDeviceMemory                             *out_buffer_memory
 )
 {
   const Moss__CreateVkBufferInfo create_info = {
