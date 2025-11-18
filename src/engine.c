@@ -177,6 +177,10 @@ inline static MossResult moss__create_texture_sampler (MossEngine *engine);
 */
 inline static MossResult moss__create_depth_resources (MossEngine *engine);
 
+/*
+  @brief Cleans up depth resources.
+*/
+inline static void moss__cleanup_depth_resources (MossEngine *engine);
 
 /*
   @brief Creates camera UBO buffers.
@@ -554,21 +558,7 @@ void moss_destroy_engine (MossEngine *const engine)
       );
     }
 
-
-    if (engine->depth_image_view != VK_NULL_HANDLE)
-    {
-      vkDestroyImageView (engine->device, engine->depth_image_view, NULL);
-    }
-
-    if (engine->depth_image_memory != VK_NULL_HANDLE)
-    {
-      vkFreeMemory (engine->device, engine->depth_image_memory, NULL);
-    }
-
-    if (engine->depth_image != VK_NULL_HANDLE)
-    {
-      vkDestroyImage (engine->device, engine->depth_image, NULL);
-    }
+    moss__cleanup_depth_resources (engine);
 
     if (engine->sampler != VK_NULL_HANDLE)
     {
@@ -2024,9 +2014,31 @@ inline static void moss__cleanup_swapchain_handle (MossEngine *const engine)
   }
 }
 
+inline static void moss__cleanup_depth_resources (MossEngine *const engine)
+{
+  if (engine->depth_image_view != VK_NULL_HANDLE)
+  {
+    vkDestroyImageView (engine->device, engine->depth_image_view, NULL);
+    engine->depth_image_view = VK_NULL_HANDLE;
+  }
+
+  if (engine->depth_image_memory != VK_NULL_HANDLE)
+  {
+    vkFreeMemory (engine->device, engine->depth_image_memory, NULL);
+    engine->depth_image_memory = VK_NULL_HANDLE;
+  }
+
+  if (engine->depth_image != VK_NULL_HANDLE)
+  {
+    vkDestroyImage (engine->device, engine->depth_image, NULL);
+    engine->depth_image = VK_NULL_HANDLE;
+  }
+}
+
 inline static void moss__cleanup_swapchain (MossEngine *const engine)
 {
   moss__cleanup_swapchain_framebuffers (engine);
+  moss__cleanup_depth_resources (engine);
   moss__cleanup_swapchain_image_views (engine);
   moss__cleanup_swapchain_handle (engine);
 
@@ -2050,6 +2062,10 @@ inline static MossResult moss__recreate_swapchain (
     return MOSS_RESULT_ERROR;
   }
   if (moss__create_swapchain_image_views (engine) != MOSS_RESULT_SUCCESS)
+  {
+    return MOSS_RESULT_ERROR;
+  }
+  if (moss__create_depth_resources (engine) != MOSS_RESULT_SUCCESS)
   {
     return MOSS_RESULT_ERROR;
   }
