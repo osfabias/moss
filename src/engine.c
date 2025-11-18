@@ -39,7 +39,6 @@
 #include "moss/app_info.h"
 #include "moss/engine.h"
 #include "moss/result.h"
-#include "moss/vertex.h"
 
 #include "src/internal/app_info.h"
 #include "src/internal/config.h"

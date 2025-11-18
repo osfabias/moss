@@ -29,9 +29,9 @@
 #include "moss/sprite.h"
 #include "moss/sprite_batch.h"
 
-#include "moss/vertex.h"
 #include "src/internal/engine.h"
 #include "src/internal/log.h"
+#include "src/internal/vertex.h"
 #include "src/internal/vulkan/utils/buffer.h"
 #include "src/internal/vulkan/utils/command_buffer.h"
 #include "vulkan/vulkan_core.h"

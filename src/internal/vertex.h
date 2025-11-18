@@ -23,10 +23,24 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <cglm/vec2.h>
+#include <cglm/vec3.h>
+
 #include <vulkan/vulkan.h>
 
-#include "moss/vertex.h"
 #include "vulkan/vulkan_core.h"
+
+/*
+  @brief Vertex.
+  @warning Whenever you change this struct, please adjust binding and attribute
+           descriptions.
+*/
+typedef struct
+{
+  vec2 position;       /* Vertex position. */
+  vec3 color;          /* Vertex color. */
+  vec2 texture_coords; /* Texture coordinates. */
+} MossVertex;
 
 /* VkVertexBindingDescription pack. */
 typedef struct
@@ -84,13 +98,13 @@ moss__get_vk_vertex_input_attribute_description (void)
      .binding  = 0,
      .location = 0,
      .format   = VK_FORMAT_R32G32_SFLOAT,
-     .offset   = offsetof (MossVertex, position),
+     .offset   = offsetof (MossVertex,       position),
      },
     {
      .binding  = 0,
      .location = 1,
      .format   = VK_FORMAT_R32G32B32_SFLOAT,
-     .offset   = offsetof (MossVertex, color),
+     .offset   = offsetof (MossVertex,          color),
      },
     {
      .binding  = 0,
