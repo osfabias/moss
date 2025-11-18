@@ -20,6 +20,7 @@
 
 #include "moss/sprite.h"
 #include "moss/sprite_batch.h"
+#include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -91,44 +92,65 @@ int main (void)
   camera->size[ 0 ]        = 640;
   camera->size[ 1 ]        = 360;
 
-  // Declare sprites
-  const MossSprite sprites[ 2 ] = {
-    {
-      .depth    = 0.0F,
-      .position = { 0.0F, 0.0F },
-      .size     = { 32.0F, 72.0F },
-      .uv = {
-        .top_left = {0.0F, 0.0F},
-        .bottom_right = {1.0F, 1.0F},
-      }
-    },
-    {
-      .depth    = 0.9F,
-      .position = { 0.0F, 0.0F },
-      .size     = { 64.0F, 64.0F },
-      .uv = {
-        .top_left = {0.0F, 0.0F},
-        .bottom_right = {1.0F, 1.0F},
-      }
-    }
-  };
+  // Create 10000 sprites with random positions, sizes, and velocities
+  const size_t NUM_SPRITES = 1000000;
+  MossSprite  *sprites     = malloc (sizeof (MossSprite) * NUM_SPRITES);
+
+  // Per-sprite velocity and size change data
+  typedef struct
+  {
+    vec2  velocity;      /* Position velocity. */
+    vec2  size_velocity; /* Size change velocity. */
+    float min_size;      /* Minimum size. */
+    float max_size;      /* Maximum size. */
+  } SpriteData;
+
+  SpriteData *sprite_data = malloc (sizeof (SpriteData) * NUM_SPRITES);
+
+  // Seed random number generator
+  srand ((unsigned int)time (NULL));
+
+  // Initialize sprites with random positions, sizes, and velocities
+  for (size_t i = 0; i < NUM_SPRITES; ++i)
+  {
+    // Random position within a larger area
+    sprites[ i ].position[ 0 ] = ((float)rand ( ) / RAND_MAX - 0.5F) * 2000.0F;
+    sprites[ i ].position[ 1 ] = ((float)rand ( ) / RAND_MAX - 0.5F) * 2000.0F;
+
+    // Random initial size between 20 and 80
+    const float initial_size = 20.0F + ((float)rand ( ) / RAND_MAX) * 60.0F;
+    sprites[ i ].size[ 0 ]   = initial_size;
+    sprites[ i ].size[ 1 ]   = initial_size;
+
+    // Random depth for sorting
+    sprites[ i ].depth = ((float)rand ( ) / RAND_MAX) * 1.0F;
+
+    // UV coordinates (full texture)
+    sprites[ i ].uv.top_left[ 0 ]     = 0.0F;
+    sprites[ i ].uv.top_left[ 1 ]     = 0.0F;
+    sprites[ i ].uv.bottom_right[ 0 ] = 1.0F;
+    sprites[ i ].uv.bottom_right[ 1 ] = 1.0F;
+
+    // Random velocity between -100 and 100 per second
+    sprite_data[ i ].velocity[ 0 ] = ((float)rand ( ) / RAND_MAX - 0.5F) * 200.0F;
+    sprite_data[ i ].velocity[ 1 ] = ((float)rand ( ) / RAND_MAX - 0.5F) * 200.0F;
+
+    // Random size change velocity between -30 and 30 per second
+    sprite_data[ i ].size_velocity[ 0 ] = ((float)rand ( ) / RAND_MAX - 0.5F) * 60.0F;
+    sprite_data[ i ].size_velocity[ 1 ] =
+      sprite_data[ i ].size_velocity[ 0 ];  // Keep square
+
+    // Size bounds
+    sprite_data[ i ].min_size = 10.0F;
+    sprite_data[ i ].max_size = 100.0F;
+  }
 
   // Create sprite batch
   const MossSpriteBatchCreateInfo sprite_batch_info = {
     .engine   = engine,
-    .capacity = sizeof (sprites) / sizeof (sprites[ 0 ]),
+    .capacity = NUM_SPRITES,
   };
   MossSpriteBatch *const sprite_batch = moss_create_sprite_batch (&sprite_batch_info);
-
-  moss_begin_sprite_batch (sprite_batch);
-  {
-    const MossAddSpritesToSpriteBatchInfo add_info = {
-      .sprites      = sprites,
-      .sprite_count = sprite_batch_info.capacity,
-    };
-    moss_add_sprites_to_sprite_batch (sprite_batch, &add_info);
-  }
-  moss_end_sprite_batch (sprite_batch);
 
   // Initialize timing
 #ifdef __APPLE__
@@ -150,7 +172,8 @@ int main (void)
   double   min_fps          = 1000000.0;  // Worst (lowest) FPS
 
   // Main loop
-  const float camera_speed          = 50.0F;    // Camera movement speed per second
+  const float base_camera_speed =
+    50.0F;  // Base camera movement speed per second (at initial zoom)
   const float zoom_speed            = 10.0F;    // Zoom speed per second
   const float min_zoom              = 1.0F;     // Minimum camera size (zoomed in)
   const float max_zoom              = 2000.0F;  // Maximum camera size (zoomed out)
@@ -197,9 +220,15 @@ int main (void)
     const StuffyKeyboardState *keyboard = stuffy_keyboard_get_state ( );
     const StuffyMouseState    *mouse    = stuffy_mouse_get_state ( );
 
+    // Calculate camera speed based on zoom level (proportional to camera size)
+    // When zoomed out (larger size), move faster; when zoomed in (smaller size), move
+    // slower
+    const float zoom_factor          = camera->size[ 1 ] / initial_camera_size_y;
+    const float current_camera_speed = base_camera_speed * zoom_factor;
+
     // Use actual delta time for movement
     const float delta_time    = (float)frame_time_seconds;
-    const float move_distance = camera_speed * delta_time;
+    const float move_distance = current_camera_speed * delta_time;
     const float zoom_distance = zoom_speed * delta_time;
 
     // WASD controls (or arrow keys as alternative)
@@ -273,6 +302,62 @@ int main (void)
     // Escape to exit
     if (keyboard->keys[ STUFFY_KEY_ESCAPE ]) { break; }
 
+    // Update sprite positions and sizes every frame
+    for (size_t i = 0; i < NUM_SPRITES; ++i)
+    {
+      // Update position
+      sprites[ i ].position[ 0 ] += sprite_data[ i ].velocity[ 0 ] * delta_time;
+      sprites[ i ].position[ 1 ] += sprite_data[ i ].velocity[ 1 ] * delta_time;
+
+      // Wrap around if sprites go too far
+      const float bounds = 1200.0F;
+      if (sprites[ i ].position[ 0 ] > bounds) { sprites[ i ].position[ 0 ] = -bounds; }
+      else if (sprites[ i ].position[ 0 ] < -bounds)
+      {
+        sprites[ i ].position[ 0 ] = bounds;
+      }
+      if (sprites[ i ].position[ 1 ] > bounds) { sprites[ i ].position[ 1 ] = -bounds; }
+      else if (sprites[ i ].position[ 1 ] < -bounds)
+      {
+        sprites[ i ].position[ 1 ] = bounds;
+      }
+
+      // Update size
+      sprites[ i ].size[ 0 ] += sprite_data[ i ].size_velocity[ 0 ] * delta_time;
+      sprites[ i ].size[ 1 ] += sprite_data[ i ].size_velocity[ 1 ] * delta_time;
+
+      // Clamp size and reverse velocity if bounds reached
+      if (sprites[ i ].size[ 0 ] <= sprite_data[ i ].min_size ||
+          sprites[ i ].size[ 0 ] >= sprite_data[ i ].max_size)
+      {
+        sprite_data[ i ].size_velocity[ 0 ] = -sprite_data[ i ].size_velocity[ 0 ];
+        sprite_data[ i ].size_velocity[ 1 ] = sprite_data[ i ].size_velocity[ 0 ];
+      }
+
+      if (sprites[ i ].size[ 0 ] < sprite_data[ i ].min_size)
+      {
+        sprites[ i ].size[ 0 ] = sprite_data[ i ].min_size;
+        sprites[ i ].size[ 1 ] = sprite_data[ i ].min_size;
+      }
+      else if (sprites[ i ].size[ 0 ] > sprite_data[ i ].max_size)
+      {
+        sprites[ i ].size[ 0 ] = sprite_data[ i ].max_size;
+        sprites[ i ].size[ 1 ] = sprite_data[ i ].max_size;
+      }
+    }
+
+    // Rebuild sprite batch with updated positions and sizes
+    moss_clear_sprite_batch (sprite_batch);
+    moss_begin_sprite_batch (sprite_batch);
+    {
+      const MossAddSpritesToSpriteBatchInfo add_info = {
+        .sprites      = sprites,
+        .sprite_count = NUM_SPRITES,
+      };
+      moss_add_sprites_to_sprite_batch (sprite_batch, &add_info);
+    }
+    moss_end_sprite_batch (sprite_batch);
+
     moss_begin_frame (engine);
     moss_draw_sprite_batch (engine, sprite_batch);
     moss_end_frame (engine);
@@ -296,6 +381,8 @@ int main (void)
   }
 
   // Cleanup
+  free (sprite_data);
+  free (sprites);
   moss_destroy_sprite_batch (sprite_batch);
   moss_destroy_engine (engine);
   stuffy_window_close (g_window);
