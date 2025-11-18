@@ -110,7 +110,7 @@ struct MossEngine
   /* Depth image. */
   VkDeviceMemory depth_image_memory;
 
-  /* === Vertex and index buffers, texture image :3 === */
+  /* === Texture image :3 === */
   /* Texture image. */
   VkImage texture_image;
   /* Texture image view. */
@@ -119,12 +119,6 @@ struct MossEngine
   VkDeviceMemory texture_image_memory;
   /* Sampler. */
   VkSampler sampler;
-  /* Vertex buffer. */
-  VkBuffer       vertex_buffer;
-  VkDeviceMemory vertex_buffer_memory;
-  /* Index buffer. */
-  VkBuffer       index_buffer;
-  VkDeviceMemory index_buffer_memory;
   /* Uniform buffers. */
   VkBuffer       camera_ubo_buffers[ MAX_FRAMES_IN_FLIGHT ];
   VkDeviceMemory camera_ubo_memories[ MAX_FRAMES_IN_FLIGHT ];
@@ -214,11 +208,7 @@ inline static void moss__init_engine_state (MossEngine *engine)
     .depth_image_view   = VK_NULL_HANDLE,
     .depth_image_memory = VK_NULL_HANDLE,
 
-    /* Vertex, index and uniform buffers. */
-    .vertex_buffer        = VK_NULL_HANDLE,
-    .vertex_buffer_memory = VK_NULL_HANDLE,
-    .index_buffer         = VK_NULL_HANDLE,
-    .index_buffer_memory  = VK_NULL_HANDLE,
+    /* Uniform buffers. */
     .camera_ubo_buffers   = { VK_NULL_HANDLE, VK_NULL_HANDLE },
     .camera_ubo_memories  = { VK_NULL_HANDLE, VK_NULL_HANDLE },
     .camera_ubo_buffer_mapped_memory_blocks = { NULL, NULL },

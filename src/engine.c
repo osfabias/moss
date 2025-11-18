@@ -58,21 +58,6 @@
 #include "src/internal/vulkan/utils/validation_layers.h"
 
 /*=============================================================================
-    TEMPO
-  =============================================================================*/
-
-/* Vertex array just for implementing vertex buffers. */
-static const Moss__Vertex g_verticies[ 4 ] = {
-  {   { 0.0F, 0.0F }, { 1.0F, 1.0F, 1.0F }, { 0.0F, 1.0F } },
-  {  { 32.0F, 0.0F }, { 0.0F, 1.0F, 0.0F }, { 1.0F, 1.0F } },
-  { { 32.0F, 32.0F }, { 0.0F, 0.0F, 1.0F }, { 1.0F, 0.0F } },
-  {  { 0.0F, 32.0F }, { 1.0F, 1.0F, 1.0F }, { 0.0F, 0.0F } }
-};
-
-/* Index array just for implementing index buffers. */
-static const uint16_t g_indices[ 6 ] = { 0, 1, 2, 2, 3, 0 };
-
-/*=============================================================================
     INTERNAL FUNCTION DECLARATIONS
   =============================================================================*/
 
@@ -192,29 +177,6 @@ inline static MossResult moss__create_texture_sampler (MossEngine *engine);
 */
 inline static MossResult moss__create_depth_resources (MossEngine *engine);
 
-/*
-  @brief Creates vertex buffer.
-  @return Returns MOSS_RESULT_SUCCESS on successs, MOSS_RESULT_ERROR otherwise.
-*/
-inline static MossResult moss__create_vertex_buffer (MossEngine *engine);
-
-/*
-  @brief Fills vertex buffer with vertex data.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
-inline static MossResult moss__fill_vertex_buffer (MossEngine *engine);
-
-/*
-  @brief Creates index buffer.
-  @return Returns MOSS_RESULT_SUCCESS on successs, MOSS_RESULT_ERROR otherwise.
-*/
-inline static MossResult moss__create_index_buffer (MossEngine *engine);
-
-/*
-  @brief Fills index buffer with index data.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
-inline static MossResult moss__fill_index_buffer (MossEngine *engine);
 
 /*
   @brief Creates camera UBO buffers.
@@ -532,30 +494,6 @@ MossEngine *moss_create_engine (const MossEngineConfig *const config)
     return NULL;
   }
 
-  if (moss__create_vertex_buffer (engine) != MOSS_RESULT_SUCCESS)
-  {
-    moss_destroy_engine ((MossEngine *)engine);
-    return NULL;
-  }
-
-  if (moss__fill_vertex_buffer (engine) != MOSS_RESULT_SUCCESS)
-  {
-    moss_destroy_engine ((MossEngine *)engine);
-    return NULL;
-  }
-
-  if (moss__create_index_buffer (engine) != MOSS_RESULT_SUCCESS)
-  {
-    moss_destroy_engine ((MossEngine *)engine);
-    return NULL;
-  }
-
-  if (moss__fill_index_buffer (engine) != MOSS_RESULT_SUCCESS)
-  {
-    moss_destroy_engine ((MossEngine *)engine);
-    return NULL;
-  }
-
   if (moss__create_general_command_buffers (engine) != MOSS_RESULT_SUCCESS)
   {
     moss_destroy_engine ((MossEngine *)engine);
@@ -616,17 +554,6 @@ void moss_destroy_engine (MossEngine *const engine)
       );
     }
 
-    moss_vk__destroy_buffer (
-      engine->device,
-      engine->index_buffer,
-      engine->index_buffer_memory
-    );
-
-    moss_vk__destroy_buffer (
-      engine->device,
-      engine->vertex_buffer,
-      engine->vertex_buffer_memory
-    );
 
     if (engine->depth_image_view != VK_NULL_HANDLE)
     {
@@ -1987,106 +1914,6 @@ inline static MossResult moss__create_texture_sampler (MossEngine *const engine)
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult moss__create_vertex_buffer (MossEngine *const engine)
-{
-  const Moss__CreateVkBufferInfo create_info = {
-    .physical_device = engine->physical_device,
-    .device          = engine->device,
-    .size            = sizeof (g_verticies),
-    .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-    .memory_properties               = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-    .sharing_mode                    = engine->buffer_sharing_mode,
-    .shared_queue_family_index_count = engine->shared_queue_family_index_count,
-    .shared_queue_family_indices     = engine->shared_queue_family_indices,
-  };
-
-  const MossResult result = moss_vk__create_buffer (
-    &create_info,
-    &engine->vertex_buffer,
-    &engine->vertex_buffer_memory
-  );
-  if (result != MOSS_RESULT_SUCCESS)
-  {
-    moss__error ("Failed to create vertex buffer.\n");
-  }
-
-  return result;
-}
-
-inline static MossResult moss__fill_vertex_buffer (MossEngine *const engine)
-{
-  VkMemoryRequirements memory_requirements;
-  vkGetBufferMemoryRequirements (
-    engine->device,
-    engine->vertex_buffer,
-    &memory_requirements
-  );
-
-  const Moss__FillVkBufferInfo fill_info = {
-    .physical_device                 = engine->physical_device,
-    .device                          = engine->device,
-    .destination_buffer              = engine->vertex_buffer,
-    .buffer_size                     = memory_requirements.size,
-    .source_data                     = (void *)g_verticies,
-    .data_size                       = sizeof (g_verticies),
-    .command_pool                    = engine->transfer_command_pool,
-    .transfer_queue                  = engine->transfer_queue,
-    .sharing_mode                    = engine->buffer_sharing_mode,
-    .shared_queue_family_index_count = engine->shared_queue_family_index_count,
-    .shared_queue_family_indices     = engine->shared_queue_family_indices,
-  };
-
-  return moss_vk__fill_buffer (&fill_info);
-}
-
-inline static MossResult moss__create_index_buffer (MossEngine *const engine)
-{
-  const Moss__CreateVkBufferInfo create_info = {
-    .physical_device = engine->physical_device,
-    .device          = engine->device,
-    .size            = sizeof (g_indices),
-    .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-    .memory_properties               = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-    .sharing_mode                    = engine->buffer_sharing_mode,
-    .shared_queue_family_index_count = engine->shared_queue_family_index_count,
-    .shared_queue_family_indices     = engine->shared_queue_family_indices,
-  };
-
-  const MossResult result = moss_vk__create_buffer (
-    &create_info,
-    &engine->index_buffer,
-    &engine->index_buffer_memory
-  );
-  if (result != MOSS_RESULT_SUCCESS) { moss__error ("Failed to create index buffer.\n"); }
-
-  return result;
-}
-
-inline static MossResult moss__fill_index_buffer (MossEngine *const engine)
-{
-  VkMemoryRequirements memory_requirements;
-  vkGetBufferMemoryRequirements (
-    engine->device,
-    engine->index_buffer,
-    &memory_requirements
-  );
-
-  const Moss__FillVkBufferInfo fill_info = {
-    .physical_device                 = engine->physical_device,
-    .device                          = engine->device,
-    .destination_buffer              = engine->index_buffer,
-    .buffer_size                     = memory_requirements.size,
-    .source_data                     = (void *)g_indices,
-    .data_size                       = sizeof (g_indices),
-    .command_pool                    = engine->transfer_command_pool,
-    .transfer_queue                  = engine->transfer_queue,
-    .sharing_mode                    = engine->buffer_sharing_mode,
-    .shared_queue_family_index_count = engine->shared_queue_family_index_count,
-    .shared_queue_family_indices     = engine->shared_queue_family_indices,
-  };
-
-  return moss_vk__fill_buffer (&fill_info);
-}
 
 inline static MossResult moss__create_camera_ubo_buffers (MossEngine *const engine)
 {
