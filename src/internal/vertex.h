@@ -38,7 +38,6 @@
 typedef struct
 {
   vec3 position;       /* Vertex position. */
-  vec3 color;          /* Vertex color. */
   vec2 texture_coords; /* Texture coordinates. */
 } Moss__Vertex;
 
@@ -103,12 +102,6 @@ moss__get_vk_vertex_input_attribute_description (void)
     {
      .binding  = 0,
      .location = 1,
-     .format   = VK_FORMAT_R32G32B32_SFLOAT,
-     .offset   = offsetof (Moss__Vertex,          color),
-     },
-    {
-     .binding  = 0,
-     .location = 2,
      .format   = VK_FORMAT_R32G32_SFLOAT,
      .offset   = offsetof (Moss__Vertex, texture_coords),
      }

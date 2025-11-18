@@ -512,22 +512,18 @@ inline static void moss__generate_verticies_from_sprite (
 
   out_vertices[ 0 ] = (Moss__Vertex) {
     .position       = { bbox_left, bbox_top, sprite->depth },
-    .color          = { 1.0F, 1.0F, 1.0F },
     .texture_coords = { sprite->uv.top_left[ 0 ], sprite->uv.top_left[ 1 ] },
   };
   out_vertices[ 1 ] = (Moss__Vertex) {
     .position       = { bbox_right, bbox_top, sprite->depth },
-    .color          = { 1.0F, 1.0F, 1.0F },
     .texture_coords = { sprite->uv.bottom_right[ 0 ], sprite->uv.top_left[ 1 ] },
   };
   out_vertices[ 2 ] = (Moss__Vertex) {
     .position       = { bbox_right, bbox_bottom, sprite->depth },
-    .color          = { 1.0F, 1.0F, 1.0F },
     .texture_coords = { sprite->uv.bottom_right[ 0 ], sprite->uv.bottom_right[ 1 ] },
   };
   out_vertices[ 3 ] = (Moss__Vertex) {
     .position       = { bbox_left, bbox_bottom, sprite->depth },
-    .color          = { 1.0F, 1.0F, 1.0F },
     .texture_coords = { sprite->uv.top_left[ 0 ], sprite->uv.bottom_right[ 1 ] },
   };
 }
