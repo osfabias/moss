@@ -89,6 +89,18 @@ inline static MossResult moss__create_combined_buffer (
   VkDeviceMemory                       *out_buffer_memory
 );
 
+/*
+  @brief Generates verticies from sprite.
+  @param sprite Sprite to generate vertex data from.
+  @param out_vertices Output verticies.
+  @return Always returns a pack of verticies.
+*/
+inline static void moss__generate_verticies_from_sprite (
+  const MossSprite *sprite,
+  Moss__Vertex      out_vertices[ 4 ]
+);
+
+
 /*=============================================================================
     PUBLIC FUNCTIONS IMPLEMENTATION
   =============================================================================*/
@@ -104,7 +116,7 @@ MossSpriteBatch *moss_create_sprite_batch (const MossSpriteBatchCreateInfo *cons
 
   // Calculate buffer sizes
   const size_t vertex_data_size =
-    info->capacity * sizeof (MossVertex) * MOSS__VERTICIES_PER_SPRITE;
+    info->capacity * sizeof (Moss__Vertex) * MOSS__VERTICIES_PER_SPRITE;
   const size_t index_data_size =
     info->capacity * sizeof (uint16_t) * MOSS__INDICES_PER_SPRITE;
   const size_t total_buffer_size = vertex_data_size + index_data_size;
@@ -202,7 +214,7 @@ MossResult moss_begin_sprite_batch (MossSpriteBatch *sprite_batch)
     return MOSS_RESULT_ERROR;
   }
 
-  MossEngine *const engine = sprite_batch->original_engine;
+  const MossEngine *const engine = sprite_batch->original_engine;
 
   // Create staging buffer
   {
@@ -276,50 +288,19 @@ MossResult moss_add_sprites_to_sprite_batch (
     return MOSS_RESULT_ERROR;
   }
 
-  MossVertex *vertices =
-    (MossVertex *)((char *)sprite_batch->mapped_memory +
-                   sprite_batch->vertex_data_offset + sprite_batch->vertex_data_size);
+  Moss__Vertex *vertices =
+    (Moss__Vertex *)((char *)sprite_batch->mapped_memory +
+                     sprite_batch->vertex_data_offset + sprite_batch->vertex_data_size);
   uint16_t *indices =
     (uint16_t *)((char *)sprite_batch->mapped_memory + sprite_batch->index_data_offset +
                  sprite_batch->index_data_size);
   uint16_t base_vertex =
-    (uint16_t)((sprite_batch->vertex_data_size) / sizeof (MossVertex));
+    (uint16_t)((sprite_batch->vertex_data_size) / sizeof (Moss__Vertex));
 
   // Generate vertices and indices for each sprite
   for (size_t i = 0; i < info->sprite_count; ++i)
   {
-    const MossSprite *sprite = &info->sprites[ i ];
-
-    // Calculate sprite corners in world space
-    const float half_width  = sprite->size[ 0 ] * 0.5F;
-    const float half_height = sprite->size[ 1 ] * 0.5F;
-
-    const float x_min = sprite->position[ 0 ] - half_width;
-    const float x_max = sprite->position[ 0 ] + half_width;
-    const float y_min = sprite->position[ 1 ] - half_height;
-    const float y_max = sprite->position[ 1 ] + half_height;
-
-    // Create 4 vertices: top-left, top-right, bottom-right, bottom-left
-    vertices[ 0 ] = (MossVertex) {
-      .position       = { x_min, y_max }, // Top-left
-      .color          = { 1.0F, 1.0F, 1.0F },
-      .texture_coords = { sprite->uv.top_left[ 0 ], sprite->uv.top_left[ 1 ] },
-    };
-    vertices[ 1 ] = (MossVertex) {
-      .position       = { x_max, y_max }, // Top-right
-      .color          = { 1.0F, 1.0F, 1.0F },
-      .texture_coords = { sprite->uv.bottom_right[ 0 ], sprite->uv.top_left[ 1 ] },
-    };
-    vertices[ 2 ] = (MossVertex) {
-      .position       = { x_max, y_min }, // Bottom-right
-      .color          = { 1.0F, 1.0F, 1.0F },
-      .texture_coords = { sprite->uv.bottom_right[ 0 ], sprite->uv.bottom_right[ 1 ] },
-    };
-    vertices[ 3 ] = (MossVertex) {
-      .position       = { x_min, y_min }, // Bottom-left
-      .color          = { 1.0F, 1.0F, 1.0F },
-      .texture_coords = { sprite->uv.top_left[ 0 ], sprite->uv.bottom_right[ 1 ] },
-    };
+    moss__generate_verticies_from_sprite (&info->sprites[ i ], vertices);
 
     // Create indices: two triangles (0,1,2) and (2,3,0)
     indices[ 0 ] = base_vertex + 0;
@@ -332,7 +313,7 @@ MossResult moss_add_sprites_to_sprite_batch (
     vertices += MOSS__VERTICIES_PER_SPRITE;
     indices += MOSS__INDICES_PER_SPRITE;
     base_vertex += MOSS__VERTICIES_PER_SPRITE;
-    sprite_batch->vertex_data_size += sizeof (MossVertex) * MOSS__VERTICIES_PER_SPRITE;
+    sprite_batch->vertex_data_size += sizeof (Moss__Vertex) * MOSS__VERTICIES_PER_SPRITE;
     sprite_batch->index_data_size += sizeof (uint16_t) * MOSS__INDICES_PER_SPRITE;
     sprite_batch->index_count += MOSS__INDICES_PER_SPRITE;
   }
@@ -514,4 +495,39 @@ inline static MossResult moss__create_combined_buffer (
   }
 
   return result;
+}
+
+inline static void moss__generate_verticies_from_sprite (
+  const MossSprite *const sprite,
+  Moss__Vertex            out_vertices[ 4 ]
+)
+{
+  const float half_width  = sprite->size[ 0 ] * 0.5F;
+  const float half_height = sprite->size[ 1 ] * 0.5F;
+
+  const float bbox_left   = sprite->position[ 0 ] - half_width;
+  const float bbox_right  = sprite->position[ 0 ] + half_width;
+  const float bbox_bottom = sprite->position[ 1 ] - half_height;
+  const float bbox_top    = sprite->position[ 1 ] + half_height;
+
+  out_vertices[ 0 ] = (Moss__Vertex) {
+    .position       = { bbox_left, bbox_top, sprite->depth },
+    .color          = { 1.0F, 1.0F, 1.0F },
+    .texture_coords = { sprite->uv.top_left[ 0 ], sprite->uv.top_left[ 1 ] },
+  };
+  out_vertices[ 1 ] = (Moss__Vertex) {
+    .position       = { bbox_right, bbox_top, sprite->depth },
+    .color          = { 1.0F, 1.0F, 1.0F },
+    .texture_coords = { sprite->uv.bottom_right[ 0 ], sprite->uv.top_left[ 1 ] },
+  };
+  out_vertices[ 2 ] = (Moss__Vertex) {
+    .position       = { bbox_right, bbox_bottom, sprite->depth },
+    .color          = { 1.0F, 1.0F, 1.0F },
+    .texture_coords = { sprite->uv.bottom_right[ 0 ], sprite->uv.bottom_right[ 1 ] },
+  };
+  out_vertices[ 3 ] = (Moss__Vertex) {
+    .position       = { bbox_left, bbox_bottom, sprite->depth },
+    .color          = { 1.0F, 1.0F, 1.0F },
+    .texture_coords = { sprite->uv.top_left[ 0 ], sprite->uv.bottom_right[ 1 ] },
+  };
 }

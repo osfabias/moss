@@ -27,6 +27,7 @@
 
 #include "src/internal/config.h"
 #include "src/internal/vulkan/utils/physical_device.h"
+#include "vulkan/vulkan_core.h"
 
 /*
   @brief Engine state.
@@ -100,6 +101,14 @@ struct MossEngine
   VkPipelineLayout pipeline_layout;
   /* Graphics pipeline. */
   VkPipeline graphics_pipeline;
+
+  /* === Depth buffering === */
+  /* Depth image. */
+  VkImage depth_image;
+  /* Depth image view. */
+  VkImageView depth_image_view;
+  /* Depth image. */
+  VkDeviceMemory depth_image_memory;
 
   /* === Vertex and index buffers, texture image :3 === */
   /* Texture image. */
@@ -200,7 +209,12 @@ inline static void moss__init_engine_state (MossEngine *engine)
     .pipeline_layout       = VK_NULL_HANDLE,
     .graphics_pipeline     = VK_NULL_HANDLE,
 
-    /* Vertex buffers. */
+    /* Depth resources */
+    .depth_image        = VK_NULL_HANDLE,
+    .depth_image_view   = VK_NULL_HANDLE,
+    .depth_image_memory = VK_NULL_HANDLE,
+
+    /* Vertex, index and uniform buffers. */
     .vertex_buffer        = VK_NULL_HANDLE,
     .vertex_buffer_memory = VK_NULL_HANDLE,
     .index_buffer         = VK_NULL_HANDLE,

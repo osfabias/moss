@@ -31,8 +31,9 @@
 */
 typedef struct
 {
-  vec2 position; /* World position . */
-  vec2 size;     /* World units size. */
+  float depth;    /* Image depth. */
+  vec2  position; /* World position. */
+  vec2  size;     /* World units size. */
   struct
   {
     vec2 top_left;     /* UV coords of the top left corner on texture altas. */

@@ -56,57 +56,6 @@ static void get_window_framebuffer_size (uint32_t *width, uint32_t *height)
   *height                     = extent.height;
 }
 
-/*
-  @brief Generates a grid of sprites.
-  @param grid_width Number of sprites in a row.
-  @param grid_height Number of sprites in a column.
-  @param sprite_size Size of each sprite in world units.
-  @param spacing Space between sprites in world units.
-  @param start_x Starting X position of the grid (center of first sprite).
-  @param start_y Starting Y position of the grid (center of first sprite).
-  @param out_sprites Output array to store generated sprites. Must be at least grid_width
-  * grid_height in size.
-  @return Number of sprites generated (grid_width * grid_height).
-*/
-static size_t generate_sprite_grid (
-  size_t      grid_width,
-  size_t      grid_height,
-  float       sprite_size_x,
-  float       sprite_size_y,
-  float       spacing_x,
-  float       spacing_y,
-  float       start_x,
-  float       start_y,
-  MossSprite *out_sprites
-)
-{
-  const float sprite_width  = sprite_size_x;
-  const float sprite_height = sprite_size_y;
-
-  for (size_t row = 0; row < grid_height; ++row)
-  {
-    for (size_t col = 0; col < grid_width; ++col)
-    {
-      const size_t index = row * grid_width + col;
-      const float  x     = start_x + (float)col * (sprite_width + spacing_x);
-      const float  y     = start_y + (float)row * (sprite_height + spacing_y);
-
-      MossSprite *sprite = &out_sprites[ index ];
-
-      sprite->size[ 0 ]            = sprite_width;
-      sprite->size[ 1 ]            = sprite_height;
-      sprite->position[ 0 ]        = x;
-      sprite->position[ 1 ]        = y;
-      sprite->uv.top_left[ 0 ]     = 0.0F;
-      sprite->uv.top_left[ 1 ]     = 0.0F;
-      sprite->uv.bottom_right[ 0 ] = 1.0F;
-      sprite->uv.bottom_right[ 1 ] = 1.0F;
-    }
-  }
-
-  return grid_width * grid_height;
-}
-
 int main (void)
 {
   // Initialize stuffy app
@@ -121,7 +70,6 @@ int main (void)
   };
 
   g_window = stuffy_window_open (&window_config);
-  if (g_window == NULL) { return EXIT_FAILURE; }
 
 #ifdef __APPLE__
   // Get metal layer from window
@@ -143,71 +91,44 @@ int main (void)
   camera->size[ 0 ]        = 640;
   camera->size[ 1 ]        = 360;
 
-  // Generate sprite grid
-  const size_t grid_width  = 120;
-  const size_t grid_height = 120;
-  const float  sprite_size = 2.0F;
-  const float  spacing     = 0.0F;
-
-  // Center the grid on the screen
-  const float grid_total_width =
-    (float)grid_width * sprite_size + (float)(grid_width - 1) * spacing;
-  const float grid_total_height =
-    (float)grid_height * sprite_size + (float)(grid_height - 1) * spacing;
-  const float start_x = -grid_total_width * 0.5F + sprite_size * 0.5F;
-  const float start_y = -grid_total_height * 0.5F + sprite_size * 0.5F;
-
-  const size_t total_sprites = grid_width * grid_height;
-  MossSprite  *sprites       = malloc (sizeof (MossSprite) * total_sprites);
-  if (sprites == NULL)
-  {
-    moss_destroy_engine (engine);
-    stuffy_window_close (g_window);
-    stuffy_app_deinit ( );
-    return EXIT_FAILURE;
-  }
-
-  generate_sprite_grid (
-    grid_width,
-    grid_height,
-    sprite_size,
-    sprite_size,
-    spacing,
-    spacing,
-    start_x,
-    start_y,
-    sprites
-  );
+  // Declare sprites
+  const MossSprite sprites[ 2 ] = {
+    {
+      .depth    = 2.0F,
+      .position = { 0.0F, 0.0F },
+      .size     = { 64.0F, 64.0F },
+      .uv = {
+        .top_left = {0.0F, 0.0F},
+        .bottom_right = {1.0F, 1.0F},
+      }
+    },
+    {
+      .depth    = 0.0F,
+      .position = { 32.0F, 0.0F },
+      .size     = { 64.0F, 72.0F },
+      .uv = {
+        .top_left = {0.0F, 0.0F},
+        .bottom_right = {1.0F, 1.0F},
+      }
+    }
+  };
 
   // Create sprite batch
   const MossSpriteBatchCreateInfo sprite_batch_info = {
     .engine   = engine,
-    .capacity = total_sprites,
+    .capacity = sizeof (sprites) / sizeof (sprites[ 0 ]),
   };
   MossSpriteBatch *const sprite_batch = moss_create_sprite_batch (&sprite_batch_info);
-  if (sprite_batch == NULL)
-  {
-    free (sprites);
-    moss_destroy_engine (engine);
-    stuffy_window_close (g_window);
-    stuffy_app_deinit ( );
-    return EXIT_FAILURE;
-  }
 
   moss_begin_sprite_batch (sprite_batch);
-
   {
     const MossAddSpritesToSpriteBatchInfo add_info = {
       .sprites      = sprites,
-      .sprite_count = total_sprites,
+      .sprite_count = sprite_batch_info.capacity,
     };
     moss_add_sprites_to_sprite_batch (sprite_batch, &add_info);
   }
-
   moss_end_sprite_batch (sprite_batch);
-
-  // Free the temporary sprite array
-  free (sprites);
 
   // Initialize timing
 #ifdef __APPLE__
@@ -225,7 +146,7 @@ int main (void)
   // Frame statistics
   uint64_t frame_count      = 0;
   double   total_frame_time = 0.0;
-  double   max_frame_time   = 0.0;  // Worst (biggest) delta time
+  double   max_frame_time   = 0.0;        // Worst (biggest) delta time
   double   min_fps          = 1000000.0;  // Worst (lowest) FPS
 
   // Main loop

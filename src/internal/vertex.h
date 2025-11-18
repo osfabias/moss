@@ -37,10 +37,10 @@
 */
 typedef struct
 {
-  vec2 position;       /* Vertex position. */
+  vec3 position;       /* Vertex position. */
   vec3 color;          /* Vertex color. */
   vec2 texture_coords; /* Texture coordinates. */
-} MossVertex;
+} Moss__Vertex;
 
 /* VkVertexBindingDescription pack. */
 typedef struct
@@ -72,7 +72,7 @@ moss__get_vk_vertex_input_binding_description (void)
   static const VkVertexInputBindingDescription binding_descriptions[] = {
     {
      .binding   = 0,
-     .stride    = sizeof (MossVertex),
+     .stride    = sizeof (Moss__Vertex),
      .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
      },
   };
@@ -97,20 +97,20 @@ moss__get_vk_vertex_input_attribute_description (void)
     {
      .binding  = 0,
      .location = 0,
-     .format   = VK_FORMAT_R32G32_SFLOAT,
-     .offset   = offsetof (MossVertex,       position),
+     .format   = VK_FORMAT_R32G32B32_SFLOAT,
+     .offset   = offsetof (Moss__Vertex,       position),
      },
     {
      .binding  = 0,
      .location = 1,
      .format   = VK_FORMAT_R32G32B32_SFLOAT,
-     .offset   = offsetof (MossVertex,          color),
+     .offset   = offsetof (Moss__Vertex,          color),
      },
     {
      .binding  = 0,
      .location = 2,
      .format   = VK_FORMAT_R32G32_SFLOAT,
-     .offset   = offsetof (MossVertex, texture_coords),
+     .offset   = offsetof (Moss__Vertex, texture_coords),
      }
   };
 

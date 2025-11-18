@@ -34,9 +34,10 @@
 */
 typedef struct
 {
-  VkDevice device; /* Device to create image view on. */
-  VkImage  image;  /* Image to create view for. */
-  VkFormat format; /* Image view format. */
+  VkDevice           device; /* Device to create image view on. */
+  VkImage            image;  /* Image to create view for. */
+  VkFormat           format; /* Image view format. */
+  VkImageAspectFlags aspect; /* Image aspect. */
 } Moss__VkImageViewCreateInfo;
 
 /*=============================================================================
@@ -51,8 +52,8 @@ typedef struct
 inline static VkImageView
 moss_vk__create_image_view (const Moss__VkImageViewCreateInfo *const info)
 {
-  static const VkImageSubresourceRange subresource_range = {
-    .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+  const VkImageSubresourceRange subresource_range = {
+    .aspectMask     = info->aspect,
     .baseMipLevel   = 0,
     .levelCount     = 1,
     .baseArrayLayer = 0,
