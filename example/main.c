@@ -94,18 +94,18 @@ int main (void)
   // Declare sprites
   const MossSprite sprites[ 2 ] = {
     {
-      .depth    = 2.0F,
+      .depth    = 0.0F,
       .position = { 0.0F, 0.0F },
-      .size     = { 64.0F, 64.0F },
+      .size     = { 32.0F, 72.0F },
       .uv = {
         .top_left = {0.0F, 0.0F},
         .bottom_right = {1.0F, 1.0F},
       }
     },
     {
-      .depth    = 0.0F,
-      .position = { 32.0F, 0.0F },
-      .size     = { 64.0F, 72.0F },
+      .depth    = 0.9F,
+      .position = { 0.0F, 0.0F },
+      .size     = { 64.0F, 64.0F },
       .uv = {
         .top_left = {0.0F, 0.0F},
         .bottom_right = {1.0F, 1.0F},
