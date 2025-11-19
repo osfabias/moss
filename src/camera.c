@@ -23,6 +23,25 @@
 #include "moss/camera.h"
 #include "moss/engine.h"
 
+#include "src/internal/camera.h"
 #include "src/internal/engine.h"
 
 MossCamera *moss_get_camera (MossEngine *const engine) { return &engine->camera; }
+
+void moss_set_camera_position (MossCamera *const camera, const vec2 new_position)
+{
+  camera->offset[ 0 ] = -1 * new_position[ 0 ] * camera->scale[ 0 ];
+  camera->offset[ 1 ] = -1 * new_position[ 1 ] * camera->scale[ 1 ];
+}
+
+void moss_set_camera_size (MossCamera *const camera, const vec2 new_size)
+{
+  camera->offset[ 0 ] /= camera->scale[ 0 ];
+  camera->offset[ 1 ] /= camera->scale[ 1 ];
+
+  camera->scale[ 0 ] = 2.0F / new_size[ 0 ];
+  camera->scale[ 1 ] = -2.0F / new_size[ 1 ];  // Flip Y coordinates
+                                               //
+  camera->offset[ 0 ] *= camera->scale[ 0 ];
+  camera->offset[ 1 ] *= camera->scale[ 1 ];
+}

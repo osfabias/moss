@@ -25,12 +25,41 @@
 #include <vulkan/vulkan.h>
 
 #include "moss/result.h"
+
 #include "src/internal/log.h"
+#include "src/internal/memory_utils.h"
 #include "src/internal/vulkan/utils/command_buffer.h"
+#include "vulkan/vulkan_core.h"
 
 /*=============================================================================
     STRUCTURES
   =============================================================================*/
+
+/*
+  @brief Required info to create Vulkan image.
+*/
+typedef struct
+{
+  VkDevice          device;                  /* Device to create image on. */
+  VkFormat          format;                  /* Image format. */
+  uint32_t          image_width;             /* Image width. */
+  uint32_t          image_height;            /* Image height. */
+  VkImageUsageFlags usage;                   /* Image usage flags. */
+  VkSharingMode     sharing_mode;            /* Image sharing mode. */
+  uint32_t  shared_queue_family_index_count; /* Number of shared queue family indices. */
+  uint32_t *shared_queue_family_indices;     /* Indices of queue families that will share
+                                                image's memory. */
+} MossVk__CreateImageInfo;
+
+/*
+  @brief Required information to allocate memory for image.
+*/
+typedef struct
+{
+  VkPhysicalDevice physical_device; /* Physical device to allocate memory on. */
+  VkDevice         device;          /* Device where the image created on. */
+  VkImage          image;           /* Image to allocate memory for. */
+} MossVk__AllocateImageMemoryInfo;
 
 /*
   @brief Required info to transition image layout.
@@ -43,11 +72,108 @@ typedef struct
   VkImage       image;          /* Image to transition. */
   VkImageLayout old_layout;     /* Current image layout. */
   VkImageLayout new_layout;     /* Target image layout. */
-} Moss__TransitionVkImageLayoutInfo;
+} MossVk__TransitionImageLayoutInfo;
 
 /*=============================================================================
     FUNCTIONS
   =============================================================================*/
+
+/*
+  @brief Crates Vulkan image.
+  @param info Required info to create Vulkan image.
+  @return On success returns valid image handle, otherwise returns VK_NULL_HANDLE.
+*/
+inline static VkImage moss_vk__create_image (const MossVk__CreateImageInfo *const info)
+{
+  const VkExtent3D image_extent = {
+    .width  = info->image_width,
+    .height = info->image_height,
+    .depth  = 1,
+  };
+
+  const VkImageCreateInfo create_info = {
+    .sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+    .imageType             = VK_IMAGE_TYPE_2D,
+    .extent                = image_extent,
+    .mipLevels             = 1,
+    .arrayLayers           = 1,
+    .format                = info->format,
+    .tiling                = VK_IMAGE_TILING_OPTIMAL,
+    .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
+    .usage                 = info->usage,
+    .sharingMode           = info->sharing_mode,
+    .queueFamilyIndexCount = info->shared_queue_family_index_count,
+    .pQueueFamilyIndices   = info->shared_queue_family_indices,
+    .samples               = VK_SAMPLE_COUNT_1_BIT,
+  };
+
+  VkImage        image;
+  const VkResult result = vkCreateImage (info->device, &create_info, NULL, &image);
+  if (result != VK_SUCCESS)
+  {
+    moss__error ("Failed to create Vulkan image. Error code: %d.\n", result);
+    return VK_NULL_HANDLE;
+  }
+
+  return image;
+}
+
+/*
+  @brief Allocates device memory for Vulkan image.
+  @param info Required info for allocating image memory.
+  @return On success returns a valid Vulkan device memory handle,
+          otherwise returns VK_NULL_HANDLE.
+*/
+inline static VkDeviceMemory
+moss_vk__allocate_image_memory (const MossVk__AllocateImageMemoryInfo *const info)
+{
+  // Select suitable memory type
+  VkMemoryRequirements memory_requirements;
+  vkGetImageMemoryRequirements (info->device, info->image, &memory_requirements);
+
+  uint32_t suitable_memory_type;
+  if (moss__select_suitable_memory_type (
+        info->physical_device,
+        memory_requirements.memoryTypeBits,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        &suitable_memory_type
+      ) != MOSS_RESULT_SUCCESS)
+  {
+    moss__error ("Failed to find suitable memory type.\n");
+    return VK_NULL_HANDLE;
+  }
+
+  VkDeviceMemory memory;
+  {  // Allocate memory
+    const VkMemoryAllocateInfo alloc_info = {
+      .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+      .pNext           = NULL,
+      .allocationSize  = memory_requirements.size,
+      .memoryTypeIndex = suitable_memory_type,
+    };
+
+    const VkResult result = vkAllocateMemory (info->device, &alloc_info, NULL, &memory);
+    if (result != VK_SUCCESS)
+    {
+      moss__error ("Failed to allocate memory for the image. Error code: %d.\n", result);
+      return VK_NULL_HANDLE;
+    }
+  }
+
+  {  // Bind image memory
+    const VkResult result = vkBindImageMemory (info->device, info->image, memory, 0);
+    if (result != VK_SUCCESS)
+    {
+      vkFreeMemory (info->device, memory, NULL);
+
+      moss__error ("Failed to bind image memory to the image. Error code: %d.\n", result);
+      return VK_NULL_HANDLE;
+    }
+  }
+
+  return memory;
+}
+
 
 /*
   @brief Transitions image layout from one to another.
@@ -55,7 +181,7 @@ typedef struct
   @return Return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
 inline static MossResult
-moss_vk__transition_image_layout (const Moss__TransitionVkImageLayoutInfo *const info)
+moss_vk__transition_image_layout (const MossVk__TransitionImageLayoutInfo *const info)
 {
   VkCommandBuffer command_buffer;
   {  // Begin one time command buffer
@@ -82,7 +208,7 @@ moss_vk__transition_image_layout (const Moss__TransitionVkImageLayoutInfo *const
     .srcAccessMask       = 0,
     .dstAccessMask       = 0,
     .subresourceRange    = {
-      .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+      .aspectMask     = VK_IMAGE_ASPECT_NONE,
       .baseMipLevel   = 0,
       .levelCount     = 1,
       .baseArrayLayer = 0,
@@ -90,6 +216,16 @@ moss_vk__transition_image_layout (const Moss__TransitionVkImageLayoutInfo *const
     }
   };
 
+  // Determine aspect mask
+  if (info->new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+  {
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+  }
+  else {
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  }
+
+  // Determine source and destination
   VkPipelineStageFlags sourceStage      = 0;
   VkPipelineStageFlags destinationStage = 0;
 
@@ -110,6 +246,24 @@ moss_vk__transition_image_layout (const Moss__TransitionVkImageLayoutInfo *const
 
     sourceStage      = VK_PIPELINE_STAGE_TRANSFER_BIT;
     destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+  }
+  else if (info->old_layout == VK_IMAGE_LAYOUT_UNDEFINED &&
+           info->new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+  {
+    barrier.srcAccessMask = 0;
+    barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+                            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+    sourceStage      = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+  }
+  else {
+    moss__error (
+      "Unsupported image layout transition: %u -> %u.\n",
+      info->old_layout,
+      info->new_layout
+    );
+    return MOSS_RESULT_ERROR;
   }
 
   vkCmdPipelineBarrier (
@@ -143,4 +297,3 @@ moss_vk__transition_image_layout (const Moss__TransitionVkImageLayoutInfo *const
 
   return MOSS_RESULT_SUCCESS;
 }
-

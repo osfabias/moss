@@ -89,6 +89,18 @@ inline static MossResult moss__create_combined_buffer (
   VkDeviceMemory                       *out_buffer_memory
 );
 
+/*
+  @brief Generates verticies from sprite.
+  @param sprite Sprite to generate vertex data from.
+  @param out_vertices Output verticies.
+  @return Always returns a pack of verticies.
+*/
+inline static void moss__generate_verticies_from_sprite (
+  const MossSprite *sprite,
+  Moss__Vertex      out_vertices[ 4 ]
+);
+
+
 /*=============================================================================
     PUBLIC FUNCTIONS IMPLEMENTATION
   =============================================================================*/
@@ -104,7 +116,7 @@ MossSpriteBatch *moss_create_sprite_batch (const MossSpriteBatchCreateInfo *cons
 
   // Calculate buffer sizes
   const size_t vertex_data_size =
-    info->capacity * sizeof (MossVertex) * MOSS__VERTICIES_PER_SPRITE;
+    info->capacity * sizeof (Moss__Vertex) * MOSS__VERTICIES_PER_SPRITE;
   const size_t index_data_size =
     info->capacity * sizeof (uint16_t) * MOSS__INDICES_PER_SPRITE;
   const size_t total_buffer_size = vertex_data_size + index_data_size;
@@ -132,6 +144,64 @@ MossSpriteBatch *moss_create_sprite_batch (const MossSpriteBatchCreateInfo *cons
     }
   }
 
+  {  // Create staging buffer
+    const Moss__CreateVkBufferInfo create_info = {
+      .physical_device = info->engine->physical_device,
+      .device          = info->engine->device,
+      .size            = (VkDeviceSize)total_buffer_size,
+      .usage           = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+      .memory_properties =
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+      .sharing_mode                    = info->engine->buffer_sharing_mode,
+      .shared_queue_family_index_count = info->engine->shared_queue_family_index_count,
+      .shared_queue_family_indices     = info->engine->shared_queue_family_indices,
+    };
+
+    const MossResult result = moss_vk__create_buffer (
+      &create_info,
+      &sprite_batch->staging_buffer,
+      &sprite_batch->staging_memory
+    );
+    if (result != MOSS_RESULT_SUCCESS)
+    {
+      moss__error ("Failed to create staging buffer.\n");
+      moss_vk__destroy_buffer (
+        info->engine->device,
+        sprite_batch->buffer,
+        sprite_batch->buffer_memory
+      );
+      free (sprite_batch);
+      return NULL;
+    }
+  }
+
+  {  // Map staging buffer memory
+    const VkResult result = vkMapMemory (
+      info->engine->device,
+      sprite_batch->staging_memory,
+      0,
+      (VkDeviceSize)total_buffer_size,
+      0,
+      &sprite_batch->mapped_memory
+    );
+    if (result != VK_SUCCESS)
+    {
+      moss__error ("Failed to map staging buffer memory: %d.\n", result);
+      moss_vk__destroy_buffer (
+        info->engine->device,
+        sprite_batch->staging_buffer,
+        sprite_batch->staging_memory
+      );
+      moss_vk__destroy_buffer (
+        info->engine->device,
+        sprite_batch->buffer,
+        sprite_batch->buffer_memory
+      );
+      free (sprite_batch);
+      return NULL;
+    }
+  }
+
   // Save original engine
   sprite_batch->original_engine = info->engine;
 
@@ -145,9 +215,6 @@ MossSpriteBatch *moss_create_sprite_batch (const MossSpriteBatchCreateInfo *cons
   sprite_batch->index_capacity     = index_data_size;
   sprite_batch->index_count        = 0;
   sprite_batch->is_begun           = false;
-  sprite_batch->staging_buffer     = VK_NULL_HANDLE;
-  sprite_batch->staging_memory     = VK_NULL_HANDLE;
-  sprite_batch->mapped_memory      = NULL;
 
   return sprite_batch;
 }
@@ -162,19 +229,13 @@ void moss_destroy_sprite_batch (MossSpriteBatch *const sprite_batch)
   // Wait until device finishes all his work
   vkDeviceWaitIdle (engine->device);
 
-  // Cleanup staging buffer if it exists
-  if (sprite_batch->staging_buffer != VK_NULL_HANDLE)
-  {
-    if (sprite_batch->mapped_memory != NULL)
-    {
-      vkUnmapMemory (engine->device, sprite_batch->staging_memory);
-    }
-    moss_vk__destroy_buffer (
-      engine->device,
-      sprite_batch->staging_buffer,
-      sprite_batch->staging_memory
-    );
-  }
+  // Unmap and cleanup staging buffer
+  vkUnmapMemory (engine->device, sprite_batch->staging_memory);
+  moss_vk__destroy_buffer (
+    engine->device,
+    sprite_batch->staging_buffer,
+    sprite_batch->staging_memory
+  );
 
   // Cleanup device-local buffer
   moss_vk__destroy_buffer (
@@ -202,53 +263,10 @@ MossResult moss_begin_sprite_batch (MossSpriteBatch *sprite_batch)
     return MOSS_RESULT_ERROR;
   }
 
-  MossEngine *const engine = sprite_batch->original_engine;
-
-  // Create staging buffer
+  if (sprite_batch->mapped_memory == NULL)
   {
-    const Moss__CreateVkBufferInfo create_info = {
-      .physical_device = engine->physical_device,
-      .device          = engine->device,
-      .size            = (VkDeviceSize)sprite_batch->buffer_capacity,
-      .usage           = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      .memory_properties =
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-      .sharing_mode                    = engine->buffer_sharing_mode,
-      .shared_queue_family_index_count = engine->shared_queue_family_index_count,
-      .shared_queue_family_indices     = engine->shared_queue_family_indices,
-    };
-
-    const MossResult result = moss_vk__create_buffer (
-      &create_info,
-      &sprite_batch->staging_buffer,
-      &sprite_batch->staging_memory
-    );
-    if (result != MOSS_RESULT_SUCCESS)
-    {
-      moss__error ("Failed to create staging buffer.\n");
-      return result;
-    }
-  }
-
-  {  // Map staging buffer memory
-    const VkResult result = vkMapMemory (
-      engine->device,
-      sprite_batch->staging_memory,
-      0,
-      (VkDeviceSize)sprite_batch->buffer_capacity,
-      0,
-      &sprite_batch->mapped_memory
-    );
-    if (result != VK_SUCCESS)
-    {
-      moss__error ("Failed to map staging buffer memory: %d.\n", result);
-      moss_vk__destroy_buffer (
-        engine->device,
-        sprite_batch->staging_buffer,
-        sprite_batch->staging_memory
-      );
-      return MOSS_RESULT_ERROR;
-    }
+    moss__error ("Staging buffer not mapped.\n");
+    return MOSS_RESULT_ERROR;
   }
 
   sprite_batch->is_begun         = true;
@@ -276,50 +294,19 @@ MossResult moss_add_sprites_to_sprite_batch (
     return MOSS_RESULT_ERROR;
   }
 
-  MossVertex *vertices =
-    (MossVertex *)((char *)sprite_batch->mapped_memory +
-                   sprite_batch->vertex_data_offset + sprite_batch->vertex_data_size);
+  Moss__Vertex *vertices =
+    (Moss__Vertex *)((char *)sprite_batch->mapped_memory +
+                     sprite_batch->vertex_data_offset + sprite_batch->vertex_data_size);
   uint16_t *indices =
     (uint16_t *)((char *)sprite_batch->mapped_memory + sprite_batch->index_data_offset +
                  sprite_batch->index_data_size);
   uint16_t base_vertex =
-    (uint16_t)((sprite_batch->vertex_data_size) / sizeof (MossVertex));
+    (uint16_t)((sprite_batch->vertex_data_size) / sizeof (Moss__Vertex));
 
   // Generate vertices and indices for each sprite
   for (size_t i = 0; i < info->sprite_count; ++i)
   {
-    const MossSprite *sprite = &info->sprites[ i ];
-
-    // Calculate sprite corners in world space
-    const float half_width  = sprite->size[ 0 ] * 0.5F;
-    const float half_height = sprite->size[ 1 ] * 0.5F;
-
-    const float x_min = sprite->position[ 0 ] - half_width;
-    const float x_max = sprite->position[ 0 ] + half_width;
-    const float y_min = sprite->position[ 1 ] - half_height;
-    const float y_max = sprite->position[ 1 ] + half_height;
-
-    // Create 4 vertices: top-left, top-right, bottom-right, bottom-left
-    vertices[ 0 ] = (MossVertex) {
-      .position       = { x_min, y_max }, // Top-left
-      .color          = { 1.0F, 1.0F, 1.0F },
-      .texture_coords = { sprite->uv.top_left[ 0 ], sprite->uv.top_left[ 1 ] },
-    };
-    vertices[ 1 ] = (MossVertex) {
-      .position       = { x_max, y_max }, // Top-right
-      .color          = { 1.0F, 1.0F, 1.0F },
-      .texture_coords = { sprite->uv.bottom_right[ 0 ], sprite->uv.top_left[ 1 ] },
-    };
-    vertices[ 2 ] = (MossVertex) {
-      .position       = { x_max, y_min }, // Bottom-right
-      .color          = { 1.0F, 1.0F, 1.0F },
-      .texture_coords = { sprite->uv.bottom_right[ 0 ], sprite->uv.bottom_right[ 1 ] },
-    };
-    vertices[ 3 ] = (MossVertex) {
-      .position       = { x_min, y_min }, // Bottom-left
-      .color          = { 1.0F, 1.0F, 1.0F },
-      .texture_coords = { sprite->uv.top_left[ 0 ], sprite->uv.bottom_right[ 1 ] },
-    };
+    moss__generate_verticies_from_sprite (&info->sprites[ i ], vertices);
 
     // Create indices: two triangles (0,1,2) and (2,3,0)
     indices[ 0 ] = base_vertex + 0;
@@ -332,7 +319,7 @@ MossResult moss_add_sprites_to_sprite_batch (
     vertices += MOSS__VERTICIES_PER_SPRITE;
     indices += MOSS__INDICES_PER_SPRITE;
     base_vertex += MOSS__VERTICIES_PER_SPRITE;
-    sprite_batch->vertex_data_size += sizeof (MossVertex) * MOSS__VERTICIES_PER_SPRITE;
+    sprite_batch->vertex_data_size += sizeof (Moss__Vertex) * MOSS__VERTICIES_PER_SPRITE;
     sprite_batch->index_data_size += sizeof (uint16_t) * MOSS__INDICES_PER_SPRITE;
     sprite_batch->index_count += MOSS__INDICES_PER_SPRITE;
   }
@@ -349,13 +336,6 @@ MossResult moss_end_sprite_batch (MossSpriteBatch *sprite_batch)
   }
 
   MossEngine *const engine = sprite_batch->original_engine;
-
-  // Unmap staging buffer memory
-  if (sprite_batch->mapped_memory != NULL)
-  {
-    vkUnmapMemory (engine->device, sprite_batch->staging_memory);
-    sprite_batch->mapped_memory = NULL;
-  }
 
   // Copy from staging buffer to device-local buffer with offsets
   VkCommandBuffer command_buffer;
@@ -421,16 +401,7 @@ MossResult moss_end_sprite_batch (MossSpriteBatch *sprite_batch)
     }
   }
 
-  // Cleanup staging buffer
-  moss_vk__destroy_buffer (
-    engine->device,
-    sprite_batch->staging_buffer,
-    sprite_batch->staging_memory
-  );
-
-  sprite_batch->staging_buffer = VK_NULL_HANDLE;
-  sprite_batch->staging_memory = VK_NULL_HANDLE;
-  sprite_batch->is_begun       = false;
+  sprite_batch->is_begun = false;
 
   return MOSS_RESULT_SUCCESS;
 }
@@ -514,4 +485,35 @@ inline static MossResult moss__create_combined_buffer (
   }
 
   return result;
+}
+
+inline static void moss__generate_verticies_from_sprite (
+  const MossSprite *const sprite,
+  Moss__Vertex            out_vertices[ 4 ]
+)
+{
+  const float half_width  = sprite->size[ 0 ] * 0.5F;
+  const float half_height = sprite->size[ 1 ] * 0.5F;
+
+  const float bbox_left   = sprite->position[ 0 ] - half_width;
+  const float bbox_right  = sprite->position[ 0 ] + half_width;
+  const float bbox_bottom = sprite->position[ 1 ] - half_height;
+  const float bbox_top    = sprite->position[ 1 ] + half_height;
+
+  out_vertices[ 0 ] = (Moss__Vertex) {
+    .position       = { bbox_left, bbox_top, sprite->depth },
+    .texture_coords = { sprite->uv.top_left[ 0 ], sprite->uv.top_left[ 1 ] },
+  };
+  out_vertices[ 1 ] = (Moss__Vertex) {
+    .position       = { bbox_right, bbox_top, sprite->depth },
+    .texture_coords = { sprite->uv.bottom_right[ 0 ], sprite->uv.top_left[ 1 ] },
+  };
+  out_vertices[ 2 ] = (Moss__Vertex) {
+    .position       = { bbox_right, bbox_bottom, sprite->depth },
+    .texture_coords = { sprite->uv.bottom_right[ 0 ], sprite->uv.bottom_right[ 1 ] },
+  };
+  out_vertices[ 3 ] = (Moss__Vertex) {
+    .position       = { bbox_left, bbox_bottom, sprite->depth },
+    .texture_coords = { sprite->uv.top_left[ 0 ], sprite->uv.bottom_right[ 1 ] },
+  };
 }

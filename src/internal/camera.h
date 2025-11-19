@@ -13,30 +13,17 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  @file include/moss/sprite.h
-  @brief Sprite struct declaration.
+  @file src/internal/camera.h
+  @brief Private camera struct body declaration.
   @author Ilya Buravov (ilburale@gmail.com)
 */
 
 #pragma once
 
-#include <cglm/vec2.h>
+#include <cglm/cglm.h>
 
-#include "moss/engine.h"
-#include "moss/result.h"
-
-/*
-  @brief Sprite.
-  @details Represents info that is used to draw a rectangle.
-*/
-typedef struct
+struct MossCamera
 {
-  float depth;    /* Image depth. */
-  vec2  position; /* World position. */
-  vec2  size;     /* World units size. */
-  struct
-  {
-    vec2 top_left;     /* UV coords of the top left corner on texture altas. */
-    vec2 bottom_right; /* UV coords of the bottom right on texture atlas. */
-  } uv;
-} MossSprite;
+  vec2 scale;  /* Camera scale applied to verticies. */
+  vec2 offset; /* Camera offset applied to verticies. */
+};

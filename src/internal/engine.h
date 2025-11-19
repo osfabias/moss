@@ -25,6 +25,7 @@
 #include "moss/camera.h"
 #include "moss/engine.h"
 
+#include "src/internal/camera.h"
 #include "src/internal/config.h"
 #include "src/internal/vulkan/utils/physical_device.h"
 
@@ -101,7 +102,15 @@ struct MossEngine
   /* Graphics pipeline. */
   VkPipeline graphics_pipeline;
 
-  /* === Vertex and index buffers, texture image :3 === */
+  /* === Depth buffering === */
+  /* Depth image. */
+  VkImage depth_image;
+  /* Depth image view. */
+  VkImageView depth_image_view;
+  /* Depth image. */
+  VkDeviceMemory depth_image_memory;
+
+  /* === Texture image :3 === */
   /* Texture image. */
   VkImage texture_image;
   /* Texture image view. */
@@ -110,12 +119,6 @@ struct MossEngine
   VkDeviceMemory texture_image_memory;
   /* Sampler. */
   VkSampler sampler;
-  /* Vertex buffer. */
-  VkBuffer       vertex_buffer;
-  VkDeviceMemory vertex_buffer_memory;
-  /* Index buffer. */
-  VkBuffer       index_buffer;
-  VkDeviceMemory index_buffer_memory;
   /* Uniform buffers. */
   VkBuffer       camera_ubo_buffers[ MAX_FRAMES_IN_FLIGHT ];
   VkDeviceMemory camera_ubo_memories[ MAX_FRAMES_IN_FLIGHT ];
@@ -152,8 +155,8 @@ inline static void moss__init_engine_state (MossEngine *engine)
 {
   *engine = (MossEngine){
     .camera = {
-      .position = {0, 0},
-      .size     = {0, 0},
+      .scale  = {1, 1},
+      .offset = {0, 0},
     },
 
     /* Metal layer. */
@@ -200,11 +203,12 @@ inline static void moss__init_engine_state (MossEngine *engine)
     .pipeline_layout       = VK_NULL_HANDLE,
     .graphics_pipeline     = VK_NULL_HANDLE,
 
-    /* Vertex buffers. */
-    .vertex_buffer        = VK_NULL_HANDLE,
-    .vertex_buffer_memory = VK_NULL_HANDLE,
-    .index_buffer         = VK_NULL_HANDLE,
-    .index_buffer_memory  = VK_NULL_HANDLE,
+    /* Depth resources */
+    .depth_image        = VK_NULL_HANDLE,
+    .depth_image_view   = VK_NULL_HANDLE,
+    .depth_image_memory = VK_NULL_HANDLE,
+
+    /* Uniform buffers. */
     .camera_ubo_buffers   = { VK_NULL_HANDLE, VK_NULL_HANDLE },
     .camera_ubo_memories  = { VK_NULL_HANDLE, VK_NULL_HANDLE },
     .camera_ubo_buffer_mapped_memory_blocks = { NULL, NULL },
