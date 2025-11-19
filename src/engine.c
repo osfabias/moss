@@ -875,7 +875,8 @@ moss__create_api_instance (MossEngine *const engine, const MossAppInfo *const ap
   }
 
   // Set up other required info
-  const VkApplicationInfo          vk_app_info = moss__create_vk_app_info (app_info);
+  VkApplicationInfo vk_app_info;
+  moss__create_vk_app_info (app_info, &vk_app_info);
   const MossVk__InstanceExtensions extensions =
     moss_vk__get_required_instance_extensions ( );
 

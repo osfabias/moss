@@ -14,25 +14,26 @@ This file contains the list of files to review for code style compliance.
 ### Phase 1: Vulkan Utility Functions
 These are header files with inline functions in `src/internal/vulkan/utils/`:
 
-1. `src/internal/vulkan/utils/buffer.h`
-2. `src/internal/vulkan/utils/command_buffer.h`
-3. `src/internal/vulkan/utils/command_pool.h`
-4. `src/internal/vulkan/utils/image_view.h`
-5. `src/internal/vulkan/utils/image.h`
-6. `src/internal/vulkan/utils/instance.h`
-7. `src/internal/vulkan/utils/physical_device.h`
-8. `src/internal/vulkan/utils/shader.h`
-9. `src/internal/vulkan/utils/swapchain.h`
-10. `src/internal/vulkan/utils/validation_layers.h`
+1. ✅ `src/internal/vulkan/utils/buffer.h` - **REVIEWED & REFACTORED**
+2. ✅ `src/internal/vulkan/utils/command_buffer.h` - **REVIEWED & REFACTORED**
+3. ✅ `src/internal/vulkan/utils/command_pool.h` - **REVIEWED & REFACTORED**
+4. ✅ `src/internal/vulkan/utils/image_view.h` - **REVIEWED & REFACTORED**
+5. ✅ `src/internal/vulkan/utils/image.h` - **REVIEWED & REFACTORED**
+6. ✅ `src/internal/vulkan/utils/instance.h` - **REVIEWED & REFACTORED** (naming only)
+7. ✅ `src/internal/vulkan/utils/physical_device.h` - **REVIEWED & REFACTORED** (naming only)
+8. ✅ `src/internal/vulkan/utils/shader.h` - **REVIEWED & REFACTORED** (naming only)
+9. ✅ `src/internal/vulkan/utils/swapchain.h` - **REVIEWED & REFACTORED** (naming only)
+10. ✅ `src/internal/vulkan/utils/validation_layers.h` - **REVIEWED & REFACTORED** (naming only)
 
 ### Phase 2: Internal Utility Functions
 
-11. `src/internal/memory_utils.h`
-12. `src/internal/log.h` (macros only, may skip if no functions)
+11. ✅ `src/internal/memory_utils.h` - **REVIEWED & REFACTORED**
+12. ✅ `src/internal/log.h` - **REVIEWED** (macros only, skipped)
+13. ✅ `src/internal/app_info.h` - **REVIEWED & REFACTORED**
 
 ### Phase 3: Internal Engine Functions
 
-13. `src/engine.c` (internal functions only, starting with `moss__`)
+14. ✅ `src/engine.c` (internal functions only, starting with `moss__`) - **REVIEWED & REFACTORED**
 
 ### Phase 4: Public API
 
