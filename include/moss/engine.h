@@ -23,6 +23,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <cglm/cglm.h>
+
 #include "moss/app_info.h"
 #include "moss/result.h"
 
@@ -82,7 +84,7 @@ void moss_destroy_engine (MossEngine *engine);
            and begins the render pass. After calling this function, you can call
            drawing functions like moss_draw_sprite_batch.
   @param engine Engine handle.
-  @return On success return MOSS_RESULT_SUCCESS, otherwise returns MOSS_RESULT_ERROR.
+  @return On success return MOSS_RESULT_SUCCESS, otherwise returns error code.
   @note Must be paired with moss_end_frame.
 */
 MossResult moss_begin_frame (MossEngine *engine);
@@ -92,7 +94,15 @@ MossResult moss_begin_frame (MossEngine *engine);
   @details Ends the render pass, ends command buffer recording, submits the command
            buffer to the graphics queue, and presents the swap chain image.
   @param engine Engine handle.
-  @return On success return MOSS_RESULT_SUCCESS, otherwise returns MOSS_RESULT_ERROR.
+  @return On success returns MOSS_RESULT_SUCCESS, otherwise returns error code.
   @note Must be paired with moss_begin_frame.
 */
 MossResult moss_end_frame (MossEngine *engine);
+
+/*
+  @brief Sets render resolution.
+  @param engine Engine handle.
+  @param resolution New resolution.
+  @return On success returns
+*/
+MossResult moss_set_render_resolution (MossEngine *engine, const vec2 new_resolution);

@@ -649,14 +649,13 @@ MossResult moss_begin_frame (MossEngine *const engine)
   vkWaitForFences (engine->device, 1, &in_flight_fence, VK_TRUE, UINT64_MAX);
   vkResetFences (engine->device, 1, &in_flight_fence);
 
-  uint32_t current_image_index;
   VkResult result = vkAcquireNextImageKHR (
     engine->device,
     engine->swapchain,
     UINT64_MAX,
     image_available_semaphore,
     VK_NULL_HANDLE,
-    &current_image_index
+    &engine->current_image_index
   );
 
   if (result == VK_ERROR_OUT_OF_DATE_KHR)
@@ -673,8 +672,6 @@ MossResult moss_begin_frame (MossEngine *const engine)
     moss__error ("Failed to acquire swap chain image.\n");
     return MOSS_RESULT_ERROR;
   }
-
-  engine->current_image_index = current_image_index;
 
   vkResetCommandBuffer (command_buffer, 0);
 
@@ -696,7 +693,7 @@ MossResult moss_begin_frame (MossEngine *const engine)
   const VkRenderPassBeginInfo render_pass_info = {
     .sType       = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
     .renderPass  = engine->render_pass,
-    .framebuffer = engine->swapchain_framebuffers[ current_image_index ],
+    .framebuffer = engine->swapchain_framebuffers[ engine->current_image_index ],
     .renderArea  = {
       .offset = {0, 0},
       .extent = engine->swapchain_extent,
@@ -827,6 +824,15 @@ MossResult moss_end_frame (MossEngine *const engine)
   }
 
   engine->current_frame = (engine->current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+
+  return MOSS_RESULT_SUCCESS;
+}
+
+MossResult
+moss_set_render_resolution (MossEngine *const engine, const vec2 new_resolution)
+{
+  (void)(engine);
+  (void)(new_resolution);
 
   return MOSS_RESULT_SUCCESS;
 }
