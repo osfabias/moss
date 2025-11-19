@@ -25,9 +25,9 @@
 #include "moss/camera.h"
 #include "moss/engine.h"
 
+#include "src/internal/camera.h"
 #include "src/internal/config.h"
 #include "src/internal/vulkan/utils/physical_device.h"
-#include "vulkan/vulkan_core.h"
 
 /*
   @brief Engine state.
@@ -155,8 +155,8 @@ inline static void moss__init_engine_state (MossEngine *engine)
 {
   *engine = (MossEngine){
     .camera = {
-      .position = {0, 0},
-      .size     = {0, 0},
+      .scale  = {1, 1},
+      .offset = {0, 0},
     },
 
     /* Metal layer. */

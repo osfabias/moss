@@ -24,11 +24,7 @@
 
 #include "moss/engine.h"
 
-typedef struct
-{
-  vec2 position;
-  vec2 size;
-} MossCamera;
+typedef struct MossCamera MossCamera;
 
 /*
   @brief Returns camera handle.
@@ -36,3 +32,17 @@ typedef struct
   @return Always returns a valid pointer to the engine's camera.
 */
 MossCamera *moss_get_camera (MossEngine *engine);
+
+/*
+  @brief Sets camera position.
+  @param camera Camera handle.
+  @param new_position New position to move camera to.
+*/
+void moss_set_camera_position (MossCamera *camera, const vec2 new_position);
+
+/*
+  @brief Sets camera size.
+  @param camera Camera handle.
+  @param new_size New size to resize camera to.
+*/
+void moss_set_camera_size (MossCamera *camera, const vec2 new_size);

@@ -89,8 +89,13 @@ int main (void)
   MossEngine *const engine = moss_create_engine (&moss_engine_config);
 
   MossCamera *const camera = moss_get_camera (engine);
-  camera->size[ 0 ]        = 640;
-  camera->size[ 1 ]        = 360;
+
+  // Track camera state locally (since there are no getter functions)
+  vec2 camera_position = { 0.0F, 0.0F };
+  vec2 camera_size     = { 640.0F, 360.0F };
+
+  moss_set_camera_size (camera, camera_size);
+  moss_set_camera_position (camera, camera_position);
 
   // Create 10000 sprites with random positions, sizes, and velocities
   const size_t NUM_SPRITES = 1000000;
@@ -177,8 +182,8 @@ int main (void)
   const float zoom_speed            = 10.0F;    // Zoom speed per second
   const float min_zoom              = 1.0F;     // Minimum camera size (zoomed in)
   const float max_zoom              = 2000.0F;  // Maximum camera size (zoomed out)
-  const float initial_camera_size_x = camera->size[ 0 ];
-  const float initial_camera_size_y = camera->size[ 1 ];
+  const float initial_camera_size_x = camera_size[ 0 ];
+  const float initial_camera_size_y = camera_size[ 1 ];
 
   while (!stuffy_window_should_close (g_window))
   {
@@ -223,7 +228,7 @@ int main (void)
     // Calculate camera speed based on zoom level (proportional to camera size)
     // When zoomed out (larger size), move faster; when zoomed in (smaller size), move
     // slower
-    const float zoom_factor          = camera->size[ 1 ] / initial_camera_size_y;
+    const float zoom_factor          = camera_size[ 1 ] / initial_camera_size_y;
     const float current_camera_speed = base_camera_speed * zoom_factor;
 
     // Use actual delta time for movement
@@ -234,20 +239,22 @@ int main (void)
     // WASD controls (or arrow keys as alternative)
     if (keyboard->keys[ STUFFY_KEY_W ] || keyboard->keys[ STUFFY_KEY_UP ])
     {
-      camera->position[ 1 ] += move_distance;
+      camera_position[ 1 ] += move_distance;
     }
     if (keyboard->keys[ STUFFY_KEY_S ] || keyboard->keys[ STUFFY_KEY_DOWN ])
     {
-      camera->position[ 1 ] -= move_distance;
+      camera_position[ 1 ] -= move_distance;
     }
     if (keyboard->keys[ STUFFY_KEY_A ] || keyboard->keys[ STUFFY_KEY_LEFT ])
     {
-      camera->position[ 0 ] -= move_distance;
+      camera_position[ 0 ] -= move_distance;
     }
     if (keyboard->keys[ STUFFY_KEY_D ] || keyboard->keys[ STUFFY_KEY_RIGHT ])
     {
-      camera->position[ 0 ] += move_distance;
+      camera_position[ 0 ] += move_distance;
     }
+
+    moss_set_camera_position (camera, camera_position);
 
     // Zoom controls
     float zoom_delta = 0.0F;
@@ -277,8 +284,8 @@ int main (void)
     if (zoom_delta != 0.0F)
     {
       const float aspect_ratio = initial_camera_size_x / initial_camera_size_y;
-      float       new_size_x   = camera->size[ 0 ] + zoom_delta * aspect_ratio;
-      float       new_size_y   = camera->size[ 1 ] + zoom_delta;
+      float       new_size_x   = camera_size[ 0 ] + zoom_delta * aspect_ratio;
+      float       new_size_y   = camera_size[ 1 ] + zoom_delta;
 
       // Clamp to min/max zoom limits
       const float min_size_x = min_zoom * aspect_ratio;
@@ -295,8 +302,9 @@ int main (void)
         new_size_y = max_zoom;
       }
 
-      camera->size[ 0 ] = new_size_x;
-      camera->size[ 1 ] = new_size_y;
+      camera_size[ 0 ] = new_size_x;
+      camera_size[ 1 ] = new_size_y;
+      moss_set_camera_size (camera, camera_size);
     }
 
     // Escape to exit
