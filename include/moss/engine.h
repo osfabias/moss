@@ -23,7 +23,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "moss/apidef.h"
 #include "moss/app_info.h"
 #include "moss/result.h"
 
@@ -68,14 +67,14 @@ typedef struct
   @param config Engine configuration.
   @return On success returns valid pointer to engine state, otherwise returns NULL.
 */
-__MOSS_API__ MossEngine *moss_create_engine (const MossEngineConfig *config);
+MossEngine *moss_create_engine (const MossEngineConfig *config);
 
 /*
   @brief Destroys engine instance.
   @details Cleans up all reserved memory and destroys all GraphicsAPI objects.
   @param engine Engine handler.
 */
-__MOSS_API__ void moss_destroy_engine (MossEngine *engine);
+void moss_destroy_engine (MossEngine *engine);
 
 /*
   @brief Begins a new frame.
@@ -86,7 +85,7 @@ __MOSS_API__ void moss_destroy_engine (MossEngine *engine);
   @return On success return MOSS_RESULT_SUCCESS, otherwise returns MOSS_RESULT_ERROR.
   @note Must be paired with moss_end_frame.
 */
-__MOSS_API__ MossResult moss_begin_frame (MossEngine *engine);
+MossResult moss_begin_frame (MossEngine *engine);
 
 /*
   @brief Ends the current frame.
@@ -96,4 +95,4 @@ __MOSS_API__ MossResult moss_begin_frame (MossEngine *engine);
   @return On success return MOSS_RESULT_SUCCESS, otherwise returns MOSS_RESULT_ERROR.
   @note Must be paired with moss_begin_frame.
 */
-__MOSS_API__ MossResult moss_end_frame (MossEngine *engine);
+MossResult moss_end_frame (MossEngine *engine);
