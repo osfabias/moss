@@ -77,7 +77,6 @@ set(MOSS_SOURCE_FILES
   src/camera.c
   src/engine.c
   src/sprite_batch.c
-  src/stb_image.c
   # add new source files here...
 )
 
@@ -103,7 +102,7 @@ target_include_directories(moss PUBLIC include)
 target_include_directories(moss PRIVATE . ${Vulkan_INCLUDE_DIRS})
 
 target_link_libraries(moss PUBLIC cglm)
-target_link_libraries(moss PRIVATE ${Vulkan_LIBRARIES})
+target_link_libraries(moss PRIVATE ${Vulkan_LIBRARIES} stb)
 
 target_compile_options(moss PRIVATE ${MOSS_COMPILE_OPTIONS})
 

@@ -33,7 +33,7 @@
 
 #include <cglm/cglm.h>
 
-#include <src/internal/stb_image.h>
+#include <stb/stb_image.h>
 
 #include "moss/app_info.h"
 #include "moss/engine.h"
@@ -43,7 +43,6 @@
 #include "src/internal/config.h"
 #include "src/internal/engine.h"
 #include "src/internal/log.h"
-#include "src/internal/vulkan/utils/memory.h"
 #include "src/internal/shaders.h"
 #include "src/internal/vertex.h"
 #include "src/internal/vulkan/utils/buffer.h"
@@ -51,6 +50,7 @@
 #include "src/internal/vulkan/utils/image.h"
 #include "src/internal/vulkan/utils/image_view.h"
 #include "src/internal/vulkan/utils/instance.h"
+#include "src/internal/vulkan/utils/memory.h"
 #include "src/internal/vulkan/utils/physical_device.h"
 #include "src/internal/vulkan/utils/shader.h"
 #include "src/internal/vulkan/utils/swapchain.h"
