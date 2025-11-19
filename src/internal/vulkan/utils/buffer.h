@@ -159,12 +159,12 @@ inline static MossResult moss_vk__allocate_buffer_memory (
   // Find suitable memory type
   uint32_t memory_type_index;
   {
-    const MossResult result = moss__select_suitable_memory_type (
-      info->physical_device,
-      memory_requirements.memoryTypeBits,
-      info->memory_properties,
-      &memory_type_index
-    );
+    const Moss__SelectSuitableMemoryTypeInfo select_info = {
+      .physical_device = info->physical_device,
+      .type_filter     = memory_requirements.memoryTypeBits,
+      .properties      = info->memory_properties,
+    };
+    const MossResult result = moss__select_suitable_memory_type (&select_info, &memory_type_index);
     if (result != MOSS_RESULT_SUCCESS)
     {
       moss__error ("Failed to find suitable memory type for buffer.\n");

@@ -90,12 +90,12 @@ inline static void moss__init_buffer_sharing_mode (MossEngine *engine);
 
 /*
   @brief Creates swap chain.
-  @param width Window width.
-  @param height Window height.
+  @param engine Engine instance.
+  @param extent Window extent (width and height).
   @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
 inline static MossResult
-moss__create_swapchain (MossEngine *engine, uint32_t width, uint32_t height);
+moss__create_swapchain (MossEngine *engine, const VkExtent2D *extent);
 
 /*
   @brief Creates image views for swap chain images.
@@ -110,11 +110,13 @@ inline static MossResult moss__create_swapchain_image_views (MossEngine *engine)
 inline static MossResult moss__create_render_pass (MossEngine *engine);
 
 /*
-  @brief Returns Vulkan pipeline vertex input state info.
-  @return Vulkan pipeline vertex input state info.
+  @brief Creates Vulkan pipeline vertex input state info.
+  @param out_info Output parameter for vertex input state info.
 */
-inline static VkPipelineVertexInputStateCreateInfo
-moss__create_vk_pipeline_vertex_input_state_info (void);
+inline static void
+moss__create_vk_pipeline_vertex_input_state_info (
+  VkPipelineVertexInputStateCreateInfo *out_info
+);
 
 /*
   @brief Creates descriptor pool.
@@ -271,12 +273,12 @@ inline static void moss__cleanup_swapchain (MossEngine *engine);
 
 /*
   @brief Recreates swap chain.
-  @param width Window width.
-  @param height Window height.
+  @param engine Engine instance.
+  @param extent Window extent (width and height).
   @return Returns MOSS_RESULT_SUCCESS on success, error code otherwise.
 */
 inline static MossResult
-moss__recreate_swapchain (MossEngine *engine, uint32_t width, uint32_t height);
+moss__recreate_swapchain (MossEngine *engine, const VkExtent2D *extent);
 
 /*
   @brief Updates camera ubo data.
@@ -386,10 +388,10 @@ MossEngine *moss_create_engine (const MossEngineConfig *const config)
   moss__init_buffer_sharing_mode (engine);
 
   // Get framebuffer size from callback
-  uint32_t width, height;
-  engine->get_window_framebuffer_size (&width, &height);
+  VkExtent2D extent;
+  engine->get_window_framebuffer_size (&extent.width, &extent.height);
 
-  if (moss__create_swapchain (engine, width, height) != MOSS_RESULT_SUCCESS)
+  if (moss__create_swapchain (engine, &extent) != MOSS_RESULT_SUCCESS)
   {
     moss_destroy_engine ((MossEngine *)engine);
     return NULL;
@@ -664,9 +666,9 @@ MossResult moss_begin_frame (MossEngine *const engine)
   {
     // Swap chain is out of date, need to recreate before we can acquire image
     // Get current framebuffer size from callback
-    uint32_t width, height;
-    engine->get_window_framebuffer_size (&width, &height);
-    return moss__recreate_swapchain (engine, width, height);
+    VkExtent2D extent;
+    engine->get_window_framebuffer_size (&extent.width, &extent.height);
+    return moss__recreate_swapchain (engine, &extent);
   }
 
   if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
@@ -812,9 +814,9 @@ MossResult moss_end_frame (MossEngine *const engine)
   {
     // Swap chain is out of date or suboptimal, need to recreate
     // Get current framebuffer size from callback
-    uint32_t width, height;
-    engine->get_window_framebuffer_size (&width, &height);
-    if (moss__recreate_swapchain (engine, width, height) != MOSS_RESULT_SUCCESS)
+    VkExtent2D extent;
+    engine->get_window_framebuffer_size (&extent.width, &extent.height);
+    if (moss__recreate_swapchain (engine, &extent) != MOSS_RESULT_SUCCESS)
     {
       return MOSS_RESULT_ERROR;
     }
@@ -1015,11 +1017,8 @@ inline static void moss__init_buffer_sharing_mode (MossEngine *const engine)
   }
 }
 
-inline static MossResult moss__create_swapchain (
-  MossEngine *const engine,
-  const uint32_t    width,
-  const uint32_t    height
-)
+inline static MossResult
+moss__create_swapchain (MossEngine *const engine, const VkExtent2D *const extent)
 {
   const MossVk__QuerySwapchainSupportInfo query_info = {
     .device  = engine->physical_device,
@@ -1036,8 +1035,8 @@ inline static MossResult moss__create_swapchain (
     swapchain_support.present_modes,
     swapchain_support.present_mode_count
   );
-  const VkExtent2D extent =
-    moss_vk__choose_swap_extent (&swapchain_support.capabilities, width, height);
+  const VkExtent2D chosen_extent =
+    moss_vk__choose_swap_extent (&swapchain_support.capabilities, extent->width, extent->height);
 
   VkSwapchainCreateInfoKHR create_info = {
     .sType            = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
@@ -1045,7 +1044,7 @@ inline static MossResult moss__create_swapchain (
     .minImageCount    = swapchain_support.capabilities.minImageCount,
     .imageFormat      = surface_format.format,
     .imageColorSpace  = surface_format.colorSpace,
-    .imageExtent      = extent,
+    .imageExtent      = chosen_extent,
     .imageArrayLayers = 1,
     .imageUsage       = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
     .preTransform     = swapchain_support.capabilities.currentTransform,
@@ -1212,8 +1211,9 @@ inline static MossResult moss__create_render_pass (MossEngine *const engine)
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static VkPipelineVertexInputStateCreateInfo
-moss__create_vk_pipeline_vertex_input_state_info (void)
+inline static void moss__create_vk_pipeline_vertex_input_state_info (
+  VkPipelineVertexInputStateCreateInfo *const out_info
+)
 {
   const Moss__VkVertexInputBindingDescriptionPack binding_descriptions_pack =
     moss__get_vk_vertex_input_binding_description ( );
@@ -1221,15 +1221,13 @@ moss__create_vk_pipeline_vertex_input_state_info (void)
   const Moss__VkVertexInputAttributeDescriptionPack attribute_descriptions_pack =
     moss__get_vk_vertex_input_attribute_description ( );
 
-  const VkPipelineVertexInputStateCreateInfo info = {
+  *out_info = (VkPipelineVertexInputStateCreateInfo){
     .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
     .vertexBindingDescriptionCount   = binding_descriptions_pack.count,
     .pVertexBindingDescriptions      = binding_descriptions_pack.descriptions,
     .vertexAttributeDescriptionCount = attribute_descriptions_pack.count,
     .pVertexAttributeDescriptions    = attribute_descriptions_pack.descriptions,
   };
-
-  return info;
 }
 
 inline static MossResult moss__create_descriptor_pool (MossEngine *const engine)
@@ -1438,8 +1436,8 @@ inline static MossResult moss__create_graphics_pipeline (MossEngine *const engin
   const VkPipelineShaderStageCreateInfo shader_stages[] = { vert_shader_stage_info,
                                                             frag_shader_stage_info };
 
-  const VkPipelineVertexInputStateCreateInfo vertex_input_info =
-    moss__create_vk_pipeline_vertex_input_state_info ( );
+  VkPipelineVertexInputStateCreateInfo vertex_input_info;
+  moss__create_vk_pipeline_vertex_input_state_info (&vertex_input_info);
 
   const VkPipelineInputAssemblyStateCreateInfo input_assembly = {
     .sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
@@ -2155,17 +2153,14 @@ inline static void moss__cleanup_swapchain (MossEngine *const engine)
   engine->swapchain_extent       = (VkExtent2D) { .width = 0, .height = 0 };
 }
 
-inline static MossResult moss__recreate_swapchain (
-  MossEngine *const engine,
-  const uint32_t    width,
-  const uint32_t    height
-)
+inline static MossResult
+moss__recreate_swapchain (MossEngine *const engine, const VkExtent2D *const extent)
 {
   vkDeviceWaitIdle (engine->device);
 
   moss__cleanup_swapchain (engine);
 
-  if (moss__create_swapchain (engine, width, height) != MOSS_RESULT_SUCCESS)
+  if (moss__create_swapchain (engine, extent) != MOSS_RESULT_SUCCESS)
   {
     return MOSS_RESULT_ERROR;
   }

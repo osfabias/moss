@@ -135,15 +135,18 @@ inline static MossResult moss_vk__allocate_image_memory (
   vkGetImageMemoryRequirements (info->device, info->image, &memory_requirements);
 
   uint32_t suitable_memory_type;
-  if (moss__select_suitable_memory_type (
-        info->physical_device,
-        memory_requirements.memoryTypeBits,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        &suitable_memory_type
-      ) != MOSS_RESULT_SUCCESS)
   {
-    moss__error ("Failed to find suitable memory type.\n");
-    return MOSS_RESULT_ERROR;
+    const Moss__SelectSuitableMemoryTypeInfo select_info = {
+      .physical_device = info->physical_device,
+      .type_filter     = memory_requirements.memoryTypeBits,
+      .properties      = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+    };
+    if (moss__select_suitable_memory_type (&select_info, &suitable_memory_type) !=
+        MOSS_RESULT_SUCCESS)
+    {
+      moss__error ("Failed to find suitable memory type.\n");
+      return MOSS_RESULT_ERROR;
+    }
   }
 
   {  // Allocate memory
