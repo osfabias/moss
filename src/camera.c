@@ -26,7 +26,10 @@
 #include "src/internal/camera.h"
 #include "src/internal/engine.h"
 
-MossCamera *moss_get_camera (MossEngine *const engine) { return &engine->camera; }
+void moss_get_camera (MossEngine *const engine, MossCamera **out_camera)
+{
+  *out_camera = &engine->camera;
+}
 
 void moss_set_camera_position (MossCamera *const camera, const vec2 new_position)
 {

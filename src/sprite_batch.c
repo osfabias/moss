@@ -105,13 +105,14 @@ inline static void moss__generate_verticies_from_sprite (
     PUBLIC FUNCTIONS IMPLEMENTATION
   =============================================================================*/
 
-MossSpriteBatch *moss_create_sprite_batch (const MossSpriteBatchCreateInfo *const info)
+MossResult
+moss_create_sprite_batch (const MossSpriteBatchCreateInfo *const info, MossSpriteBatch **out_sprite_batch)
 {
   MossSpriteBatch *const sprite_batch = malloc (sizeof (MossSpriteBatch));
   if (sprite_batch == NULL)
   {
     moss__error ("Failed to allocate memory for a sprite batch.\n");
-    return NULL;
+    return MOSS_RESULT_ERROR;
   }
 
   // Calculate buffer sizes
@@ -140,7 +141,7 @@ MossSpriteBatch *moss_create_sprite_batch (const MossSpriteBatchCreateInfo *cons
     {
       moss__error ("Failed to create combined buffer for sprite batch.\n");
       free (sprite_batch);
-      return NULL;
+      return MOSS_RESULT_ERROR;
     }
   }
 
@@ -169,7 +170,7 @@ MossSpriteBatch *moss_create_sprite_batch (const MossSpriteBatchCreateInfo *cons
           vkDestroyBuffer (info->engine->device, sprite_batch->buffer, NULL);
         }
         free (sprite_batch);
-        return NULL;
+        return MOSS_RESULT_ERROR;
       }
     }
 
@@ -196,7 +197,7 @@ MossSpriteBatch *moss_create_sprite_batch (const MossSpriteBatchCreateInfo *cons
           vkDestroyBuffer (info->engine->device, sprite_batch->buffer, NULL);
         }
         free (sprite_batch);
-        return NULL;
+        return MOSS_RESULT_ERROR;
       }
     }
   }
@@ -234,7 +235,7 @@ MossSpriteBatch *moss_create_sprite_batch (const MossSpriteBatchCreateInfo *cons
         }
       }
       free (sprite_batch);
-      return NULL;
+      return MOSS_RESULT_ERROR;
     }
   }
 
@@ -252,7 +253,8 @@ MossSpriteBatch *moss_create_sprite_batch (const MossSpriteBatchCreateInfo *cons
   sprite_batch->index_count        = 0;
   sprite_batch->is_begun           = false;
 
-  return sprite_batch;
+  *out_sprite_batch = sprite_batch;
+  return MOSS_RESULT_SUCCESS;
 }
 
 

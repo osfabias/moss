@@ -57,10 +57,12 @@ typedef struct
 
 /*
   @brief Creates sprite batch.
-  @return Returns a valid pointer to a sprite batch on success,
-          otherwise returns error code.
+  @param info Required info to create sprite batch.
+  @param out_sprite_batch Output parameter for created sprite batch.
+  @return MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-MossSpriteBatch *moss_create_sprite_batch (const MossSpriteBatchCreateInfo *info);
+MossResult
+moss_create_sprite_batch (const MossSpriteBatchCreateInfo *info, MossSpriteBatch **out_sprite_batch);
 
 /*
   @brief Destroys sprite batch.

@@ -43,8 +43,18 @@ These are header files with inline functions in `src/internal/vulkan/utils/`:
     - `moss_begin_frame` - OK
     - `moss_end_frame` - OK
     - `moss_set_render_resolution` - OK
-16. `src/camera.c` (all functions)
-17. `src/sprite_batch.c` (all functions)
+16. ✅ `src/camera.c` - **REVIEWED & REFACTORED**
+    - `moss_get_camera` - Changed to use out parameter
+    - `moss_set_camera_position` - OK
+    - `moss_set_camera_size` - OK
+17. ✅ `src/sprite_batch.c` - **REVIEWED & REFACTORED**
+    - `moss_create_sprite_batch` - Changed to use out parameter
+    - `moss_destroy_sprite_batch` - OK
+    - `moss_clear_sprite_batch` - OK
+    - `moss_begin_sprite_batch` - OK
+    - `moss_add_sprites_to_sprite_batch` - OK
+    - `moss_end_sprite_batch` - OK
+    - `moss_draw_sprite_batch` - OK
 
 ## Notes
 

@@ -27,11 +27,11 @@
 typedef struct MossCamera MossCamera;
 
 /*
-  @brief Returns camera handle.
+  @brief Gets camera handle.
   @param engine Engine handle.
-  @return Always returns a valid pointer to the engine's camera.
+  @param out_camera Output parameter for camera handle.
 */
-MossCamera *moss_get_camera (MossEngine *engine);
+void moss_get_camera (MossEngine *engine, MossCamera **out_camera);
 
 /*
   @brief Sets camera position.

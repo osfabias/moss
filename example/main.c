@@ -92,7 +92,8 @@ int main (void)
     return 1;
   }
 
-  MossCamera *const camera = moss_get_camera (engine);
+  MossCamera *camera;
+  moss_get_camera (engine, &camera);
 
   // Track camera state locally (since there are no getter functions)
   vec2 camera_position = { 0.0F, 0.0F };
@@ -135,7 +136,12 @@ int main (void)
     .engine   = engine,
     .capacity = NUM_SPRITES,
   };
-  MossSpriteBatch *const sprite_batch = moss_create_sprite_batch (&sprite_batch_info);
+  MossSpriteBatch *sprite_batch;
+  if (moss_create_sprite_batch (&sprite_batch_info, &sprite_batch) != MOSS_RESULT_SUCCESS)
+  {
+    moss_destroy_engine (engine);
+    return 1;
+  }
 
   moss_begin_sprite_batch (sprite_batch);
   {
