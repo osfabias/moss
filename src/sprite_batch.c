@@ -145,33 +145,55 @@ MossSpriteBatch *moss_create_sprite_batch (const MossSpriteBatchCreateInfo *cons
   }
 
   {  // Create staging buffer
-    const MossVk__CreateBufferInfo create_info = {
-      .physical_device = info->engine->physical_device,
-      .device          = info->engine->device,
-      .size            = (VkDeviceSize)total_buffer_size,
-      .usage           = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      .memory_properties =
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-      .sharing_mode                    = info->engine->buffer_sharing_mode,
-      .shared_queue_family_index_count = info->engine->shared_queue_family_index_count,
-      .shared_queue_family_indices     = info->engine->shared_queue_family_indices,
-    };
-
-    const MossResult result = moss_vk__create_buffer (
-      &create_info,
-      &sprite_batch->staging_buffer,
-      &sprite_batch->staging_memory
-    );
-    if (result != MOSS_RESULT_SUCCESS)
     {
-      moss__error ("Failed to create staging buffer.\n");
-      moss_vk__destroy_buffer (
-        info->engine->device,
-        sprite_batch->buffer,
-        sprite_batch->buffer_memory
-      );
-      free (sprite_batch);
-      return NULL;
+      const MossVk__CreateBufferInfo create_info = {
+        .device                        = info->engine->device,
+        .size                          = (VkDeviceSize)total_buffer_size,
+        .usage                         = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        .sharing_mode                  = info->engine->buffer_sharing_mode,
+        .shared_queue_family_index_count = info->engine->shared_queue_family_index_count,
+        .shared_queue_family_indices     = info->engine->shared_queue_family_indices,
+      };
+
+      const MossResult result =
+        moss_vk__create_buffer (&create_info, &sprite_batch->staging_buffer);
+      if (result != MOSS_RESULT_SUCCESS)
+      {
+        moss__error ("Failed to create staging buffer.\n");
+        const MossVk__DestroyBufferInfo destroy_info = {
+          .device        = info->engine->device,
+          .buffer        = sprite_batch->buffer,
+          .buffer_memory = sprite_batch->buffer_memory,
+        };
+        moss_vk__destroy_buffer (&destroy_info);
+        free (sprite_batch);
+        return NULL;
+      }
+    }
+
+    {
+      const MossVk__AllocateBufferMemoryInfo alloc_info = {
+        .physical_device = info->engine->physical_device,
+        .device          = info->engine->device,
+        .buffer          = sprite_batch->staging_buffer,
+        .memory_properties =
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        .out_buffer_memory = &sprite_batch->staging_memory,
+      };
+
+      const MossResult result = moss_vk__allocate_buffer_memory (&alloc_info);
+      if (result != MOSS_RESULT_SUCCESS)
+      {
+        vkDestroyBuffer (info->engine->device, sprite_batch->staging_buffer, NULL);
+        const MossVk__DestroyBufferInfo destroy_info = {
+          .device        = info->engine->device,
+          .buffer        = sprite_batch->buffer,
+          .buffer_memory = sprite_batch->buffer_memory,
+        };
+        moss_vk__destroy_buffer (&destroy_info);
+        free (sprite_batch);
+        return NULL;
+      }
     }
   }
 
@@ -187,16 +209,22 @@ MossSpriteBatch *moss_create_sprite_batch (const MossSpriteBatchCreateInfo *cons
     if (result != VK_SUCCESS)
     {
       moss__error ("Failed to map staging buffer memory: %d.\n", result);
-      moss_vk__destroy_buffer (
-        info->engine->device,
-        sprite_batch->staging_buffer,
-        sprite_batch->staging_memory
-      );
-      moss_vk__destroy_buffer (
-        info->engine->device,
-        sprite_batch->buffer,
-        sprite_batch->buffer_memory
-      );
+      {
+        const MossVk__DestroyBufferInfo destroy_info = {
+          .device        = info->engine->device,
+          .buffer        = sprite_batch->staging_buffer,
+          .buffer_memory = sprite_batch->staging_memory,
+        };
+        moss_vk__destroy_buffer (&destroy_info);
+      }
+      {
+        const MossVk__DestroyBufferInfo destroy_info = {
+          .device        = info->engine->device,
+          .buffer        = sprite_batch->buffer,
+          .buffer_memory = sprite_batch->buffer_memory,
+        };
+        moss_vk__destroy_buffer (&destroy_info);
+      }
       free (sprite_batch);
       return NULL;
     }
@@ -231,18 +259,24 @@ void moss_destroy_sprite_batch (MossSpriteBatch *const sprite_batch)
 
   // Unmap and cleanup staging buffer
   vkUnmapMemory (engine->device, sprite_batch->staging_memory);
-  moss_vk__destroy_buffer (
-    engine->device,
-    sprite_batch->staging_buffer,
-    sprite_batch->staging_memory
-  );
+  {
+    const MossVk__DestroyBufferInfo destroy_info = {
+      .device        = engine->device,
+      .buffer        = sprite_batch->staging_buffer,
+      .buffer_memory = sprite_batch->staging_memory,
+    };
+    moss_vk__destroy_buffer (&destroy_info);
+  }
 
   // Cleanup device-local buffer
-  moss_vk__destroy_buffer (
-    engine->device,
-    sprite_batch->buffer,
-    sprite_batch->buffer_memory
-  );
+  {
+    const MossVk__DestroyBufferInfo destroy_info = {
+      .device        = engine->device,
+      .buffer        = sprite_batch->buffer,
+      .buffer_memory = sprite_batch->buffer_memory,
+    };
+    moss_vk__destroy_buffer (&destroy_info);
+  }
 
   free (sprite_batch);
 }
@@ -465,26 +499,44 @@ inline static MossResult moss__create_combined_buffer (
   VkDeviceMemory                             *out_buffer_memory
 )
 {
-  const MossVk__CreateBufferInfo create_info = {
-    .physical_device = info->engine->physical_device,
-    .device          = info->engine->device,
-    .size            = (VkDeviceSize)info->size,
-    .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-             VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-    .memory_properties               = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-    .sharing_mode                    = info->engine->buffer_sharing_mode,
-    .shared_queue_family_index_count = info->engine->shared_queue_family_index_count,
-    .shared_queue_family_indices     = info->engine->shared_queue_family_indices,
-  };
-
-  const MossResult result =
-    moss_vk__create_buffer (&create_info, out_buffer, out_buffer_memory);
-  if (result != MOSS_RESULT_SUCCESS)
   {
-    moss__error ("Failed to create combined buffer.\n");
+    const MossVk__CreateBufferInfo create_info = {
+      .device                        = info->engine->device,
+      .size                          = (VkDeviceSize)info->size,
+      .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+               VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+      .sharing_mode                  = info->engine->buffer_sharing_mode,
+      .shared_queue_family_index_count = info->engine->shared_queue_family_index_count,
+      .shared_queue_family_indices     = info->engine->shared_queue_family_indices,
+    };
+
+    const MossResult result = moss_vk__create_buffer (&create_info, out_buffer);
+    if (result != MOSS_RESULT_SUCCESS)
+    {
+      moss__error ("Failed to create combined buffer.\n");
+      return result;
+    }
   }
 
-  return result;
+  {
+    const MossVk__AllocateBufferMemoryInfo alloc_info = {
+      .physical_device = info->engine->physical_device,
+      .device          = info->engine->device,
+      .buffer          = *out_buffer,
+      .memory_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+      .out_buffer_memory = out_buffer_memory,
+    };
+
+    const MossResult result = moss_vk__allocate_buffer_memory (&alloc_info);
+    if (result != MOSS_RESULT_SUCCESS)
+    {
+      vkDestroyBuffer (info->engine->device, *out_buffer, NULL);
+      moss__error ("Failed to allocate combined buffer memory.\n");
+      return result;
+    }
+  }
+
+  return MOSS_RESULT_SUCCESS;
 }
 
 inline static void moss__generate_verticies_from_sprite (

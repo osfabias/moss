@@ -550,11 +550,12 @@ void moss_destroy_engine (MossEngine *const engine)
 
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
     {
-      moss_vk__destroy_buffer (
-        engine->device,
-        engine->camera_ubo_buffers[ i ],
-        engine->camera_ubo_memories[ i ]
-      );
+      const MossVk__DestroyBufferInfo destroy_info = {
+        .device        = engine->device,
+        .buffer        = engine->camera_ubo_buffers[ i ],
+        .buffer_memory = engine->camera_ubo_memories[ i ],
+      };
+      moss_vk__destroy_buffer (&destroy_info);
     }
 
     moss__cleanup_depth_resources (engine);
@@ -1640,23 +1641,39 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
   VkBuffer       staging_buffer;
   VkDeviceMemory staging_buffer_memory;
   {  // Create staging buffer
-    const MossVk__CreateBufferInfo create_info = {
-      .physical_device = engine->physical_device,
-      .device          = engine->device,
-      .size            = (VkDeviceSize)(texture_width * texture_height * 4),
-      .usage           = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      .memory_properties =
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-      .sharing_mode                    = engine->buffer_sharing_mode,
-      .shared_queue_family_index_count = engine->shared_queue_family_index_count,
-      .shared_queue_family_indices     = engine->shared_queue_family_indices,
-    };
-    const MossResult result =
-      moss_vk__create_buffer (&create_info, &staging_buffer, &staging_buffer_memory);
-    if (result != MOSS_RESULT_SUCCESS)
     {
-      moss__error ("Failed to create staging buffer.");
-      return MOSS_RESULT_ERROR;
+      const MossVk__CreateBufferInfo create_info = {
+        .device                        = engine->device,
+        .size                          = (VkDeviceSize)(texture_width * texture_height * 4),
+        .usage                         = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        .sharing_mode                  = engine->buffer_sharing_mode,
+        .shared_queue_family_index_count = engine->shared_queue_family_index_count,
+        .shared_queue_family_indices     = engine->shared_queue_family_indices,
+      };
+      const MossResult result = moss_vk__create_buffer (&create_info, &staging_buffer);
+      if (result != MOSS_RESULT_SUCCESS)
+      {
+        moss__error ("Failed to create staging buffer.");
+        return MOSS_RESULT_ERROR;
+      }
+    }
+
+    {
+      const MossVk__AllocateBufferMemoryInfo alloc_info = {
+        .physical_device = engine->physical_device,
+        .device          = engine->device,
+        .buffer          = staging_buffer,
+        .memory_properties =
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        .out_buffer_memory = &staging_buffer_memory,
+      };
+      const MossResult result = moss_vk__allocate_buffer_memory (&alloc_info);
+      if (result != MOSS_RESULT_SUCCESS)
+      {
+        vkDestroyBuffer (engine->device, staging_buffer, NULL);
+        moss__error ("Failed to allocate staging buffer memory.");
+        return MOSS_RESULT_ERROR;
+      }
     }
   }
 
@@ -1691,7 +1708,12 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
   engine->texture_image = moss_vk__create_image (&create_info);
   if (engine->texture_image == VK_NULL_HANDLE)
   {
-    moss_vk__destroy_buffer (engine->device, staging_buffer, staging_buffer_memory);
+    const MossVk__DestroyBufferInfo destroy_info = {
+      .device        = engine->device,
+      .buffer        = staging_buffer,
+      .buffer_memory = staging_buffer_memory,
+    };
+    moss_vk__destroy_buffer (&destroy_info);
     moss__error ("Failed to create texture image.\n");
     return MOSS_RESULT_ERROR;
   }
@@ -1707,7 +1729,12 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
   engine->texture_image_memory = moss_vk__allocate_image_memory (&alloc_info);
   if (engine->texture_image_memory == VK_NULL_HANDLE)
   {
-    moss_vk__destroy_buffer (engine->device, staging_buffer, staging_buffer_memory);
+    const MossVk__DestroyBufferInfo destroy_info = {
+      .device        = engine->device,
+      .buffer        = staging_buffer,
+      .buffer_memory = staging_buffer_memory,
+    };
+    moss_vk__destroy_buffer (&destroy_info);
     vkDestroyImage (engine->device, engine->texture_image, NULL);
     moss__error ("Failed to allocate memory for the texture image.\n");
     return MOSS_RESULT_ERROR;
@@ -1724,7 +1751,12 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
     };
     if (moss_vk__transition_image_layout (&transition_info) != MOSS_RESULT_SUCCESS)
     {
-      moss_vk__destroy_buffer (engine->device, staging_buffer, staging_buffer_memory);
+      const MossVk__DestroyBufferInfo destroy_info = {
+        .device        = engine->device,
+        .buffer        = staging_buffer,
+        .buffer_memory = staging_buffer_memory,
+      };
+      moss_vk__destroy_buffer (&destroy_info);
       vkFreeMemory (engine->device, engine->texture_image_memory, NULL);
       vkDestroyImage (engine->device, engine->texture_image, NULL);
       return MOSS_RESULT_ERROR;
@@ -1743,7 +1775,12 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
     };
     if (moss_vk__copy_buffer_to_image (&copy_info) != MOSS_RESULT_SUCCESS)
     {
-      moss_vk__destroy_buffer (engine->device, staging_buffer, staging_buffer_memory);
+      const MossVk__DestroyBufferInfo destroy_info = {
+        .device        = engine->device,
+        .buffer        = staging_buffer,
+        .buffer_memory = staging_buffer_memory,
+      };
+      moss_vk__destroy_buffer (&destroy_info);
       vkFreeMemory (engine->device, engine->texture_image_memory, NULL);
       vkDestroyImage (engine->device, engine->texture_image, NULL);
       return MOSS_RESULT_ERROR;
@@ -1761,14 +1798,26 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
     };
     if (moss_vk__transition_image_layout (&transition_info) != MOSS_RESULT_SUCCESS)
     {
-      moss_vk__destroy_buffer (engine->device, staging_buffer, staging_buffer_memory);
+      const MossVk__DestroyBufferInfo destroy_info = {
+        .device        = engine->device,
+        .buffer        = staging_buffer,
+        .buffer_memory = staging_buffer_memory,
+      };
+      moss_vk__destroy_buffer (&destroy_info);
       vkFreeMemory (engine->device, engine->texture_image_memory, NULL);
       vkDestroyImage (engine->device, engine->texture_image, NULL);
       return MOSS_RESULT_ERROR;
     }
   }
 
-  moss_vk__destroy_buffer (engine->device, staging_buffer, staging_buffer_memory);
+  {
+    const MossVk__DestroyBufferInfo destroy_info = {
+      .device        = engine->device,
+      .buffer        = staging_buffer,
+      .buffer_memory = staging_buffer_memory,
+    };
+    moss_vk__destroy_buffer (&destroy_info);
+  }
 
   return MOSS_RESULT_SUCCESS;
 }
@@ -1913,36 +1962,66 @@ inline static MossResult moss__create_texture_sampler (MossEngine *const engine)
 inline static MossResult moss__create_camera_ubo_buffers (MossEngine *const engine)
 {
   const MossVk__CreateBufferInfo create_info = {
-    .physical_device = engine->physical_device,
-    .device          = engine->device,
-    .size            = sizeof (engine->camera),
-    .usage           = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-    .memory_properties =
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-    .sharing_mode                    = engine->buffer_sharing_mode,
+    .device                        = engine->device,
+    .size                          = sizeof (engine->camera),
+    .usage                         = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+    .sharing_mode                  = engine->buffer_sharing_mode,
     .shared_queue_family_index_count = engine->shared_queue_family_index_count,
     .shared_queue_family_indices     = engine->shared_queue_family_indices,
   };
 
   for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
   {
-    const MossResult result = moss_vk__create_buffer (
-      &create_info,
-      &engine->camera_ubo_buffers[ i ],
-      &engine->camera_ubo_memories[ i ]
-    );
-    if (result != MOSS_RESULT_SUCCESS)
     {
-      for (uint32_t j = i; j >= 0; --j)
+      const MossResult result =
+        moss_vk__create_buffer (&create_info, &engine->camera_ubo_buffers[ i ]);
+      if (result != MOSS_RESULT_SUCCESS)
       {
-        moss_vk__destroy_buffer (
-          engine->device,
-          engine->camera_ubo_buffers[ j ],
-          engine->camera_ubo_memories[ j ]
-        );
+        for (uint32_t j = i; j >= 0; --j)
+        {
+          if (j < i)
+          {
+            const MossVk__DestroyBufferInfo destroy_info = {
+              .device        = engine->device,
+              .buffer        = engine->camera_ubo_buffers[ j ],
+              .buffer_memory = engine->camera_ubo_memories[ j ],
+            };
+            moss_vk__destroy_buffer (&destroy_info);
+          }
+          else
+          {
+            vkDestroyBuffer (engine->device, engine->camera_ubo_buffers[ j ], NULL);
+          }
+        }
+        moss__error ("Failed to create camera UBO buffer.\n");
+        return result;
       }
-      moss__error ("Failed to create camera UBO buffer.\n");
-      return result;
+    }
+
+    {
+      const MossVk__AllocateBufferMemoryInfo alloc_info = {
+        .physical_device = engine->physical_device,
+        .device          = engine->device,
+        .buffer          = engine->camera_ubo_buffers[ i ],
+        .memory_properties =
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        .out_buffer_memory = &engine->camera_ubo_memories[ i ],
+      };
+      const MossResult result = moss_vk__allocate_buffer_memory (&alloc_info);
+      if (result != MOSS_RESULT_SUCCESS)
+      {
+        for (uint32_t j = i; j >= 0; --j)
+        {
+          const MossVk__DestroyBufferInfo destroy_info = {
+            .device        = engine->device,
+            .buffer        = engine->camera_ubo_buffers[ j ],
+            .buffer_memory = engine->camera_ubo_memories[ j ],
+          };
+          moss_vk__destroy_buffer (&destroy_info);
+        }
+        moss__error ("Failed to allocate camera UBO buffer memory.\n");
+        return result;
+      }
     }
 
     VkMemoryRequirements memory_requirements;
