@@ -43,7 +43,7 @@
 #include "src/internal/config.h"
 #include "src/internal/engine.h"
 #include "src/internal/log.h"
-#include "src/internal/memory_utils.h"
+#include "src/internal/vulkan/utils/memory.h"
 #include "src/internal/shaders.h"
 #include "src/internal/vertex.h"
 #include "src/internal/vulkan/utils/buffer.h"

@@ -28,7 +28,7 @@
 #include "moss/result.h"
 
 #include "src/internal/log.h"
-#include "src/internal/memory_utils.h"
+#include "src/internal/vulkan/utils/memory.h"
 #include "src/internal/vulkan/utils/command_buffer.h"
 
 /*=============================================================================

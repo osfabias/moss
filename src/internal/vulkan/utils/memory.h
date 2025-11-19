@@ -13,7 +13,7 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  @file src/internal/memory_utils.h
+  @file src/internal/vulkan/utils/memory.h
   @brief Utility functions for GPU memory management.
   @author Ilya Buravov (ilburale@gmail.com)
 */
@@ -72,3 +72,4 @@ inline static MossResult moss__select_suitable_memory_type (
 
   return MOSS_RESULT_ERROR;
 }
+
