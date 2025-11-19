@@ -92,13 +92,13 @@ int main (void)
 
   // Track camera state locally (since there are no getter functions)
   vec2 camera_position = { 0.0F, 0.0F };
-  vec2 camera_size     = { 640.0F, 360.0F };
+  vec2 camera_size     = { 960.0F, 540.0F };
 
   moss_set_camera_size (camera, camera_size);
   moss_set_camera_position (camera, camera_position);
 
   // Create 1000000 static sprites with random positions and sizes
-  const size_t NUM_SPRITES = 2000000;
+  const size_t NUM_SPRITES = 700000;
   MossSprite  *sprites     = malloc (sizeof (MossSprite) * NUM_SPRITES);
 
   // Seed random number generator
@@ -111,8 +111,8 @@ int main (void)
     sprites[ i ].position[ 0 ] = ((float)rand ( ) / RAND_MAX - 0.5F) * 2000.0F;
     sprites[ i ].position[ 1 ] = ((float)rand ( ) / RAND_MAX - 0.5F) * 2000.0F;
 
-    // Random size between 10 and 40
-    const float size       = 10.0F + ((float)rand ( ) / RAND_MAX) * 30.0F;
+    // Random size between 10 and 30
+    const float size       = 10.0F + ((float)rand ( ) / RAND_MAX) * 20.0F;
     sprites[ i ].size[ 0 ] = size;
     sprites[ i ].size[ 1 ] = size;
 
@@ -133,7 +133,6 @@ int main (void)
   };
   MossSpriteBatch *const sprite_batch = moss_create_sprite_batch (&sprite_batch_info);
 
-  // Build sprite batch once (sprites are static, no need to rebuild)
   moss_begin_sprite_batch (sprite_batch);
   {
     const MossAddSpritesToSpriteBatchInfo add_info = {
