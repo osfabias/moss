@@ -37,9 +37,14 @@ These are header files with inline functions in `src/internal/vulkan/utils/`:
 
 ### Phase 4: Public API
 
-14. `src/engine.c` (public functions: `moss_create_engine`, `moss_destroy_engine`, `moss_begin_frame`, `moss_end_frame`, `moss_set_render_resolution`)
-15. `src/camera.c` (all functions)
-16. `src/sprite_batch.c` (all functions)
+15. ✅ `src/engine.c` (public functions) - **REVIEWED & REFACTORED**
+    - `moss_create_engine` - Changed to use out parameter
+    - `moss_destroy_engine` - OK
+    - `moss_begin_frame` - OK
+    - `moss_end_frame` - OK
+    - `moss_set_render_resolution` - OK
+16. `src/camera.c` (all functions)
+17. `src/sprite_batch.c` (all functions)
 
 ## Notes
 

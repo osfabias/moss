@@ -67,9 +67,10 @@ typedef struct
 /*
   @brief Creates engine instance.
   @param config Engine configuration.
-  @return On success returns valid pointer to engine state, otherwise returns NULL.
+  @param out_engine Output parameter for created engine instance.
+  @return MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-MossEngine *moss_create_engine (const MossEngineConfig *config);
+MossResult moss_create_engine (const MossEngineConfig *config, MossEngine **out_engine);
 
 /*
   @brief Destroys engine instance.

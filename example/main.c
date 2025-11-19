@@ -86,7 +86,11 @@ int main (void)
 #endif
   };
 
-  MossEngine *const engine = moss_create_engine (&moss_engine_config);
+  MossEngine *engine;
+  if (moss_create_engine (&moss_engine_config, &engine) != MOSS_RESULT_SUCCESS)
+  {
+    return 1;
+  }
 
   MossCamera *const camera = moss_get_camera (engine);
 
