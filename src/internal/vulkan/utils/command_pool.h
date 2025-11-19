@@ -37,10 +37,8 @@
 */
 typedef struct
 {
-  VkDevice       device;            /* Logical device to create command pool on. */
-  uint32_t       queue_family_index; /* Queue family index to assign command pool to. */
-  VkCommandPool *out_command_pool;  /* Output variable that created command pool handle
-                                        will be written to. */
+  VkDevice device;            /* Logical device to create command pool on. */
+  uint32_t queue_family_index; /* Queue family index to assign command pool to. */
 } Moss__CreateVkCommandPoolInfo;
 
 /*=============================================================================
@@ -50,10 +48,13 @@ typedef struct
 /*
   @brief Creates Vulkan command pool.
   @param info Required info to create command pool.
+  @param out_command_pool Output parameter for created command pool handle.
   @return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
-inline static MossResult
-moss_vk__create_command_pool (const Moss__CreateVkCommandPoolInfo *const info)
+inline static MossResult moss_vk__create_command_pool (
+  const Moss__CreateVkCommandPoolInfo *const info,
+  VkCommandPool                        *out_command_pool
+)
 {
   const VkCommandPoolCreateInfo pool_info = {
     .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -63,7 +64,7 @@ moss_vk__create_command_pool (const Moss__CreateVkCommandPoolInfo *const info)
   };
 
   const VkResult result =
-    vkCreateCommandPool (info->device, &pool_info, NULL, info->out_command_pool);
+    vkCreateCommandPool (info->device, &pool_info, NULL, out_command_pool);
 
   if (result != VK_SUCCESS)
   {

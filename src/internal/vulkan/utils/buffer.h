@@ -59,7 +59,6 @@ typedef struct
   VkDevice         device;          /* Logical device to allocate memory on. */
   VkBuffer         buffer;          /* Buffer to allocate memory for. */
   VkMemoryPropertyFlags memory_properties; /* Memory property flags. */
-  VkDeviceMemory *out_buffer_memory; /* Output parameter for allocated memory handle. */
 } MossVk__AllocateBufferMemoryInfo;
 
 /*
@@ -108,17 +107,6 @@ typedef struct
   uint32_t      height;         /* Image height in pixels. */
 } MossVk__CopyBufferToImageInfo;
 
-/*
-  @brief Info required to destroy a buffer.
-*/
-typedef struct
-{
-  VkDevice       device;        /* Logical device to destroy buffer on. */
-  VkBuffer       buffer;        /* Buffer to destroy. */
-  VkDeviceMemory buffer_memory; /* Memory to free. */
-} MossVk__DestroyBufferInfo;
-
-
 /*=============================================================================
     FUNCTIONS
   =============================================================================*/
@@ -129,8 +117,10 @@ typedef struct
   @param out_buffer Output parameter for the created buffer.
   @return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
-inline static MossResult
-moss_vk__create_buffer (const MossVk__CreateBufferInfo *const info, VkBuffer *out_buffer)
+inline static MossResult moss_vk__create_buffer (
+  const MossVk__CreateBufferInfo *const info,
+  VkBuffer *const                       out_buffer
+)
 {
   const VkBufferCreateInfo buffer_info = {
     .sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -154,10 +144,13 @@ moss_vk__create_buffer (const MossVk__CreateBufferInfo *const info, VkBuffer *ou
 /*
   @brief Allocates and binds memory for a Vulkan buffer.
   @param info Buffer memory allocation info.
+  @param out_buffer_memory Output parameter for allocated memory handle.
   @return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
-inline static MossResult
-moss_vk__allocate_buffer_memory (const MossVk__AllocateBufferMemoryInfo *const info)
+inline static MossResult moss_vk__allocate_buffer_memory (
+  const MossVk__AllocateBufferMemoryInfo *const info,
+  VkDeviceMemory *const                         out_buffer_memory
+)
 {
   // Get memory requirements
   VkMemoryRequirements memory_requirements;
@@ -188,7 +181,7 @@ moss_vk__allocate_buffer_memory (const MossVk__AllocateBufferMemoryInfo *const i
     };
 
     const VkResult result =
-      vkAllocateMemory (info->device, &alloc_info, NULL, info->out_buffer_memory);
+      vkAllocateMemory (info->device, &alloc_info, NULL, out_buffer_memory);
     if (result != VK_SUCCESS)
     {
       moss__error ("Failed to allocate buffer memory: %d.\n", result);
@@ -197,26 +190,9 @@ moss_vk__allocate_buffer_memory (const MossVk__AllocateBufferMemoryInfo *const i
   }
 
   // Bind memory to buffer
-  vkBindBufferMemory (info->device, info->buffer, *info->out_buffer_memory, 0);
+  vkBindBufferMemory (info->device, info->buffer, *out_buffer_memory, 0);
 
   return MOSS_RESULT_SUCCESS;
-}
-
-/*
-  @brief Destroys a Vulkan buffer and frees its memory.
-  @param info Buffer destruction info.
-*/
-inline static void moss_vk__destroy_buffer (const MossVk__DestroyBufferInfo *const info)
-{
-  if (info->buffer_memory != VK_NULL_HANDLE)
-  {
-    vkFreeMemory (info->device, info->buffer_memory, NULL);
-  }
-
-  if (info->buffer != VK_NULL_HANDLE)
-  {
-    vkDestroyBuffer (info->device, info->buffer, NULL);
-  }
 }
 
 /*
@@ -232,8 +208,9 @@ inline static MossResult moss_vk__copy_buffer (const MossVk__CopyBufferInfo *con
       .device       = info->device,
       .command_pool = info->command_pool,
     };
-    command_buffer = moss_vk__begin_one_time_command_buffer (&begin_info);
-    if (command_buffer == VK_NULL_HANDLE)
+    const MossResult result =
+      moss_vk__begin_one_time_command_buffer (&begin_info, &command_buffer);
+    if (result != MOSS_RESULT_SUCCESS)
     {
       moss__error ("Failed to begin one time Vulkan command buffer.\n");
       return MOSS_RESULT_ERROR;
@@ -284,7 +261,7 @@ inline static MossResult moss_vk__fill_buffer (const MossVk__FillBufferInfo *con
   VkBuffer       staging_buffer;
   VkDeviceMemory staging_buffer_memory;
 
-  {  // Create stagin buffer
+  {  // Create staging buffer
     const MossVk__CreateBufferInfo staging_create_info = {
       .device                          = info->device,
       .size                            = info->data_size,
@@ -310,10 +287,10 @@ inline static MossResult moss_vk__fill_buffer (const MossVk__FillBufferInfo *con
       .buffer          = staging_buffer,
       .memory_properties =
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-      .out_buffer_memory = &staging_buffer_memory,
     };
 
-    const MossResult result = moss_vk__allocate_buffer_memory (&alloc_info);
+    const MossResult result =
+      moss_vk__allocate_buffer_memory (&alloc_info, &staging_buffer_memory);
     if (result != MOSS_RESULT_SUCCESS)
     {
       vkDestroyBuffer (info->device, staging_buffer, NULL);
@@ -348,24 +325,28 @@ inline static MossResult moss_vk__fill_buffer (const MossVk__FillBufferInfo *con
     const MossResult result = moss_vk__copy_buffer (&copy_info);
     if (result != MOSS_RESULT_SUCCESS)
     {
-      const MossVk__DestroyBufferInfo destroy_info = {
-        .device        = info->device,
-        .buffer        = staging_buffer,
-        .buffer_memory = staging_buffer_memory,
-      };
-      moss_vk__destroy_buffer (&destroy_info);
+      if (staging_buffer_memory != VK_NULL_HANDLE)
+      {
+        vkFreeMemory (info->device, staging_buffer_memory, NULL);
+      }
+      if (staging_buffer != VK_NULL_HANDLE)
+      {
+        vkDestroyBuffer (info->device, staging_buffer, NULL);
+      }
       moss__error ("Failed to copy buffer data.\n");
       return MOSS_RESULT_ERROR;
     }
   }
 
   {  // Cleanup staging buffer
-    const MossVk__DestroyBufferInfo destroy_info = {
-      .device        = info->device,
-      .buffer        = staging_buffer,
-      .buffer_memory = staging_buffer_memory,
-    };
-    moss_vk__destroy_buffer (&destroy_info);
+    if (staging_buffer_memory != VK_NULL_HANDLE)
+    {
+      vkFreeMemory (info->device, staging_buffer_memory, NULL);
+    }
+    if (staging_buffer != VK_NULL_HANDLE)
+    {
+      vkDestroyBuffer (info->device, staging_buffer, NULL);
+    }
   }
 
   return MOSS_RESULT_SUCCESS;
@@ -386,9 +367,9 @@ moss_vk__copy_buffer_to_image (const MossVk__CopyBufferToImageInfo *const info)
       .device       = info->device,
       .command_pool = info->command_pool,
     };
-    command_buffer = moss_vk__begin_one_time_command_buffer (&begin_info);
-
-    if (command_buffer == VK_NULL_HANDLE)
+    const MossResult result =
+      moss_vk__begin_one_time_command_buffer (&begin_info, &command_buffer);
+    if (result != MOSS_RESULT_SUCCESS)
     {
       moss__error ("Failed to begin one time Vulkan command buffer.\n");
       return MOSS_RESULT_ERROR;

@@ -160,12 +160,14 @@ MossSpriteBatch *moss_create_sprite_batch (const MossSpriteBatchCreateInfo *cons
       if (result != MOSS_RESULT_SUCCESS)
       {
         moss__error ("Failed to create staging buffer.\n");
-        const MossVk__DestroyBufferInfo destroy_info = {
-          .device        = info->engine->device,
-          .buffer        = sprite_batch->buffer,
-          .buffer_memory = sprite_batch->buffer_memory,
-        };
-        moss_vk__destroy_buffer (&destroy_info);
+        if (sprite_batch->buffer_memory != VK_NULL_HANDLE)
+        {
+          vkFreeMemory (info->engine->device, sprite_batch->buffer_memory, NULL);
+        }
+        if (sprite_batch->buffer != VK_NULL_HANDLE)
+        {
+          vkDestroyBuffer (info->engine->device, sprite_batch->buffer, NULL);
+        }
         free (sprite_batch);
         return NULL;
       }
@@ -178,19 +180,21 @@ MossSpriteBatch *moss_create_sprite_batch (const MossSpriteBatchCreateInfo *cons
         .buffer          = sprite_batch->staging_buffer,
         .memory_properties =
           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        .out_buffer_memory = &sprite_batch->staging_memory,
       };
 
-      const MossResult result = moss_vk__allocate_buffer_memory (&alloc_info);
+      const MossResult result =
+        moss_vk__allocate_buffer_memory (&alloc_info, &sprite_batch->staging_memory);
       if (result != MOSS_RESULT_SUCCESS)
       {
         vkDestroyBuffer (info->engine->device, sprite_batch->staging_buffer, NULL);
-        const MossVk__DestroyBufferInfo destroy_info = {
-          .device        = info->engine->device,
-          .buffer        = sprite_batch->buffer,
-          .buffer_memory = sprite_batch->buffer_memory,
-        };
-        moss_vk__destroy_buffer (&destroy_info);
+        if (sprite_batch->buffer_memory != VK_NULL_HANDLE)
+        {
+          vkFreeMemory (info->engine->device, sprite_batch->buffer_memory, NULL);
+        }
+        if (sprite_batch->buffer != VK_NULL_HANDLE)
+        {
+          vkDestroyBuffer (info->engine->device, sprite_batch->buffer, NULL);
+        }
         free (sprite_batch);
         return NULL;
       }
@@ -210,20 +214,24 @@ MossSpriteBatch *moss_create_sprite_batch (const MossSpriteBatchCreateInfo *cons
     {
       moss__error ("Failed to map staging buffer memory: %d.\n", result);
       {
-        const MossVk__DestroyBufferInfo destroy_info = {
-          .device        = info->engine->device,
-          .buffer        = sprite_batch->staging_buffer,
-          .buffer_memory = sprite_batch->staging_memory,
-        };
-        moss_vk__destroy_buffer (&destroy_info);
+        if (sprite_batch->staging_memory != VK_NULL_HANDLE)
+        {
+          vkFreeMemory (info->engine->device, sprite_batch->staging_memory, NULL);
+        }
+        if (sprite_batch->staging_buffer != VK_NULL_HANDLE)
+        {
+          vkDestroyBuffer (info->engine->device, sprite_batch->staging_buffer, NULL);
+        }
       }
       {
-        const MossVk__DestroyBufferInfo destroy_info = {
-          .device        = info->engine->device,
-          .buffer        = sprite_batch->buffer,
-          .buffer_memory = sprite_batch->buffer_memory,
-        };
-        moss_vk__destroy_buffer (&destroy_info);
+        if (sprite_batch->buffer_memory != VK_NULL_HANDLE)
+        {
+          vkFreeMemory (info->engine->device, sprite_batch->buffer_memory, NULL);
+        }
+        if (sprite_batch->buffer != VK_NULL_HANDLE)
+        {
+          vkDestroyBuffer (info->engine->device, sprite_batch->buffer, NULL);
+        }
       }
       free (sprite_batch);
       return NULL;
@@ -260,22 +268,26 @@ void moss_destroy_sprite_batch (MossSpriteBatch *const sprite_batch)
   // Unmap and cleanup staging buffer
   vkUnmapMemory (engine->device, sprite_batch->staging_memory);
   {
-    const MossVk__DestroyBufferInfo destroy_info = {
-      .device        = engine->device,
-      .buffer        = sprite_batch->staging_buffer,
-      .buffer_memory = sprite_batch->staging_memory,
-    };
-    moss_vk__destroy_buffer (&destroy_info);
+    if (sprite_batch->staging_memory != VK_NULL_HANDLE)
+    {
+      vkFreeMemory (engine->device, sprite_batch->staging_memory, NULL);
+    }
+    if (sprite_batch->staging_buffer != VK_NULL_HANDLE)
+    {
+      vkDestroyBuffer (engine->device, sprite_batch->staging_buffer, NULL);
+    }
   }
 
   // Cleanup device-local buffer
   {
-    const MossVk__DestroyBufferInfo destroy_info = {
-      .device        = engine->device,
-      .buffer        = sprite_batch->buffer,
-      .buffer_memory = sprite_batch->buffer_memory,
-    };
-    moss_vk__destroy_buffer (&destroy_info);
+    if (sprite_batch->buffer_memory != VK_NULL_HANDLE)
+    {
+      vkFreeMemory (engine->device, sprite_batch->buffer_memory, NULL);
+    }
+    if (sprite_batch->buffer != VK_NULL_HANDLE)
+    {
+      vkDestroyBuffer (engine->device, sprite_batch->buffer, NULL);
+    }
   }
 
   free (sprite_batch);
@@ -378,8 +390,9 @@ MossResult moss_end_sprite_batch (MossSpriteBatch *sprite_batch)
       .device       = engine->device,
       .command_pool = engine->transfer_command_pool,
     };
-    command_buffer = moss_vk__begin_one_time_command_buffer (&begin_info);
-    if (command_buffer == VK_NULL_HANDLE)
+    const MossResult result =
+      moss_vk__begin_one_time_command_buffer (&begin_info, &command_buffer);
+    if (result != MOSS_RESULT_SUCCESS)
     {
       moss__error ("Failed to begin one time command buffer for sprite batch copy.\n");
       return MOSS_RESULT_ERROR;
@@ -524,10 +537,10 @@ inline static MossResult moss__create_combined_buffer (
       .device          = info->engine->device,
       .buffer          = *out_buffer,
       .memory_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-      .out_buffer_memory = out_buffer_memory,
     };
 
-    const MossResult result = moss_vk__allocate_buffer_memory (&alloc_info);
+    const MossResult result =
+      moss_vk__allocate_buffer_memory (&alloc_info, out_buffer_memory);
     if (result != MOSS_RESULT_SUCCESS)
     {
       vkDestroyBuffer (info->engine->device, *out_buffer, NULL);

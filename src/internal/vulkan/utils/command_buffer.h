@@ -35,7 +35,7 @@
 */
 typedef struct
 {
-  VkDevice      device;       /* Device to create command buffer on. */
+  VkDevice      device;       /* Logical device to create command buffer on. */
   VkCommandPool command_pool; /* Command pool to create command buffer in. */
 } Moss__BeginOneTimeVkCommandBufferInfo;
 
@@ -44,9 +44,9 @@ typedef struct
 */
 typedef struct
 {
-  VkDevice        device;         /* Device to create command buffer on. */
-  VkCommandPool   command_pool;   /* Command pool to create command buffer in. */
-  VkCommandBuffer command_buffer; /* One time command buffer to end. */
+  VkDevice        device;         /* Logical device to end command buffer on. */
+  VkCommandPool   command_pool;   /* Command pool to free command buffer from. */
+  VkCommandBuffer command_buffer; /* Command buffer to end. */
   VkQueue         queue;          /* Queue to submit command buffer to. */
 } Moss__EndOneTimeVkCommandBufferInfo;
 
@@ -57,11 +57,12 @@ typedef struct
 /*
   @brief Begins one time command buffer.
   @param info Begin one time Vulkan command buffer info.
-  @return Returns valid command buffer handler on success,
-          otherwise returns VK_NULL_HANDLE.
+  @param out_command_buffer Output parameter for created command buffer.
+  @return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
-inline static VkCommandBuffer moss_vk__begin_one_time_command_buffer (
-  const Moss__BeginOneTimeVkCommandBufferInfo *const info
+inline static MossResult moss_vk__begin_one_time_command_buffer (
+  const Moss__BeginOneTimeVkCommandBufferInfo *const info,
+  VkCommandBuffer *const                             out_command_buffer
 )
 {
   const VkCommandBufferAllocateInfo allocInfo = {
@@ -82,7 +83,7 @@ inline static VkCommandBuffer moss_vk__begin_one_time_command_buffer (
         "Failed to allocate command buffer for one time time. Error code: %d.\n",
         result
       );
-      return VK_NULL_HANDLE;
+      return MOSS_RESULT_ERROR;
     }
   }
 
@@ -97,22 +98,20 @@ inline static VkCommandBuffer moss_vk__begin_one_time_command_buffer (
     const VkResult result = vkBeginCommandBuffer (command_buffer, &beginInfo);
     if (result != VK_SUCCESS)
     {
-      // Clean up
       vkFreeCommandBuffers (info->device, info->command_pool, 1, &command_buffer);
-
-      // Return
       moss__error ("Failed to begin one time command buffer. Error code: %d.\n", result);
-      return VK_NULL_HANDLE;
+      return MOSS_RESULT_ERROR;
     }
   }
 
-  return command_buffer;
+  *out_command_buffer = command_buffer;
+  return MOSS_RESULT_SUCCESS;
 }
 
 /*
   @brief Ends one time command buffer.
   @param info End one time Vulkan command buffer info.
-  @return Returns MOSS_RESULT_OK on success, otherwise returns MOSS_RESULT_ERROR.
+  @return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
 inline static MossResult moss_vk__end_one_time_command_buffer (
   const Moss__EndOneTimeVkCommandBufferInfo *const info

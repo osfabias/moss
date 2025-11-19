@@ -189,9 +189,9 @@ moss_vk__transition_image_layout (const MossVk__TransitionImageLayoutInfo *const
       .device       = info->device,
       .command_pool = info->command_pool,
     };
-    command_buffer = moss_vk__begin_one_time_command_buffer (&begin_info);
-
-    if (command_buffer == VK_NULL_HANDLE)
+    const MossResult result =
+      moss_vk__begin_one_time_command_buffer (&begin_info, &command_buffer);
+    if (result != MOSS_RESULT_SUCCESS)
     {
       moss__error ("Failed to begin one time Vulkan command buffer.\n");
       return MOSS_RESULT_ERROR;
