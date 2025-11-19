@@ -83,10 +83,12 @@ struct MossEngine
   VkFormat swapchain_image_format;
   /* Swap chain extent. */
   VkExtent2D swapchain_extent;
-  /* Swap chain image views. */
-  VkImageView swapchain_image_views[ MAX_SWAPCHAIN_IMAGE_COUNT ];
-  /* Swap chain framebuffers. */
-  VkFramebuffer swapchain_framebuffers[ MAX_SWAPCHAIN_IMAGE_COUNT ];
+
+  /* === Present framebuffers === */
+  /* Framebuffers used for final frame presentation. */
+  VkFramebuffer present_framebuffers[ MAX_SWAPCHAIN_IMAGE_COUNT ];
+  /* Present framebuffer image views. */
+  VkImageView present_framebuffer_image_views[ MAX_SWAPCHAIN_IMAGE_COUNT ];
 
   /* === Render pipeline === */
   /* Render pass. */
@@ -192,8 +194,8 @@ inline static void moss__init_engine_state (MossEngine *engine)
     .swapchain_image_count       = 0,
     .swapchain_image_format      = 0,
     .swapchain_extent            = (VkExtent2D) { .width = 0, .height = 0 },
-    .swapchain_image_views       = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE },
-    .swapchain_framebuffers      = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE },
+    .present_framebuffer_image_views       = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE },
+    .present_framebuffers      = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE },
 
     /* Render pipeline. */
     .render_pass           = VK_NULL_HANDLE,

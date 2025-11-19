@@ -12,17 +12,10 @@
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   See the License for the specific language governing permissions and
   limitations under the License.
-
-  @file include/moss/result.h
-  @brief Function execution result code enum declaration
-  @author Ilya Buravov (ilburale@gmail.com)
 */
 
 #pragma once
 
-/*
-  @brief Function execution result code
-*/
 typedef enum
 {
   MOSS_RESULT_SUCCESS, /* Function finished execution with success. */

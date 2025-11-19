@@ -12,10 +12,6 @@
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   See the License for the specific language governing permissions and
   limitations under the License.
-
-  @file src/engine.c
-  @brief Graphics engine functions implementation.
-  @author Ilya Buravov (ilburale@gmail.com)
 */
 
 #include <assert.h>
@@ -60,241 +56,90 @@
     INTERNAL FUNCTION DECLARATIONS
   =============================================================================*/
 
-/*
-  @brief Creates Vulkan API instance.
-  @param app_info A pointer to a native moss app info struct.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
 inline static MossResult
 moss__create_api_instance (MossEngine *engine, const MossAppInfo *app_info);
 
-/*
-  @brief Creates window surface.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
 inline static MossResult moss__create_surface (MossEngine *engine);
 
-/*
-  @brief Creates logical device and queues.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
 inline static MossResult moss__create_logical_device (MossEngine *engine);
 
-/*
-  @brief Initializes buffer sharing mode and queue family indices.
-  @details Determines whether graphics and transfer queue families are the same,
-           and sets up the appropriate sharing mode and queue family indices
-           for buffer creation. This should be called after logical device creation.
-*/
 inline static void moss__init_buffer_sharing_mode (MossEngine *engine);
 
-/*
-  @brief Creates swap chain.
-  @param engine Engine instance.
-  @param extent Window extent (width and height).
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
 inline static MossResult
 moss__create_swapchain (MossEngine *engine, const VkExtent2D extent);
 
-/*
-  @brief Creates image views for swap chain images.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
 inline static MossResult moss__create_swapchain_image_views (MossEngine *engine);
 
-/*
-  @brief Creates render pass.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
 inline static MossResult moss__create_render_pass (MossEngine *engine);
 
-/*
-  @brief Creates Vulkan pipeline vertex input state info.
-  @param out_info Output parameter for vertex input state info.
-*/
+inline static MossResult moss__create_camera_ubo_buffers (MossEngine *engine);
+
+inline static MossResult moss__create_texture_image (MossEngine *engine);
+
+inline static MossResult moss__create_texture_image_view (MossEngine *engine);
+
+inline static MossResult moss__create_texture_sampler (MossEngine *engine);
+
+inline static MossResult moss__create_depth_resources (MossEngine *engine);
+
+inline static MossResult moss__create_descriptor_pool (MossEngine *engine);
+
+inline static MossResult moss__create_descriptor_set_layout (MossEngine *engine);
+
+inline static MossResult moss__allocate_descriptor_sets (MossEngine *engine);
+
+inline static void moss__configure_descriptor_sets (MossEngine *engine);
+
 inline static void moss__create_vk_pipeline_vertex_input_state_info (
   VkPipelineVertexInputStateCreateInfo *out_info
 );
 
-/*
-  @brief Creates descriptor pool.
-  @return Returns MOSS_RESULT_SUCCESS on successs, MOSS_RESULT_ERROR otherwise.
-*/
-inline static MossResult moss__create_descriptor_pool (MossEngine *engine);
-
-/*
-  @brief Creates descriptor set layout.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
-inline static MossResult moss__create_descriptor_set_layout (MossEngine *engine);
-
-/*
-  @brief Allocates descriptor set.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
-inline static MossResult moss__allocate_descriptor_sets (MossEngine *engine);
-
-/*
-  @brief Sets up descriptor sets.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
-inline static void moss__configure_descriptor_sets (MossEngine *engine);
-
-/*
-  @brief Creates graphics pipeline.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
 inline static MossResult moss__create_graphics_pipeline (MossEngine *engine);
 
-/*
-  @brief Creates framebuffers.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
-inline static MossResult moss__create_framebuffers (MossEngine *engine);
+inline static MossResult moss__create_present_framebuffers (MossEngine *engine);
 
-/*
-  @brief Creates texture image.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
-inline static MossResult moss__create_texture_image (MossEngine *engine);
-
-/*
-  @brief Creates texture image view.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
-inline static MossResult moss__create_texture_image_view (MossEngine *engine);
-
-/*
-  @brief Creates texture sampler.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
-inline static MossResult moss__create_texture_sampler (MossEngine *engine);
-
-/*
-  @brief Creates depth image, view and allocates memory for it.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
-inline static MossResult moss__create_depth_resources (MossEngine *engine);
-
-/*
-  @brief Cleans up depth resources.
-*/
-inline static void moss__cleanup_depth_resources (MossEngine *engine);
-
-/*
-  @brief Creates camera UBO buffers.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
-inline static MossResult moss__create_camera_ubo_buffers (MossEngine *engine);
-
-/*
-  @brief Creates command buffers.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
 inline static MossResult moss__create_general_command_buffers (MossEngine *engine);
 
-/*
-  @brief Creates image available semaphores.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
 inline static MossResult moss__create_image_available_semaphores (MossEngine *engine);
 
-/*
-  @brief Creates render finished semaphores.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
 inline static MossResult moss__create_render_finished_semaphores (MossEngine *engine);
 
-/*
-  @brief Creates in-flight fences.
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
 inline static MossResult moss__create_in_flight_fences (MossEngine *engine);
 
-/*
-  @brief Creates synchronization objects (semaphores and fences).
-  @return Returns MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
 inline static MossResult moss__create_synchronization_objects (MossEngine *engine);
 
-/*
-  @brief Cleans up semaphores array.
-  @param semaphores Array of semaphores to clean up.
-*/
 inline static void moss__cleanup_semaphores (MossEngine *engine, VkSemaphore *semaphores);
 
-/*
-  @brief Cleans up fences array.
-  @param fences Array of fences to clean up.
-*/
 inline static void moss__cleanup_fences (MossEngine *engine, VkFence *fences);
 
-/*
-  @brief Cleans up image available semaphores.
-*/
 inline static void moss__cleanup_image_available_semaphores (MossEngine *engine);
 
-/*
-  @brief Cleans up render finished semaphores.
-*/
 inline static void moss__cleanup_render_finished_semaphores (MossEngine *engine);
 
-/*
-  @brief Cleans up in-flight fences.
-*/
 inline static void moss__cleanup_in_flight_fences (MossEngine *engine);
 
-/*
-  @brief Cleans up synchronization objects.
-*/
 inline static void moss__cleanup_synchronization_objects (MossEngine *engine);
 
-/*
-  @brief Cleans up swapchain framebuffers.
-*/
 inline static void moss__cleanup_swapchain_framebuffers (MossEngine *engine);
 
-/*
-  @brief Cleans up swapchain image views.
-*/
 inline static void moss__cleanup_swapchain_image_views (MossEngine *engine);
 
-/*
-  @brief Cleans up swapchain handle.
-*/
 inline static void moss__cleanup_swapchain_handle (MossEngine *engine);
 
-/*
-  @brief Cleans up swap chain resources.
-*/
+inline static void moss__cleanup_depth_resources (MossEngine *engine);
+
 inline static void moss__cleanup_swapchain (MossEngine *engine);
 
-/*
-  @brief Recreates swap chain.
-  @param engine Engine instance.
-  @param extent Window extent (width and height).
-  @return Returns MOSS_RESULT_SUCCESS on success, error code otherwise.
-*/
 inline static MossResult moss__recreate_swapchain (MossEngine *engine, VkExtent2D extent);
 
-/*
-  @brief Updates camera ubo data.
-*/
 inline static void moss__update_camera_ubo_data (MossEngine *engine);
 
 /*=============================================================================
     PUBLIC API FUNCTIONS IMPLEMENTATION
   =============================================================================*/
 
-/*
-  @brief Creates engine instance.
-  @param config Engine configuration.
-  @param out_engine Output parameter for created engine instance.
-  @return MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
-*/
 MossResult
-moss_create_engine (const MossEngineConfig *const config, MossEngine **out_engine)
+moss_create_engine (const MossEngineConfig *const config, MossEngine **const out_engine)
 {
   MossEngine *const engine = malloc (sizeof (MossEngine));
   if (engine == NULL)
@@ -308,26 +153,10 @@ moss_create_engine (const MossEngineConfig *const config, MossEngine **out_engin
 #ifdef __APPLE__
   // Store metal_layer from config
   engine->metal_layer = config->metal_layer;
-  if (engine->metal_layer == NULL)
-  {
-    moss__error ("metal_layer must be provided in config.\n");
-    free (engine);
-    return MOSS_RESULT_ERROR;
-  }
-#else
-  moss__error ("Metal layer is only supported on macOS.\n");
-  free (engine);
-  return MOSS_RESULT_ERROR;
 #endif
 
   // Store framebuffer size callback
   engine->get_window_framebuffer_size = config->get_window_framebuffer_size;
-  if (engine->get_window_framebuffer_size == NULL)
-  {
-    moss__error ("get_window_framebuffer_size callback must be provided in config.\n");
-    free (engine);
-    return MOSS_RESULT_ERROR;
-  }
 
   if (moss__create_api_instance (engine, config->app_info) != MOSS_RESULT_SUCCESS)
   {
@@ -497,7 +326,7 @@ moss_create_engine (const MossEngineConfig *const config, MossEngine **out_engin
     return MOSS_RESULT_ERROR;
   }
 
-  if (moss__create_framebuffers (engine) != MOSS_RESULT_SUCCESS)
+  if (moss__create_present_framebuffers (engine) != MOSS_RESULT_SUCCESS)
   {
     moss_destroy_engine ((MossEngine *)engine);
     return MOSS_RESULT_ERROR;
@@ -531,11 +360,6 @@ moss_create_engine (const MossEngineConfig *const config, MossEngine **out_engin
   return MOSS_RESULT_SUCCESS;
 }
 
-/*
-  @brief Destroys engine instance.
-  @details Cleans up all reserved memory and destroys all GraphicsAPI objects.
-  @param engine Engine handler.
-*/
 void moss_destroy_engine (MossEngine *const engine)
 {
   if (engine->device != VK_NULL_HANDLE) { vkDeviceWaitIdle (engine->device); }
@@ -642,11 +466,6 @@ void moss_destroy_engine (MossEngine *const engine)
   free (engine);
 }
 
-/*
-  @brief Begins a new frame.
-  @param engine Engine handler.
-  @return On success return MOSS_RESULT_SUCCESS, otherwise returns MOSS_RESULT_ERROR.
-*/
 MossResult moss_begin_frame (MossEngine *const engine)
 {
   const VkFence     in_flight_fence = engine->in_flight_fences[ engine->current_frame ];
@@ -702,7 +521,7 @@ MossResult moss_begin_frame (MossEngine *const engine)
   const VkRenderPassBeginInfo render_pass_info = {
     .sType       = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
     .renderPass  = engine->render_pass,
-    .framebuffer = engine->swapchain_framebuffers[ engine->current_image_index ],
+    .framebuffer = engine->present_framebuffers[ engine->current_image_index ],
     .renderArea  = {
       .offset = {0, 0},
       .extent = engine->swapchain_extent,
@@ -753,11 +572,6 @@ MossResult moss_begin_frame (MossEngine *const engine)
   return MOSS_RESULT_SUCCESS;
 }
 
-/*
-  @brief Ends the current frame.
-  @param engine Engine handler.
-  @return On success return MOSS_RESULT_SUCCESS, otherwise returns MOSS_RESULT_ERROR.
-*/
 MossResult moss_end_frame (MossEngine *const engine)
 {
   const VkSemaphore image_available_semaphore =
@@ -1132,7 +946,7 @@ inline static MossResult moss__create_swapchain_image_views (MossEngine *const e
   {
     info.image = engine->swapchain_images[ i ];
     const MossResult result =
-      moss_vk__create_image_view (&info, &engine->swapchain_image_views[ i ]);
+      moss_vk__create_image_view (&info, &engine->present_framebuffer_image_views[ i ]);
     if (result != MOSS_RESULT_SUCCESS) { return MOSS_RESULT_ERROR; }
   }
 
@@ -1589,12 +1403,12 @@ inline static MossResult moss__create_graphics_pipeline (MossEngine *const engin
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult moss__create_framebuffers (MossEngine *const engine)
+inline static MossResult moss__create_present_framebuffers (MossEngine *const engine)
 {
   for (uint32_t i = 0; i < engine->swapchain_image_count; ++i)
   {
     const VkImageView attachments[] = {
-      engine->swapchain_image_views[ i ],
+      engine->present_framebuffer_image_views[ i ],
       engine->depth_image_view,
     };
 
@@ -1612,13 +1426,13 @@ inline static MossResult moss__create_framebuffers (MossEngine *const engine)
           engine->device,
           &framebuffer_info,
           NULL,
-          &engine->swapchain_framebuffers[ i ]
+          &engine->present_framebuffers[ i ]
         ) != VK_SUCCESS)
     {
       moss__error ("Failed to create framebuffer %u.\n", i);
       for (uint32_t j = 0; j < i; ++j)
       {
-        vkDestroyFramebuffer (engine->device, engine->swapchain_framebuffers[ j ], NULL);
+        vkDestroyFramebuffer (engine->device, engine->present_framebuffers[ j ], NULL);
       }
       return MOSS_RESULT_ERROR;
     }
@@ -2103,10 +1917,10 @@ inline static void moss__cleanup_swapchain_framebuffers (MossEngine *const engin
 {
   for (uint32_t i = 0; i < engine->swapchain_image_count; ++i)
   {
-    if (engine->swapchain_framebuffers[ i ] == VK_NULL_HANDLE) { continue; }
+    if (engine->present_framebuffers[ i ] == VK_NULL_HANDLE) { continue; }
 
-    vkDestroyFramebuffer (engine->device, engine->swapchain_framebuffers[ i ], NULL);
-    engine->swapchain_framebuffers[ i ] = VK_NULL_HANDLE;
+    vkDestroyFramebuffer (engine->device, engine->present_framebuffers[ i ], NULL);
+    engine->present_framebuffers[ i ] = VK_NULL_HANDLE;
   }
 }
 
@@ -2114,10 +1928,14 @@ inline static void moss__cleanup_swapchain_image_views (MossEngine *const engine
 {
   for (uint32_t i = 0; i < engine->swapchain_image_count; ++i)
   {
-    if (engine->swapchain_image_views[ i ] == VK_NULL_HANDLE) { continue; }
+    if (engine->present_framebuffer_image_views[ i ] == VK_NULL_HANDLE) { continue; }
 
-    vkDestroyImageView (engine->device, engine->swapchain_image_views[ i ], NULL);
-    engine->swapchain_image_views[ i ] = VK_NULL_HANDLE;
+    vkDestroyImageView (
+      engine->device,
+      engine->present_framebuffer_image_views[ i ],
+      NULL
+    );
+    engine->present_framebuffer_image_views[ i ] = VK_NULL_HANDLE;
   }
 }
 
@@ -2182,7 +2000,7 @@ moss__recreate_swapchain (MossEngine *const engine, const VkExtent2D extent)
   {
     return MOSS_RESULT_ERROR;
   }
-  if (moss__create_framebuffers (engine) != MOSS_RESULT_SUCCESS)
+  if (moss__create_present_framebuffers (engine) != MOSS_RESULT_SUCCESS)
   {
     return MOSS_RESULT_ERROR;
   }

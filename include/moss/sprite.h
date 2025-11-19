@@ -12,20 +12,12 @@
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   See the License for the specific language governing permissions and
   limitations under the License.
-
-  @file include/moss/sprite.h
-  @brief Sprite struct declaration.
-  @author Ilya Buravov (ilburale@gmail.com)
 */
 
 #pragma once
 
 #include <cglm/vec2.h>
 
-/*
-  @brief Sprite.
-  @details Represents info that is used to draw a rectangle.
-*/
 typedef struct
 {
   float depth;    /* Image depth. */

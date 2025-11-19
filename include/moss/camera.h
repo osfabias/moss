@@ -12,10 +12,6 @@
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   See the License for the specific language governing permissions and
   limitations under the License.
-
-  @file src/camera.c
-  @brief Camera struct and function declarations.
-  @author Ilya Buravov (ilburale@gmail.com)
 */
 
 #pragma once
@@ -26,23 +22,8 @@
 
 typedef struct MossCamera MossCamera;
 
-/*
-  @brief Gets camera handle.
-  @param engine Engine handle.
-  @param out_camera Output parameter for camera handle.
-*/
 void moss_get_camera (MossEngine *engine, MossCamera **out_camera);
 
-/*
-  @brief Sets camera position.
-  @param camera Camera handle.
-  @param new_position New position to move camera to.
-*/
 void moss_set_camera_position (MossCamera *camera, const vec2 new_position);
 
-/*
-  @brief Sets camera size.
-  @param camera Camera handle.
-  @param new_size New size to resize camera to.
-*/
 void moss_set_camera_size (MossCamera *camera, const vec2 new_size);

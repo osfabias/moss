@@ -12,21 +12,12 @@
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   See the License for the specific language governing permissions and
   limitations under the License.
-
-  @file include/moss/version.h
-  @brief Version struct declaration.
-  @author Ilya Buravov (ilburale@gmail.com)
 */
 
 #pragma once
 
 #include <stdint.h>
 
-/*
- @brief Version.
- @details Used to tell graphics API your application version
- @note Compatible with VK_MAKE_VERSION.
-*/
 typedef struct
 {
   uint8_t  major; /* Major version number. */
