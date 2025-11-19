@@ -75,6 +75,7 @@ Mkfile.old
 dkms.conf
 
 # IDE and editor files
+.cursor/
 .vscode/
 .idea/
 *.swp
