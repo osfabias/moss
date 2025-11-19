@@ -807,7 +807,7 @@ MossResult moss_end_frame (MossEngine *const engine)
     .pImageIndices      = &current_image_index,
   };
 
-  VkResult result = vkQueuePresentKHR (engine->present_queue, &present_info);
+  const VkResult result = vkQueuePresentKHR (engine->present_queue, &present_info);
 
   if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
   {

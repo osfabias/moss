@@ -144,6 +144,64 @@ MossSpriteBatch *moss_create_sprite_batch (const MossSpriteBatchCreateInfo *cons
     }
   }
 
+  {  // Create staging buffer
+    const Moss__CreateVkBufferInfo create_info = {
+      .physical_device = info->engine->physical_device,
+      .device          = info->engine->device,
+      .size            = (VkDeviceSize)total_buffer_size,
+      .usage           = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+      .memory_properties =
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+      .sharing_mode                    = info->engine->buffer_sharing_mode,
+      .shared_queue_family_index_count = info->engine->shared_queue_family_index_count,
+      .shared_queue_family_indices     = info->engine->shared_queue_family_indices,
+    };
+
+    const MossResult result = moss_vk__create_buffer (
+      &create_info,
+      &sprite_batch->staging_buffer,
+      &sprite_batch->staging_memory
+    );
+    if (result != MOSS_RESULT_SUCCESS)
+    {
+      moss__error ("Failed to create staging buffer.\n");
+      moss_vk__destroy_buffer (
+        info->engine->device,
+        sprite_batch->buffer,
+        sprite_batch->buffer_memory
+      );
+      free (sprite_batch);
+      return NULL;
+    }
+  }
+
+  {  // Map staging buffer memory
+    const VkResult result = vkMapMemory (
+      info->engine->device,
+      sprite_batch->staging_memory,
+      0,
+      (VkDeviceSize)total_buffer_size,
+      0,
+      &sprite_batch->mapped_memory
+    );
+    if (result != VK_SUCCESS)
+    {
+      moss__error ("Failed to map staging buffer memory: %d.\n", result);
+      moss_vk__destroy_buffer (
+        info->engine->device,
+        sprite_batch->staging_buffer,
+        sprite_batch->staging_memory
+      );
+      moss_vk__destroy_buffer (
+        info->engine->device,
+        sprite_batch->buffer,
+        sprite_batch->buffer_memory
+      );
+      free (sprite_batch);
+      return NULL;
+    }
+  }
+
   // Save original engine
   sprite_batch->original_engine = info->engine;
 
@@ -157,9 +215,6 @@ MossSpriteBatch *moss_create_sprite_batch (const MossSpriteBatchCreateInfo *cons
   sprite_batch->index_capacity     = index_data_size;
   sprite_batch->index_count        = 0;
   sprite_batch->is_begun           = false;
-  sprite_batch->staging_buffer     = VK_NULL_HANDLE;
-  sprite_batch->staging_memory     = VK_NULL_HANDLE;
-  sprite_batch->mapped_memory      = NULL;
 
   return sprite_batch;
 }
@@ -174,19 +229,13 @@ void moss_destroy_sprite_batch (MossSpriteBatch *const sprite_batch)
   // Wait until device finishes all his work
   vkDeviceWaitIdle (engine->device);
 
-  // Cleanup staging buffer if it exists
-  if (sprite_batch->staging_buffer != VK_NULL_HANDLE)
-  {
-    if (sprite_batch->mapped_memory != NULL)
-    {
-      vkUnmapMemory (engine->device, sprite_batch->staging_memory);
-    }
-    moss_vk__destroy_buffer (
-      engine->device,
-      sprite_batch->staging_buffer,
-      sprite_batch->staging_memory
-    );
-  }
+  // Unmap and cleanup staging buffer
+  vkUnmapMemory (engine->device, sprite_batch->staging_memory);
+  moss_vk__destroy_buffer (
+    engine->device,
+    sprite_batch->staging_buffer,
+    sprite_batch->staging_memory
+  );
 
   // Cleanup device-local buffer
   moss_vk__destroy_buffer (
@@ -214,53 +263,10 @@ MossResult moss_begin_sprite_batch (MossSpriteBatch *sprite_batch)
     return MOSS_RESULT_ERROR;
   }
 
-  const MossEngine *const engine = sprite_batch->original_engine;
-
-  // Create staging buffer
+  if (sprite_batch->mapped_memory == NULL)
   {
-    const Moss__CreateVkBufferInfo create_info = {
-      .physical_device = engine->physical_device,
-      .device          = engine->device,
-      .size            = (VkDeviceSize)sprite_batch->buffer_capacity,
-      .usage           = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      .memory_properties =
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-      .sharing_mode                    = engine->buffer_sharing_mode,
-      .shared_queue_family_index_count = engine->shared_queue_family_index_count,
-      .shared_queue_family_indices     = engine->shared_queue_family_indices,
-    };
-
-    const MossResult result = moss_vk__create_buffer (
-      &create_info,
-      &sprite_batch->staging_buffer,
-      &sprite_batch->staging_memory
-    );
-    if (result != MOSS_RESULT_SUCCESS)
-    {
-      moss__error ("Failed to create staging buffer.\n");
-      return result;
-    }
-  }
-
-  {  // Map staging buffer memory
-    const VkResult result = vkMapMemory (
-      engine->device,
-      sprite_batch->staging_memory,
-      0,
-      (VkDeviceSize)sprite_batch->buffer_capacity,
-      0,
-      &sprite_batch->mapped_memory
-    );
-    if (result != VK_SUCCESS)
-    {
-      moss__error ("Failed to map staging buffer memory: %d.\n", result);
-      moss_vk__destroy_buffer (
-        engine->device,
-        sprite_batch->staging_buffer,
-        sprite_batch->staging_memory
-      );
-      return MOSS_RESULT_ERROR;
-    }
+    moss__error ("Staging buffer not mapped.\n");
+    return MOSS_RESULT_ERROR;
   }
 
   sprite_batch->is_begun         = true;
@@ -331,13 +337,6 @@ MossResult moss_end_sprite_batch (MossSpriteBatch *sprite_batch)
 
   MossEngine *const engine = sprite_batch->original_engine;
 
-  // Unmap staging buffer memory
-  if (sprite_batch->mapped_memory != NULL)
-  {
-    vkUnmapMemory (engine->device, sprite_batch->staging_memory);
-    sprite_batch->mapped_memory = NULL;
-  }
-
   // Copy from staging buffer to device-local buffer with offsets
   VkCommandBuffer command_buffer;
   {
@@ -402,16 +401,7 @@ MossResult moss_end_sprite_batch (MossSpriteBatch *sprite_batch)
     }
   }
 
-  // Cleanup staging buffer
-  moss_vk__destroy_buffer (
-    engine->device,
-    sprite_batch->staging_buffer,
-    sprite_batch->staging_memory
-  );
-
-  sprite_batch->staging_buffer = VK_NULL_HANDLE;
-  sprite_batch->staging_memory = VK_NULL_HANDLE;
-  sprite_batch->is_begun       = false;
+  sprite_batch->is_begun = false;
 
   return MOSS_RESULT_SUCCESS;
 }
