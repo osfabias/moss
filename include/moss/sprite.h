@@ -22,9 +22,6 @@
 
 #include <cglm/vec2.h>
 
-#include "moss/engine.h"
-#include "moss/result.h"
-
 /*
   @brief Sprite.
   @details Represents info that is used to draw a rectangle.
