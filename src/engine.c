@@ -18,7 +18,6 @@
   @author Ilya Buravov (ilburale@gmail.com)
 */
 
-#include "vulkan/vulkan_core.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -1641,7 +1640,7 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
   VkBuffer       staging_buffer;
   VkDeviceMemory staging_buffer_memory;
   {  // Create staging buffer
-    const Moss__CreateVkBufferInfo create_info = {
+    const MossVk__CreateBufferInfo create_info = {
       .physical_device = engine->physical_device,
       .device          = engine->device,
       .size            = (VkDeviceSize)(texture_width * texture_height * 4),
@@ -1733,7 +1732,7 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
   }
 
   {
-    const Moss__CopyVkBufferToImageInfo copy_info = {
+    const MossVk__CopyBufferToImageInfo copy_info = {
       .device         = engine->device,
       .command_pool   = engine->transfer_command_pool,
       .transfer_queue = engine->transfer_queue,
@@ -1913,7 +1912,7 @@ inline static MossResult moss__create_texture_sampler (MossEngine *const engine)
 
 inline static MossResult moss__create_camera_ubo_buffers (MossEngine *const engine)
 {
-  const Moss__CreateVkBufferInfo create_info = {
+  const MossVk__CreateBufferInfo create_info = {
     .physical_device = engine->physical_device,
     .device          = engine->device,
     .size            = sizeof (engine->camera),

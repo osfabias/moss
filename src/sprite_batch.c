@@ -145,7 +145,7 @@ MossSpriteBatch *moss_create_sprite_batch (const MossSpriteBatchCreateInfo *cons
   }
 
   {  // Create staging buffer
-    const Moss__CreateVkBufferInfo create_info = {
+    const MossVk__CreateBufferInfo create_info = {
       .physical_device = info->engine->physical_device,
       .device          = info->engine->device,
       .size            = (VkDeviceSize)total_buffer_size,
@@ -465,7 +465,7 @@ inline static MossResult moss__create_combined_buffer (
   VkDeviceMemory                             *out_buffer_memory
 )
 {
-  const Moss__CreateVkBufferInfo create_info = {
+  const MossVk__CreateBufferInfo create_info = {
     .physical_device = info->engine->physical_device,
     .device          = info->engine->device,
     .size            = (VkDeviceSize)info->size,

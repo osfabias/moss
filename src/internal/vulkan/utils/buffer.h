@@ -48,7 +48,7 @@ typedef struct
   VkSharingMode         sharing_mode;
   uint32_t              shared_queue_family_index_count;
   const uint32_t       *shared_queue_family_indices;
-} Moss__CreateVkBufferInfo;
+} MossVk__CreateBufferInfo;
 
 /*
   @brief Info required to perform copy operation on two buffers.
@@ -61,7 +61,7 @@ typedef struct
   VkDeviceSize  size;               /* Amount of bytes to copy. */
   VkCommandPool command_pool;       /* Command pool to perfom operation with. */
   VkQueue       transfer_queue;     /* Queue to be used as a transfer queue. */
-} Moss__CopyVkBufferInfo;
+} MossVk__CopyBufferInfo;
 
 /*
   @brief Info required to fill a buffer with data from host memory.
@@ -79,7 +79,7 @@ typedef struct
   VkSharingMode    sharing_mode;
   uint32_t         shared_queue_family_index_count;
   const uint32_t  *shared_queue_family_indices;
-} Moss__FillVkBufferInfo;
+} MossVk__FillBufferInfo;
 
 /*
   @brief Required info to perform copy operation from buffer to image.
@@ -93,7 +93,7 @@ typedef struct
   VkImage       image;          /* Destination image to copy data to. */
   uint32_t      width;          /* Image width. */
   uint32_t      height;         /* Image height. */
-} Moss__CopyVkBufferToImageInfo;
+} MossVk__CopyBufferToImageInfo;
 
 
 /*=============================================================================
@@ -108,7 +108,7 @@ typedef struct
   @return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
 inline static MossResult moss_vk__create_buffer (
-  const Moss__CreateVkBufferInfo *const info,
+  const MossVk__CreateBufferInfo *const info,
   VkBuffer                             *out_buffer,
   VkDeviceMemory                       *out_buffer_memory
 )
@@ -195,7 +195,7 @@ moss_vk__destroy_buffer (VkDevice device, VkBuffer buffer, VkDeviceMemory buffer
   @param info Required info to perform copy.
   @return Return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
-inline static MossResult moss_vk__copy_buffer (const Moss__CopyVkBufferInfo *const info)
+inline static MossResult moss_vk__copy_buffer (const MossVk__CopyBufferInfo *const info)
 {
   VkCommandBuffer command_buffer;
   {  // Begin one time vk command buffer
@@ -250,13 +250,13 @@ inline static MossResult moss_vk__copy_buffer (const Moss__CopyVkBufferInfo *con
   @param info Buffer fill info.
   @return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
-inline static MossResult moss_vk__fill_buffer (const Moss__FillVkBufferInfo *const info)
+inline static MossResult moss_vk__fill_buffer (const MossVk__FillBufferInfo *const info)
 {
   // Create staging buffer
   VkBuffer       staging_buffer;
   VkDeviceMemory staging_buffer_memory;
 
-  const Moss__CreateVkBufferInfo staging_create_info = {
+  const MossVk__CreateBufferInfo staging_create_info = {
     .physical_device = info->physical_device,
     .device          = info->device,
     .size            = info->data_size,
@@ -293,7 +293,7 @@ inline static MossResult moss_vk__fill_buffer (const Moss__FillVkBufferInfo *con
   vkUnmapMemory (info->device, staging_buffer_memory);
 
   // Copy from staging buffer to destination buffer
-  const Moss__CopyVkBufferInfo copy_info = {
+  const MossVk__CopyBufferInfo copy_info = {
     .device             = info->device,
     .destination_buffer = info->destination_buffer,
     .source_buffer      = staging_buffer,
@@ -322,7 +322,7 @@ inline static MossResult moss_vk__fill_buffer (const Moss__FillVkBufferInfo *con
   @return Return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
 inline static MossResult
-moss_vk__copy_buffer_to_image (const Moss__CopyVkBufferToImageInfo *const info)
+moss_vk__copy_buffer_to_image (const MossVk__CopyBufferToImageInfo *const info)
 {
   VkCommandBuffer command_buffer;
   {  // Begin one time command buffer
