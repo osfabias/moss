@@ -116,8 +116,8 @@ int main (void)
     sprites[ i ].position[ 0 ] = ((float)rand ( ) / RAND_MAX - 0.5F) * 2000.0F;
     sprites[ i ].position[ 1 ] = ((float)rand ( ) / RAND_MAX - 0.5F) * 2000.0F;
 
-    // Random size between 10 and 30
-    const float size       = 10.0F + ((float)rand ( ) / RAND_MAX) * 20.0F;
+    // Random size between 8 and 32
+    const float size       = 8.0F + ((float)rand ( ) / RAND_MAX) * 24.0F;
     sprites[ i ].size[ 0 ] = size;
     sprites[ i ].size[ 1 ] = size;
 
@@ -125,7 +125,7 @@ int main (void)
     sprites[ i ].depth = ((float)rand ( ) / RAND_MAX) * 1.0F;
 
     // UV coordinates (full texture)
-    sprites[ i ].uv.top_left[ 0 ]     = 0.0F;
+    sprites[ i ].uv.top_left[ 0 ]     = 0.5F;
     sprites[ i ].uv.top_left[ 1 ]     = 0.0F;
     sprites[ i ].uv.bottom_right[ 0 ] = 1.0F;
     sprites[ i ].uv.bottom_right[ 1 ] = 1.0F;
