@@ -386,7 +386,7 @@ MossResult moss_end_sprite_batch (MossSpriteBatch *sprite_batch)
   // Copy from staging buffer to device-local buffer with offsets
   VkCommandBuffer command_buffer;
   {
-    const Moss__BeginOneTimeVkCommandBufferInfo begin_info = {
+    const MossVk__BeginOneTimeCommandBufferInfo begin_info = {
       .device       = engine->device,
       .command_pool = engine->transfer_command_pool,
     };
@@ -434,7 +434,7 @@ MossResult moss_end_sprite_batch (MossSpriteBatch *sprite_batch)
   }
 
   {
-    const Moss__EndOneTimeVkCommandBufferInfo end_info = {
+    const MossVk__EndOneTimeCommandBufferInfo end_info = {
       .device         = engine->device,
       .command_pool   = engine->transfer_command_pool,
       .command_buffer = command_buffer,

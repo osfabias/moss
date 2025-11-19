@@ -56,7 +56,7 @@ struct MossEngine
   /* Logical device. */
   VkDevice device;
   /* Queue family indices. */
-  Moss__QueueFamilyIndices queue_family_indices;
+  MossVk__QueueFamilyIndices queue_family_indices;
   /* Graphics queue. */
   VkQueue graphics_queue;
   /* Present queue. */

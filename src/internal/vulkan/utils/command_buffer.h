@@ -37,7 +37,7 @@ typedef struct
 {
   VkDevice      device;       /* Logical device to create command buffer on. */
   VkCommandPool command_pool; /* Command pool to create command buffer in. */
-} Moss__BeginOneTimeVkCommandBufferInfo;
+} MossVk__BeginOneTimeCommandBufferInfo;
 
 /*
   @brief Required info to end one time Vulkan command buffer creation.
@@ -48,7 +48,7 @@ typedef struct
   VkCommandPool   command_pool;   /* Command pool to free command buffer from. */
   VkCommandBuffer command_buffer; /* Command buffer to end. */
   VkQueue         queue;          /* Queue to submit command buffer to. */
-} Moss__EndOneTimeVkCommandBufferInfo;
+} MossVk__EndOneTimeCommandBufferInfo;
 
 /*=============================================================================
     FUNCTIONS
@@ -61,7 +61,7 @@ typedef struct
   @return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
 inline static MossResult moss_vk__begin_one_time_command_buffer (
-  const Moss__BeginOneTimeVkCommandBufferInfo *const info,
+  const MossVk__BeginOneTimeCommandBufferInfo *const info,
   VkCommandBuffer *const                             out_command_buffer
 )
 {
@@ -114,7 +114,7 @@ inline static MossResult moss_vk__begin_one_time_command_buffer (
   @return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
 inline static MossResult moss_vk__end_one_time_command_buffer (
-  const Moss__EndOneTimeVkCommandBufferInfo *const info
+  const MossVk__EndOneTimeCommandBufferInfo *const info
 )
 {
   {  // End command buffer

@@ -336,7 +336,7 @@ MossEngine *moss_create_engine (const MossEngineConfig *const config)
   }
 
   {
-    const Moss__SelectPhysicalDeviceInfo select_info = {
+    const MossVk__SelectPhysicalDeviceInfo select_info = {
       .instance   = engine->api_instance,
       .surface    = engine->surface,
       .out_device = &engine->physical_device,
@@ -349,7 +349,7 @@ MossEngine *moss_create_engine (const MossEngineConfig *const config)
   }
 
   {
-    const Moss__FindQueueFamiliesInfo find_info = {
+    const MossVk__FindQueueFamiliesInfo find_info = {
       .device  = engine->physical_device,
       .surface = engine->surface,
     };
@@ -415,7 +415,7 @@ MossEngine *moss_create_engine (const MossEngineConfig *const config)
 
   // Create general command pool
   {
-    const Moss__CreateVkCommandPoolInfo create_info = {
+    const MossVk__CreateCommandPoolInfo create_info = {
       .device             = engine->device,
       .queue_family_index = engine->queue_family_indices.graphics_family,
     };
@@ -429,7 +429,7 @@ MossEngine *moss_create_engine (const MossEngineConfig *const config)
 
   // Create transfer command pool
   {
-    const Moss__CreateVkCommandPoolInfo create_info = {
+    const MossVk__CreateCommandPoolInfo create_info = {
       .device             = engine->device,
       .queue_family_index = engine->queue_family_indices.transfer_family,
     };
@@ -860,7 +860,7 @@ moss__create_api_instance (MossEngine *const engine, const MossAppInfo *const ap
   {
     if (moss_vk__check_validation_layer_support ( ))
     {
-      const Moss__VkValidationLayers validation_layers =
+      const MossVk__ValidationLayers validation_layers =
         moss_vk__get_validation_layers ( );
       validation_layer_count = validation_layers.count;
       validation_layer_names = validation_layers.names;
@@ -874,7 +874,7 @@ moss__create_api_instance (MossEngine *const engine, const MossAppInfo *const ap
 
   // Set up other required info
   const VkApplicationInfo          vk_app_info = moss__create_vk_app_info (app_info);
-  const Moss__VkInstanceExtensions extensions =
+  const MossVk__InstanceExtensions extensions =
     moss_vk__get_required_instance_extensions ( );
 
   // Make instance create info
@@ -931,7 +931,7 @@ inline static MossResult moss__create_surface (MossEngine *const engine)
 
 inline static MossResult moss__create_logical_device (MossEngine *const engine)
 {
-  const Moss__VkPhysicalDeviceExtensions extensions =
+  const MossVk__PhysicalDeviceExtensions extensions =
     moss_vk__get_required_device_extensions ( );
 
   uint32_t                queue_create_info_count = 0;
@@ -1021,11 +1021,11 @@ inline static MossResult moss__create_swapchain (
   const uint32_t    height
 )
 {
-  const Moss__QuerySwapchainSupportInfo query_info = {
+  const MossVk__QuerySwapchainSupportInfo query_info = {
     .device  = engine->physical_device,
     .surface = engine->surface,
   };
-  const Moss__SwapChainSupportDetails swapchain_support =
+  const MossVk__SwapChainSupportDetails swapchain_support =
     moss_vk__query_swapchain_support (&query_info);
 
   const VkSurfaceFormatKHR surface_format = moss_vk__choose_swap_surface_format (
@@ -1113,7 +1113,7 @@ inline static MossResult moss__create_swapchain (
 
 inline static MossResult moss__create_swapchain_image_views (MossEngine *const engine)
 {
-  Moss__VkImageViewCreateInfo info = {
+  MossVk__ImageViewCreateInfo info = {
     .device = engine->device,
     .image  = VK_NULL_HANDLE,
     .format = engine->swapchain_image_format,
@@ -1122,12 +1122,10 @@ inline static MossResult moss__create_swapchain_image_views (MossEngine *const e
 
   for (uint32_t i = 0; i < engine->swapchain_image_count; ++i)
   {
-    info.image                   = engine->swapchain_images[ i ];
-    const VkImageView image_view = moss_vk__create_image_view (&info);
-
-    if (image_view == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
-
-    engine->swapchain_image_views[ i ] = image_view;
+    info.image = engine->swapchain_images[ i ];
+    const MossResult result =
+      moss_vk__create_image_view (&info, &engine->swapchain_image_views[ i ]);
+    if (result != MOSS_RESULT_SUCCESS) { return MOSS_RESULT_ERROR; }
   }
 
   return MOSS_RESULT_SUCCESS;
@@ -1394,7 +1392,7 @@ inline static MossResult moss__create_graphics_pipeline (MossEngine *const engin
   VkShaderModule frag_shader_module;
 
   {
-    const Moss__CreateShaderModuleFromFileInfo create_info = {
+    const MossVk__CreateShaderModuleFromFileInfo create_info = {
       .device            = engine->device,
       .file_path         = MOSS__VERT_SHADER_PATH,
       .out_shader_module = &vert_shader_module,
@@ -1408,7 +1406,7 @@ inline static MossResult moss__create_graphics_pipeline (MossEngine *const engin
   }
 
   {
-    const Moss__CreateShaderModuleFromFileInfo create_info = {
+    const MossVk__CreateShaderModuleFromFileInfo create_info = {
       .device            = engine->device,
       .file_path         = MOSS__FRAG_SHADER_PATH,
       .out_shader_module = &frag_shader_module,
@@ -1707,19 +1705,21 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
     .shared_queue_family_index_count = engine->shared_queue_family_index_count,
   };
 
-  engine->texture_image = moss_vk__create_image (&create_info);
-  if (engine->texture_image == VK_NULL_HANDLE)
   {
-    if (staging_buffer_memory != VK_NULL_HANDLE)
+    const MossResult result = moss_vk__create_image (&create_info, &engine->texture_image);
+    if (result != MOSS_RESULT_SUCCESS)
     {
-      vkFreeMemory (engine->device, staging_buffer_memory, NULL);
+      if (staging_buffer_memory != VK_NULL_HANDLE)
+      {
+        vkFreeMemory (engine->device, staging_buffer_memory, NULL);
+      }
+      if (staging_buffer != VK_NULL_HANDLE)
+      {
+        vkDestroyBuffer (engine->device, staging_buffer, NULL);
+      }
+      moss__error ("Failed to create texture image.\n");
+      return MOSS_RESULT_ERROR;
     }
-    if (staging_buffer != VK_NULL_HANDLE)
-    {
-      vkDestroyBuffer (engine->device, staging_buffer, NULL);
-    }
-    moss__error ("Failed to create texture image.\n");
-    return MOSS_RESULT_ERROR;
   }
 
 
@@ -1730,20 +1730,23 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
     .image           = engine->texture_image,
   };
 
-  engine->texture_image_memory = moss_vk__allocate_image_memory (&alloc_info);
-  if (engine->texture_image_memory == VK_NULL_HANDLE)
   {
-    if (staging_buffer_memory != VK_NULL_HANDLE)
+    const MossResult result =
+      moss_vk__allocate_image_memory (&alloc_info, &engine->texture_image_memory);
+    if (result != MOSS_RESULT_SUCCESS)
     {
-      vkFreeMemory (engine->device, staging_buffer_memory, NULL);
+      if (staging_buffer_memory != VK_NULL_HANDLE)
+      {
+        vkFreeMemory (engine->device, staging_buffer_memory, NULL);
+      }
+      if (staging_buffer != VK_NULL_HANDLE)
+      {
+        vkDestroyBuffer (engine->device, staging_buffer, NULL);
+      }
+      vkDestroyImage (engine->device, engine->texture_image, NULL);
+      moss__error ("Failed to allocate memory for the texture image.\n");
+      return MOSS_RESULT_ERROR;
     }
-    if (staging_buffer != VK_NULL_HANDLE)
-    {
-      vkDestroyBuffer (engine->device, staging_buffer, NULL);
-    }
-    vkDestroyImage (engine->device, engine->texture_image, NULL);
-    moss__error ("Failed to allocate memory for the texture image.\n");
-    return MOSS_RESULT_ERROR;
   }
 
   {
@@ -1838,17 +1841,14 @@ inline static MossResult moss__create_texture_image (MossEngine *const engine)
 
 inline static MossResult moss__create_texture_image_view (MossEngine *const engine)
 {
-  const Moss__VkImageViewCreateInfo info = {
+  const MossVk__ImageViewCreateInfo info = {
     .device = engine->device,
     .image  = engine->texture_image,
     .format = VK_FORMAT_R8G8B8A8_SRGB,
     .aspect = VK_IMAGE_ASPECT_COLOR_BIT,
   };
-  const VkImageView image_view = moss_vk__create_image_view (&info);
-
-  if (image_view == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
-
-  engine->texture_image_view = image_view;
+  const MossResult result = moss_vk__create_image_view (&info, &engine->texture_image_view);
+  if (result != MOSS_RESULT_SUCCESS) { return MOSS_RESULT_ERROR; }
   return MOSS_RESULT_SUCCESS;
 }
 
@@ -1871,11 +1871,13 @@ inline static MossResult moss__create_depth_resources (MossEngine *const engine)
       .shared_queue_family_index_count = engine->shared_queue_family_index_count,
     };
 
-    engine->depth_image = moss_vk__create_image (&info);
-    if (engine->depth_image == VK_NULL_HANDLE)
     {
-      moss__error ("Failed to create depth image.\n");
-      return MOSS_RESULT_ERROR;
+      const MossResult result = moss_vk__create_image (&info, &engine->depth_image);
+      if (result != MOSS_RESULT_SUCCESS)
+      {
+        moss__error ("Failed to create depth image.\n");
+        return MOSS_RESULT_ERROR;
+      }
     }
   }
 
@@ -1887,26 +1889,30 @@ inline static MossResult moss__create_depth_resources (MossEngine *const engine)
       .image           = engine->depth_image,
     };
 
-    engine->depth_image_memory = moss_vk__allocate_image_memory (&info);
-    if (engine->depth_image_memory == VK_NULL_HANDLE)
     {
-      vkDestroyImage (engine->device, engine->depth_image, NULL);
+      const MossResult result =
+        moss_vk__allocate_image_memory (&info, &engine->depth_image_memory);
+      if (result != MOSS_RESULT_SUCCESS)
+      {
+        vkDestroyImage (engine->device, engine->depth_image, NULL);
 
-      moss__error ("Failed to allocate memory for the depth image.\n");
-      return MOSS_RESULT_ERROR;
+        moss__error ("Failed to allocate memory for the depth image.\n");
+        return MOSS_RESULT_ERROR;
+      }
     }
   }
 
   {  // Create depth image view
-    const Moss__VkImageViewCreateInfo info = {
+    const MossVk__ImageViewCreateInfo info = {
       .device = engine->device,
       .image  = engine->depth_image,
       .format = depth_image_format,
       .aspect = VK_IMAGE_ASPECT_DEPTH_BIT,
     };
 
-    engine->depth_image_view = moss_vk__create_image_view (&info);
-    if (engine->depth_image_view == VK_NULL_HANDLE)
+    const MossResult result =
+      moss_vk__create_image_view (&info, &engine->depth_image_view);
+    if (result != MOSS_RESULT_SUCCESS)
     {
       vkFreeMemory (engine->device, engine->depth_image_memory, NULL);
       vkDestroyImage (engine->device, engine->depth_image, NULL);

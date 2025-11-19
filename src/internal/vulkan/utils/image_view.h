@@ -22,8 +22,9 @@
 
 #include <vulkan/vulkan.h>
 
+#include "moss/result.h"
+
 #include "src/internal/log.h"
-#include "vulkan/vulkan_core.h"
 
 /*=============================================================================
     STRUCTURES
@@ -34,11 +35,11 @@
 */
 typedef struct
 {
-  VkDevice           device; /* Device to create image view on. */
+  VkDevice           device; /* Logical device to create image view on. */
   VkImage            image;  /* Image to create view for. */
   VkFormat           format; /* Image view format. */
-  VkImageAspectFlags aspect; /* Image aspect. */
-} Moss__VkImageViewCreateInfo;
+  VkImageAspectFlags aspect; /* Image aspect flags. */
+} MossVk__ImageViewCreateInfo;
 
 /*=============================================================================
     FUNCTIONS
@@ -47,10 +48,13 @@ typedef struct
 /*
   @brief Creates Vulkan image view instance.
   @param info Vulkan image view creation info.
-  @return On success returns valid image view handler, otherwise VK_NULL_HANDLE.
+  @param out_image_view Output parameter for created image view handle.
+  @return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
-inline static VkImageView
-moss_vk__create_image_view (const Moss__VkImageViewCreateInfo *const info)
+inline static MossResult moss_vk__create_image_view (
+  const MossVk__ImageViewCreateInfo *const info,
+  VkImageView                             *out_image_view
+)
 {
   const VkImageSubresourceRange subresource_range = {
     .aspectMask     = info->aspect,
@@ -78,9 +82,8 @@ moss_vk__create_image_view (const Moss__VkImageViewCreateInfo *const info)
     .subresourceRange = subresource_range,
   };
 
-  VkImageView    image_view;
   const VkResult result =
-    vkCreateImageView (info->device, &create_info, NULL, &image_view);
+    vkCreateImageView (info->device, &create_info, NULL, out_image_view);
 
   if (result != VK_SUCCESS)
   {
@@ -89,7 +92,7 @@ moss_vk__create_image_view (const Moss__VkImageViewCreateInfo *const info)
       (void *)info->image,
       result
     );
-    return VK_NULL_HANDLE;
+    return MOSS_RESULT_ERROR;
   }
-  return image_view;
+  return MOSS_RESULT_SUCCESS;
 }

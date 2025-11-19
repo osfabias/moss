@@ -35,7 +35,7 @@ typedef struct
 {
   const char *const *names; /* Extension names. */
   const size_t       count; /* Extension count. */
-} Moss__VkInstanceExtensions;
+} MossVk__InstanceExtensions;
 
 /*=============================================================================
     FUNCTIONS
@@ -45,7 +45,7 @@ typedef struct
   @brief Returns a list of required Vulkan instance extensions.
   @return Instance extensions struct.
 */
-inline static Moss__VkInstanceExtensions moss_vk__get_required_instance_extensions (void)
+inline static MossVk__InstanceExtensions moss_vk__get_required_instance_extensions (void)
 {
 #ifdef __APPLE__
   static const char *const extension_names[] = {
@@ -58,7 +58,7 @@ inline static Moss__VkInstanceExtensions moss_vk__get_required_instance_extensio
 #  error "Vulkan instance extensions are not specified for the current target platform."
 #endif
 
-  static const Moss__VkInstanceExtensions extensions = {
+  static const MossVk__InstanceExtensions extensions = {
     .names = extension_names,
     .count = sizeof (extension_names) / sizeof (extension_names[ 0 ]),
   };

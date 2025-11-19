@@ -58,7 +58,7 @@ typedef struct
 
   /* Number of present modes. */
   uint32_t present_mode_count;
-} Moss__SwapChainSupportDetails;
+} MossVk__SwapChainSupportDetails;
 
 /*
   @brief Required info to query swapchain support.
@@ -67,7 +67,7 @@ typedef struct
 {
   VkPhysicalDevice device;  /* Physical device. */
   VkSurfaceKHR     surface; /* Surface to query. */
-} Moss__QuerySwapchainSupportInfo;
+} MossVk__QuerySwapchainSupportInfo;
 
 /*=============================================================================
     FUNCTIONS
@@ -78,10 +78,10 @@ typedef struct
   @param info Required info to query swapchain support.
   @return Swap chain support details. Caller must free formats and present_modes arrays.
 */
-inline static Moss__SwapChainSupportDetails
-moss_vk__query_swapchain_support (const Moss__QuerySwapchainSupportInfo *const info)
+inline static MossVk__SwapChainSupportDetails
+moss_vk__query_swapchain_support (const MossVk__QuerySwapchainSupportInfo *const info)
 {
-  Moss__SwapChainSupportDetails details = {0};
+  MossVk__SwapChainSupportDetails details = {0};
 
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR (
     info->device,

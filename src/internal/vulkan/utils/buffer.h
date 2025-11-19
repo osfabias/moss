@@ -204,7 +204,7 @@ inline static MossResult moss_vk__copy_buffer (const MossVk__CopyBufferInfo *con
 {
   VkCommandBuffer command_buffer;
   {  // Begin one time vk command buffer
-    const Moss__BeginOneTimeVkCommandBufferInfo begin_info = {
+    const MossVk__BeginOneTimeCommandBufferInfo begin_info = {
       .device       = info->device,
       .command_pool = info->command_pool,
     };
@@ -232,7 +232,7 @@ inline static MossResult moss_vk__copy_buffer (const MossVk__CopyBufferInfo *con
   );
 
   {  // End one time command buffer
-    const Moss__EndOneTimeVkCommandBufferInfo end_info = {
+    const MossVk__EndOneTimeCommandBufferInfo end_info = {
       .device         = info->device,
       .command_pool   = info->command_pool,
       .command_buffer = command_buffer,
@@ -363,7 +363,7 @@ moss_vk__copy_buffer_to_image (const MossVk__CopyBufferToImageInfo *const info)
   VkCommandBuffer command_buffer;
 
   {  // Begin one time command buffer
-    const Moss__BeginOneTimeVkCommandBufferInfo begin_info = {
+    const MossVk__BeginOneTimeCommandBufferInfo begin_info = {
       .device       = info->device,
       .command_pool = info->command_pool,
     };
@@ -400,7 +400,7 @@ moss_vk__copy_buffer_to_image (const MossVk__CopyBufferToImageInfo *const info)
   );
 
   {  // End one time Vulkan command buffer
-    const Moss__EndOneTimeVkCommandBufferInfo end_info = {
+    const MossVk__EndOneTimeCommandBufferInfo end_info = {
       .device         = info->device,
       .command_pool   = info->command_pool,
       .command_buffer = command_buffer,

@@ -39,7 +39,7 @@ typedef struct
 {
   VkDevice device;            /* Logical device to create command pool on. */
   uint32_t queue_family_index; /* Queue family index to assign command pool to. */
-} Moss__CreateVkCommandPoolInfo;
+} MossVk__CreateCommandPoolInfo;
 
 /*=============================================================================
     FUNCTIONS
@@ -52,7 +52,7 @@ typedef struct
   @return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
 inline static MossResult moss_vk__create_command_pool (
-  const Moss__CreateVkCommandPoolInfo *const info,
+  const MossVk__CreateCommandPoolInfo *const info,
   VkCommandPool                        *out_command_pool
 )
 {

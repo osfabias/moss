@@ -46,7 +46,7 @@ typedef struct
   bool     graphics_family_found; /* Whether graphics family index is valid. */
   bool     present_family_found;  /* Whether present family index is valid. */
   bool     transfer_family_found; /* Whether present family index is valid. */
-} Moss__QueueFamilyIndices;
+} MossVk__QueueFamilyIndices;
 
 /*
   @brief Vulkan physical device extensions.
@@ -55,13 +55,13 @@ typedef struct
 {
   const char *const *names; /* Extension names. */
   const uint32_t     count; /* Extension count. */
-} Moss__VkPhysicalDeviceExtensions;
+} MossVk__PhysicalDeviceExtensions;
 
 /*=============================================================================
     FUNCTIONS
   =============================================================================*/
 
-inline static Moss__VkPhysicalDeviceExtensions
+inline static MossVk__PhysicalDeviceExtensions
 moss_vk__get_required_device_extensions (void)
 {
 #ifdef __APPLE__
@@ -74,7 +74,7 @@ moss_vk__get_required_device_extensions (void)
     "Vulkan physical device extensions aren't specified for the current target platform."
 #endif
 
-  static const Moss__VkPhysicalDeviceExtensions extensions = {
+  static const MossVk__PhysicalDeviceExtensions extensions = {
     .names = extension_names,
     .count = sizeof (extension_names) / sizeof (extension_names[ 0 ]),
   };
@@ -89,17 +89,17 @@ typedef struct
 {
   VkPhysicalDevice device;  /* Physical device to query. */
   VkSurfaceKHR     surface; /* Surface to check presentation support. */
-} Moss__FindQueueFamiliesInfo;
+} MossVk__FindQueueFamiliesInfo;
 
 /*
   @brief Finds queue families for a physical device.
   @param info Required info to find queue families.
   @return Queue family indices structure.
 */
-inline static Moss__QueueFamilyIndices
-moss_vk__find_queue_families (const Moss__FindQueueFamiliesInfo *const info)
+inline static MossVk__QueueFamilyIndices
+moss_vk__find_queue_families (const MossVk__FindQueueFamiliesInfo *const info)
 {
-  Moss__QueueFamilyIndices indices = {
+  MossVk__QueueFamilyIndices indices = {
     .graphics_family_found = false,
     .present_family_found  = false,
     .transfer_family_found = false,
@@ -171,7 +171,7 @@ typedef struct
 {
   VkPhysicalDevice device;  /* Physical device to check. */
   VkSurfaceKHR     surface; /* Surface to check presentation support. */
-} Moss__CheckDeviceQueuesSupportInfo;
+} MossVk__CheckDeviceQueuesSupportInfo;
 
 /*
   @brief Checks if device supports required queues.
@@ -179,7 +179,7 @@ typedef struct
   @return True if all required queues are supported, otherwise false.
 */
 inline static bool moss_vk__check_device_queues_support (
-  const Moss__CheckDeviceQueuesSupportInfo *const info
+  const MossVk__CheckDeviceQueuesSupportInfo *const info
 )
 {
 #ifndef NDEBUG
@@ -187,11 +187,11 @@ inline static bool moss_vk__check_device_queues_support (
   vkGetPhysicalDeviceProperties (info->device, &device_properties);
 #endif
 
-  const Moss__FindQueueFamiliesInfo find_info = {
-    .device  = info->device,
-    .surface = info->surface,
-  };
-  const Moss__QueueFamilyIndices indices = moss_vk__find_queue_families (&find_info);
+    const MossVk__FindQueueFamiliesInfo find_info = {
+      .device  = info->device,
+      .surface = info->surface,
+    };
+    const MossVk__QueueFamilyIndices indices = moss_vk__find_queue_families (&find_info);
 
   if (!indices.present_family_found)
   {
@@ -220,7 +220,7 @@ inline static bool moss_vk__check_device_queues_support (
 typedef struct
 {
   VkPhysicalDevice device; /* Physical device to check. */
-} Moss__CheckDeviceExtensionSupportInfo;
+} MossVk__CheckDeviceExtensionSupportInfo;
 
 /*
   @brief Checks if device supports required extensions.
@@ -228,7 +228,7 @@ typedef struct
   @return True if all required extensions are supported, otherwise false.
 */
 inline static bool moss_vk__check_device_extension_support (
-  const Moss__CheckDeviceExtensionSupportInfo *const info
+  const MossVk__CheckDeviceExtensionSupportInfo *const info
 )
 {
 #ifndef NDEBUG
@@ -236,7 +236,7 @@ inline static bool moss_vk__check_device_extension_support (
   vkGetPhysicalDeviceProperties (info->device, &device_properties);
 #endif
 
-  const Moss__VkPhysicalDeviceExtensions required_extensions =
+  const MossVk__PhysicalDeviceExtensions required_extensions =
     moss_vk__get_required_device_extensions ( );
 
   uint32_t available_extension_count;
@@ -292,7 +292,7 @@ typedef struct
 {
   VkPhysicalDevice device;  /* Physical device to check. */
   VkSurfaceKHR     surface; /* Surface to check format support. */
-} Moss__CheckDeviceFormatSupportInfo;
+} MossVk__CheckDeviceFormatSupportInfo;
 
 /*
   @brief Checks if device supports required formats.
@@ -300,7 +300,7 @@ typedef struct
   @return True if all required formats are supported, otherwise false.
 */
 inline static bool moss_vk__check_device_format_support (
-  const Moss__CheckDeviceFormatSupportInfo *const info
+  const MossVk__CheckDeviceFormatSupportInfo *const info
 )
 {
   uint32_t format_count;
@@ -324,7 +324,7 @@ typedef struct
 {
   VkPhysicalDevice device;  /* Physical device to check. */
   VkSurfaceKHR     surface; /* Surface to check presentation support. */
-} Moss__IsPhysicalDeviceSuitableInfo;
+} MossVk__IsPhysicalDeviceSuitableInfo;
 
 /*
   @brief Checks if a physical device is suitable for our needs.
@@ -332,24 +332,24 @@ typedef struct
   @return True if device is suitable, false otherwise.
 */
 inline static bool moss_vk__is_physical_device_suitable (
-  const Moss__IsPhysicalDeviceSuitableInfo *const info
+  const MossVk__IsPhysicalDeviceSuitableInfo *const info
 )
 {
-  const Moss__CheckDeviceQueuesSupportInfo queues_info = {
-    .device  = info->device,
-    .surface = info->surface,
-  };
-  if (!moss_vk__check_device_queues_support (&queues_info)) { return false; }
+    const MossVk__CheckDeviceQueuesSupportInfo queues_info = {
+      .device  = info->device,
+      .surface = info->surface,
+    };
+    if (!moss_vk__check_device_queues_support (&queues_info)) { return false; }
 
-  const Moss__CheckDeviceExtensionSupportInfo extension_info = {
-    .device = info->device,
-  };
-  if (!moss_vk__check_device_extension_support (&extension_info)) { return false; }
+    const MossVk__CheckDeviceExtensionSupportInfo extension_info = {
+      .device = info->device,
+    };
+    if (!moss_vk__check_device_extension_support (&extension_info)) { return false; }
 
-  const Moss__CheckDeviceFormatSupportInfo format_info = {
-    .device  = info->device,
-    .surface = info->surface,
-  };
+    const MossVk__CheckDeviceFormatSupportInfo format_info = {
+      .device  = info->device,
+      .surface = info->surface,
+    };
   if (!moss_vk__check_device_format_support (&format_info)) { return false; }
 
   return true;
@@ -363,7 +363,7 @@ typedef struct
   VkInstance        instance;   /* Vulkan instance. */
   VkSurfaceKHR      surface;    /* Surface to check presentation support. */
   VkPhysicalDevice *out_device; /* Pointer to store selected physical device. */
-} Moss__SelectPhysicalDeviceInfo;
+} MossVk__SelectPhysicalDeviceInfo;
 
 /*
   @brief Selects a suitable physical device from available devices.
@@ -371,7 +371,7 @@ typedef struct
   @return VK_SUCCESS on success, error code otherwise.
 */
 inline static VkResult
-moss_vk__select_physical_device (const Moss__SelectPhysicalDeviceInfo *const info)
+moss_vk__select_physical_device (const MossVk__SelectPhysicalDeviceInfo *const info)
 {
   uint32_t device_count = 0;
   vkEnumeratePhysicalDevices (info->instance, &device_count, NULL);
@@ -392,7 +392,7 @@ moss_vk__select_physical_device (const Moss__SelectPhysicalDeviceInfo *const inf
     VkPhysicalDeviceProperties device_properties;
     vkGetPhysicalDeviceProperties (devices[ i ], &device_properties);
 
-    const Moss__IsPhysicalDeviceSuitableInfo suitable_info = {
+    const MossVk__IsPhysicalDeviceSuitableInfo suitable_info = {
       .device  = devices[ i ],
       .surface = info->surface,
     };

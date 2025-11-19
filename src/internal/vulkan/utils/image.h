@@ -81,9 +81,11 @@ typedef struct
 /*
   @brief Crates Vulkan image.
   @param info Required info to create Vulkan image.
-  @return On success returns valid image handle, otherwise returns VK_NULL_HANDLE.
+  @param out_image Output parameter for created image handle.
+  @return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
-inline static VkImage moss_vk__create_image (const MossVk__CreateImageInfo *const info)
+inline static MossResult
+moss_vk__create_image (const MossVk__CreateImageInfo *const info, VkImage *const out_image)
 {
   const VkExtent3D image_extent = {
     .width  = info->image_width,
@@ -107,25 +109,26 @@ inline static VkImage moss_vk__create_image (const MossVk__CreateImageInfo *cons
     .samples               = VK_SAMPLE_COUNT_1_BIT,
   };
 
-  VkImage        image;
-  const VkResult result = vkCreateImage (info->device, &create_info, NULL, &image);
+  const VkResult result = vkCreateImage (info->device, &create_info, NULL, out_image);
   if (result != VK_SUCCESS)
   {
     moss__error ("Failed to create Vulkan image. Error code: %d.\n", result);
-    return VK_NULL_HANDLE;
+    return MOSS_RESULT_ERROR;
   }
 
-  return image;
+  return MOSS_RESULT_SUCCESS;
 }
 
 /*
   @brief Allocates device memory for Vulkan image.
   @param info Required info for allocating image memory.
-  @return On success returns a valid Vulkan device memory handle,
-          otherwise returns VK_NULL_HANDLE.
+  @param out_image_memory Output parameter for allocated memory handle.
+  @return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
-inline static VkDeviceMemory
-moss_vk__allocate_image_memory (const MossVk__AllocateImageMemoryInfo *const info)
+inline static MossResult moss_vk__allocate_image_memory (
+  const MossVk__AllocateImageMemoryInfo *const info,
+  VkDeviceMemory *const                         out_image_memory
+)
 {
   // Select suitable memory type
   VkMemoryRequirements memory_requirements;
@@ -140,10 +143,9 @@ moss_vk__allocate_image_memory (const MossVk__AllocateImageMemoryInfo *const inf
       ) != MOSS_RESULT_SUCCESS)
   {
     moss__error ("Failed to find suitable memory type.\n");
-    return VK_NULL_HANDLE;
+    return MOSS_RESULT_ERROR;
   }
 
-  VkDeviceMemory memory;
   {  // Allocate memory
     const VkMemoryAllocateInfo alloc_info = {
       .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -152,26 +154,28 @@ moss_vk__allocate_image_memory (const MossVk__AllocateImageMemoryInfo *const inf
       .memoryTypeIndex = suitable_memory_type,
     };
 
-    const VkResult result = vkAllocateMemory (info->device, &alloc_info, NULL, &memory);
+    const VkResult result =
+      vkAllocateMemory (info->device, &alloc_info, NULL, out_image_memory);
     if (result != VK_SUCCESS)
     {
       moss__error ("Failed to allocate memory for the image. Error code: %d.\n", result);
-      return VK_NULL_HANDLE;
+      return MOSS_RESULT_ERROR;
     }
   }
 
   {  // Bind image memory
-    const VkResult result = vkBindImageMemory (info->device, info->image, memory, 0);
+    const VkResult result =
+      vkBindImageMemory (info->device, info->image, *out_image_memory, 0);
     if (result != VK_SUCCESS)
     {
-      vkFreeMemory (info->device, memory, NULL);
+      vkFreeMemory (info->device, *out_image_memory, NULL);
 
       moss__error ("Failed to bind image memory to the image. Error code: %d.\n", result);
-      return VK_NULL_HANDLE;
+      return MOSS_RESULT_ERROR;
     }
   }
 
-  return memory;
+  return MOSS_RESULT_SUCCESS;
 }
 
 
@@ -185,7 +189,7 @@ moss_vk__transition_image_layout (const MossVk__TransitionImageLayoutInfo *const
 {
   VkCommandBuffer command_buffer;
   {  // Begin one time command buffer
-    const Moss__BeginOneTimeVkCommandBufferInfo begin_info = {
+    const MossVk__BeginOneTimeCommandBufferInfo begin_info = {
       .device       = info->device,
       .command_pool = info->command_pool,
     };
@@ -280,7 +284,7 @@ moss_vk__transition_image_layout (const MossVk__TransitionImageLayoutInfo *const
   );
 
   {  // End one time command buffer
-    const Moss__EndOneTimeVkCommandBufferInfo end_info = {
+    const MossVk__EndOneTimeCommandBufferInfo end_info = {
       .device         = info->device,
       .command_pool   = info->command_pool,
       .command_buffer = command_buffer,

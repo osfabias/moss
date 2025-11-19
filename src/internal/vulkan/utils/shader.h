@@ -44,7 +44,7 @@ typedef struct
   uint32_t  **out_code;  /* Pointer to store allocated code buffer (must be freed by
                              caller). */
   size_t *out_code_size; /* Pointer to store code size in bytes. */
-} Moss__ReadShaderFileInfo;
+} MossVk__ReadShaderFileInfo;
 
 /*
   @brief Required info to create shader module.
@@ -55,7 +55,7 @@ typedef struct
   const uint32_t *code;              /* Pointer to SPIR-V code. */
   size_t          code_size;         /* Size of SPIR-V code in bytes. */
   VkShaderModule *out_shader_module; /* Pointer to store created shader module. */
-} Moss__CreateShaderModuleInfo;
+} MossVk__CreateShaderModuleInfo;
 
 /*
   @brief Required info to create shader module from file.
@@ -65,7 +65,7 @@ typedef struct
   VkDevice        device;            /* Logical device. */
   const char     *file_path;         /* Path to the SPIR-V file. */
   VkShaderModule *out_shader_module; /* Pointer to store created shader module. */
-} Moss__CreateShaderModuleFromFileInfo;
+} MossVk__CreateShaderModuleFromFileInfo;
 
 /*=============================================================================
     FUNCTIONS
@@ -77,7 +77,7 @@ typedef struct
   @return VK_SUCCESS on success, error code otherwise.
 */
 inline static MossResult
-moss_vk__read_shader_file (const Moss__ReadShaderFileInfo *const info)
+moss_vk__read_shader_file (const MossVk__ReadShaderFileInfo *const info)
 {
   FILE *const file = fopen (info->file_path, "rb");
   if (file == NULL)
@@ -128,7 +128,7 @@ moss_vk__read_shader_file (const Moss__ReadShaderFileInfo *const info)
   @return VK_SUCCESS on success, error code otherwise.
 */
 inline static MossResult
-moss_vk__create_shader_module (const Moss__CreateShaderModuleInfo *const info)
+moss_vk__create_shader_module (const MossVk__CreateShaderModuleInfo *const info)
 {
   const VkShaderModuleCreateInfo create_info = {
     .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -155,14 +155,14 @@ moss_vk__create_shader_module (const Moss__CreateShaderModuleInfo *const info)
   @return VK_SUCCESS on success, error code otherwise.
 */
 inline static MossResult moss_vk__create_shader_module_from_file (
-  const Moss__CreateShaderModuleFromFileInfo *const info
+  const MossVk__CreateShaderModuleFromFileInfo *const info
 )
 {
   uint32_t *code      = NULL;
   size_t    code_size = 0;
 
   {  // Read shader file code
-    const Moss__ReadShaderFileInfo read_info = {
+    const MossVk__ReadShaderFileInfo read_info = {
       .file_path     = info->file_path,
       .out_code      = &code,
       .out_code_size = &code_size,
@@ -172,7 +172,7 @@ inline static MossResult moss_vk__create_shader_module_from_file (
   }
 
   {  // Create shader module
-    const Moss__CreateShaderModuleInfo create_info = {
+    const MossVk__CreateShaderModuleInfo create_info = {
       .device            = info->device,
       .code              = code,
       .code_size         = code_size,
