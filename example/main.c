@@ -97,35 +97,24 @@ int main (void)
   moss_set_camera_size (camera, camera_size);
   moss_set_camera_position (camera, camera_position);
 
-  // Create 10000 sprites with random positions, sizes, and velocities
-  const size_t NUM_SPRITES = 1000000;
+  // Create 1000000 static sprites with random positions and sizes
+  const size_t NUM_SPRITES = 2000000;
   MossSprite  *sprites     = malloc (sizeof (MossSprite) * NUM_SPRITES);
-
-  // Per-sprite velocity and size change data
-  typedef struct
-  {
-    vec2  velocity;      /* Position velocity. */
-    vec2  size_velocity; /* Size change velocity. */
-    float min_size;      /* Minimum size. */
-    float max_size;      /* Maximum size. */
-  } SpriteData;
-
-  SpriteData *sprite_data = malloc (sizeof (SpriteData) * NUM_SPRITES);
 
   // Seed random number generator
   srand ((unsigned int)time (NULL));
 
-  // Initialize sprites with random positions, sizes, and velocities
+  // Initialize sprites with random positions and sizes (static, no animation)
   for (size_t i = 0; i < NUM_SPRITES; ++i)
   {
     // Random position within a larger area
     sprites[ i ].position[ 0 ] = ((float)rand ( ) / RAND_MAX - 0.5F) * 2000.0F;
     sprites[ i ].position[ 1 ] = ((float)rand ( ) / RAND_MAX - 0.5F) * 2000.0F;
 
-    // Random initial size between 20 and 80
-    const float initial_size = 20.0F + ((float)rand ( ) / RAND_MAX) * 60.0F;
-    sprites[ i ].size[ 0 ]   = initial_size;
-    sprites[ i ].size[ 1 ]   = initial_size;
+    // Random size between 10 and 40
+    const float size       = 10.0F + ((float)rand ( ) / RAND_MAX) * 30.0F;
+    sprites[ i ].size[ 0 ] = size;
+    sprites[ i ].size[ 1 ] = size;
 
     // Random depth for sorting
     sprites[ i ].depth = ((float)rand ( ) / RAND_MAX) * 1.0F;
@@ -135,19 +124,6 @@ int main (void)
     sprites[ i ].uv.top_left[ 1 ]     = 0.0F;
     sprites[ i ].uv.bottom_right[ 0 ] = 1.0F;
     sprites[ i ].uv.bottom_right[ 1 ] = 1.0F;
-
-    // Random velocity between -100 and 100 per second
-    sprite_data[ i ].velocity[ 0 ] = ((float)rand ( ) / RAND_MAX - 0.5F) * 200.0F;
-    sprite_data[ i ].velocity[ 1 ] = ((float)rand ( ) / RAND_MAX - 0.5F) * 200.0F;
-
-    // Random size change velocity between -30 and 30 per second
-    sprite_data[ i ].size_velocity[ 0 ] = ((float)rand ( ) / RAND_MAX - 0.5F) * 60.0F;
-    sprite_data[ i ].size_velocity[ 1 ] =
-      sprite_data[ i ].size_velocity[ 0 ];  // Keep square
-
-    // Size bounds
-    sprite_data[ i ].min_size = 10.0F;
-    sprite_data[ i ].max_size = 100.0F;
   }
 
   // Create sprite batch
@@ -157,17 +133,31 @@ int main (void)
   };
   MossSpriteBatch *const sprite_batch = moss_create_sprite_batch (&sprite_batch_info);
 
+  // Build sprite batch once (sprites are static, no need to rebuild)
+  moss_begin_sprite_batch (sprite_batch);
+  {
+    const MossAddSpritesToSpriteBatchInfo add_info = {
+      .sprites      = sprites,
+      .sprite_count = NUM_SPRITES,
+    };
+    moss_add_sprites_to_sprite_batch (sprite_batch, &add_info);
+  }
+  moss_end_sprite_batch (sprite_batch);
+
   // Initialize timing
 #ifdef __APPLE__
   mach_timebase_info_data_t timebase_info;
   mach_timebase_info (&timebase_info);
-  uint64_t start_time      = mach_absolute_time ( );
-  uint64_t last_frame_time = start_time;
+  uint64_t start_time                    = mach_absolute_time ( );
+  uint64_t last_frame_time               = start_time;
+  uint64_t last_fps_update_absolute_time = start_time;
 #else
   struct timespec start_time;
   struct timespec last_frame_time;
+  struct timespec last_fps_update_time;
   clock_gettime (CLOCK_MONOTONIC, &start_time);
-  last_frame_time = start_time;
+  last_frame_time      = start_time;
+  last_fps_update_time = start_time;
 #endif
 
   // Frame statistics
@@ -175,6 +165,17 @@ int main (void)
   double   total_frame_time = 0.0;
   double   max_frame_time   = 0.0;        // Worst (biggest) delta time
   double   min_fps          = 1000000.0;  // Worst (lowest) FPS
+  double   total_draw_time  = 0.0;        // Total time spent on drawing/rendering
+  double   max_draw_time    = 0.0;        // Worst (biggest) draw time
+
+  // FPS averaging over 0.5 second window
+  double       accumulated_frame_time  = 0.0;  // Accumulated frame time for averaging
+  double       accumulated_draw_time   = 0.0;  // Accumulated draw time for averaging
+  uint64_t     accumulated_frame_count = 0;    // Number of frames in current window
+  double       current_avg_frame_time  = 0.0;  // Current average frame time
+  double       current_avg_draw_time   = 0.0;  // Current average draw time
+  double       current_fps             = 0.0;  // Current FPS based on average
+  const double fps_update_interval     = 0.5;  // Update FPS display every 0.5 seconds
 
   // Main loop
   const float base_camera_speed =
@@ -310,66 +311,90 @@ int main (void)
     // Escape to exit
     if (keyboard->keys[ STUFFY_KEY_ESCAPE ]) { break; }
 
-    // Update sprite positions and sizes every frame
-    for (size_t i = 0; i < NUM_SPRITES; ++i)
-    {
-      // Update position
-      sprites[ i ].position[ 0 ] += sprite_data[ i ].velocity[ 0 ] * delta_time;
-      sprites[ i ].position[ 1 ] += sprite_data[ i ].velocity[ 1 ] * delta_time;
-
-      // Wrap around if sprites go too far
-      const float bounds = 1200.0F;
-      if (sprites[ i ].position[ 0 ] > bounds) { sprites[ i ].position[ 0 ] = -bounds; }
-      else if (sprites[ i ].position[ 0 ] < -bounds)
-      {
-        sprites[ i ].position[ 0 ] = bounds;
-      }
-      if (sprites[ i ].position[ 1 ] > bounds) { sprites[ i ].position[ 1 ] = -bounds; }
-      else if (sprites[ i ].position[ 1 ] < -bounds)
-      {
-        sprites[ i ].position[ 1 ] = bounds;
-      }
-
-      // Update size
-      sprites[ i ].size[ 0 ] += sprite_data[ i ].size_velocity[ 0 ] * delta_time;
-      sprites[ i ].size[ 1 ] += sprite_data[ i ].size_velocity[ 1 ] * delta_time;
-
-      // Clamp size and reverse velocity if bounds reached
-      if (sprites[ i ].size[ 0 ] <= sprite_data[ i ].min_size ||
-          sprites[ i ].size[ 0 ] >= sprite_data[ i ].max_size)
-      {
-        sprite_data[ i ].size_velocity[ 0 ] = -sprite_data[ i ].size_velocity[ 0 ];
-        sprite_data[ i ].size_velocity[ 1 ] = sprite_data[ i ].size_velocity[ 0 ];
-      }
-
-      if (sprites[ i ].size[ 0 ] < sprite_data[ i ].min_size)
-      {
-        sprites[ i ].size[ 0 ] = sprite_data[ i ].min_size;
-        sprites[ i ].size[ 1 ] = sprite_data[ i ].min_size;
-      }
-      else if (sprites[ i ].size[ 0 ] > sprite_data[ i ].max_size)
-      {
-        sprites[ i ].size[ 0 ] = sprite_data[ i ].max_size;
-        sprites[ i ].size[ 1 ] = sprite_data[ i ].max_size;
-      }
-    }
-
-    // Rebuild sprite batch with updated positions and sizes
-    moss_clear_sprite_batch (sprite_batch);
-    moss_begin_sprite_batch (sprite_batch);
-    {
-      const MossAddSpritesToSpriteBatchInfo add_info = {
-        .sprites      = sprites,
-        .sprite_count = NUM_SPRITES,
-      };
-      moss_add_sprites_to_sprite_batch (sprite_batch, &add_info);
-    }
-    moss_end_sprite_batch (sprite_batch);
+    // Measure draw time (rendering)
+#ifdef __APPLE__
+    uint64_t draw_start_time = mach_absolute_time ( );
+#else
+    struct timespec draw_start_time;
+    clock_gettime (CLOCK_MONOTONIC, &draw_start_time);
+#endif
 
     moss_begin_frame (engine);
     moss_draw_sprite_batch (engine, sprite_batch);
     moss_end_frame (engine);
+
+    // Measure draw time end
+#ifdef __APPLE__
+    uint64_t draw_end_time = mach_absolute_time ( );
+    uint64_t draw_time_nanos =
+      (draw_end_time - draw_start_time) * timebase_info.numer / timebase_info.denom;
+    double draw_time_seconds = (double)draw_time_nanos / 1000000000.0;
+#else
+    struct timespec draw_end_time;
+    clock_gettime (CLOCK_MONOTONIC, &draw_end_time);
+    double draw_time_seconds =
+      (double)(draw_end_time.tv_sec - draw_start_time.tv_sec) +
+      (double)(draw_end_time.tv_nsec - draw_start_time.tv_nsec) / 1000000000.0;
+#endif
+
+    // Update timing statistics
+    total_draw_time += draw_time_seconds;
+    if (draw_time_seconds > max_draw_time) { max_draw_time = draw_time_seconds; }
+
+    // Accumulate frame time and draw time for averaging
+    accumulated_frame_time += frame_time_seconds;
+    accumulated_draw_time += draw_time_seconds;
+    accumulated_frame_count++;
+
+    // Check if 0.5 seconds have elapsed since last FPS update
+#ifdef __APPLE__
+    uint64_t current_absolute_time = mach_absolute_time ( );
+    uint64_t time_since_last_update_nanos =
+      (current_absolute_time - last_fps_update_absolute_time) * timebase_info.numer /
+      timebase_info.denom;
+    double time_since_last_update = (double)time_since_last_update_nanos / 1000000000.0;
+#else
+    struct timespec current_absolute_time;
+    clock_gettime (CLOCK_MONOTONIC, &current_absolute_time);
+    double time_since_last_update =
+      (double)(current_absolute_time.tv_sec - last_fps_update_time.tv_sec) +
+      (double)(current_absolute_time.tv_nsec - last_fps_update_time.tv_nsec) /
+        1000000000.0;
+#endif
+
+    if (time_since_last_update >= fps_update_interval)
+    {
+      // Calculate average frame time and draw time over the window
+      current_avg_frame_time = accumulated_frame_time / (double)accumulated_frame_count;
+      current_avg_draw_time  = accumulated_draw_time / (double)accumulated_frame_count;
+      current_fps            = 1.0 / current_avg_frame_time;
+
+      // Reset accumulators
+      accumulated_frame_time  = 0.0;
+      accumulated_draw_time   = 0.0;
+      accumulated_frame_count = 0;
+
+      // Update last update time
+#ifdef __APPLE__
+      last_fps_update_absolute_time = current_absolute_time;
+#else
+      last_fps_update_time = current_absolute_time;
+#endif
+
+      // Print frame time in real-time (update in place)
+      printf (
+        "\rFrame: %llu | Avg frame time: %.3f ms | FPS: %.2f | Avg draw: %.3f ms      ",
+        (unsigned long long)frame_count,
+        current_avg_frame_time * 1000.0,
+        current_fps,
+        current_avg_draw_time * 1000.0
+      );
+      fflush (stdout);
+    }
   }
+
+  // Print newline to finish the real-time output line
+  printf ("\n");
 
   // Calculate and print frame statistics
   if (frame_count > 0)
@@ -377,6 +402,8 @@ int main (void)
     double average_frame_time = total_frame_time / (double)frame_count;
     double average_fps        = 1.0 / average_frame_time;
     double total_time         = total_frame_time;
+    double average_draw_time  = total_draw_time / (double)frame_count;
+    double draw_percentage    = (total_draw_time / total_time) * 100.0;
 
     printf ("\n===== Frame Statistics =====\n");
     printf ("Total frames: %llu\n", (unsigned long long)frame_count);
@@ -385,11 +412,17 @@ int main (void)
     printf ("Worst frame time: %.3f ms\n", max_frame_time * 1000.0);
     printf ("Average FPS: %.2f\n", average_fps);
     printf ("Lowest FPS: %.2f\n", min_fps);
+    printf ("\n----- Performance Breakdown -----\n");
+    printf (
+      "Average draw time: %.3f ms (%.1f%%)\n",
+      average_draw_time * 1000.0,
+      draw_percentage
+    );
+    printf ("Worst draw time: %.3f ms\n", max_draw_time * 1000.0);
     printf ("============================\n\n");
   }
 
   // Cleanup
-  free (sprite_data);
   free (sprites);
   moss_destroy_sprite_batch (sprite_batch);
   moss_destroy_engine (engine);

@@ -36,6 +36,12 @@ void moss_set_camera_position (MossCamera *const camera, const vec2 new_position
 
 void moss_set_camera_size (MossCamera *const camera, const vec2 new_size)
 {
+  camera->offset[ 0 ] /= camera->scale[ 0 ];
+  camera->offset[ 1 ] /= camera->scale[ 1 ];
+
   camera->scale[ 0 ] = 2.0F / new_size[ 0 ];
   camera->scale[ 1 ] = -2.0F / new_size[ 1 ];  // Flip Y coordinates
+                                               //
+  camera->offset[ 0 ] *= camera->scale[ 0 ];
+  camera->offset[ 1 ] *= camera->scale[ 1 ];
 }
