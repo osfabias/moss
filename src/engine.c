@@ -56,75 +56,76 @@
   =============================================================================*/
 
 inline static MossResult
-mossCreateApiInstance (MossEngine *pEngine, const MossAppInfo *pAppInfo);
+moss__createApiInstance (MossEngine *pEngine, const MossAppInfo *pAppInfo);
 
-inline static MossResult mossCreateSurface (MossEngine *pEngine);
+inline static MossResult moss__createSurface (MossEngine *pEngine);
 
-inline static MossResult mossCreateLogicalDevice (MossEngine *pEngine);
+inline static MossResult moss__createLogicalDevice (MossEngine *pEngine);
 
 inline static void mossInitBufferSharingMode (MossEngine *pEngine);
 
 inline static MossResult
-mossCreateSwapchain (MossEngine *pEngine, const VkExtent2D extent);
+moss__createSwapchain (MossEngine *pEngine, const VkExtent2D extent);
 
-inline static MossResult mossCreateSwapchainImageViews (MossEngine *pEngine);
+inline static MossResult moss__createSwapchainImageViews (MossEngine *pEngine);
 
-inline static MossResult mossCreateRenderPass (MossEngine *pEngine);
+inline static MossResult moss__createRenderPass (MossEngine *pEngine);
 
-inline static MossResult mossCreateCameraUboBuffers (MossEngine *pEngine);
+inline static MossResult moss__createCameraUboBuffers (MossEngine *pEngine);
 
-inline static MossResult mossCreateTextureImage (MossEngine *pEngine);
+inline static MossResult moss__createTextureImage (MossEngine *pEngine);
 
-inline static MossResult mossCreateTextureImageView (MossEngine *pEngine);
+inline static MossResult moss__createTextureImageView (MossEngine *pEngine);
 
-inline static MossResult mossCreateTextureSampler (MossEngine *pEngine);
+inline static MossResult moss__createTextureSampler (MossEngine *pEngine);
 
-inline static MossResult mossCreateDepthResources (MossEngine *pEngine);
+inline static MossResult moss__createDepthResources (MossEngine *pEngine);
 
-inline static MossResult mossCreateDescriptorPool (MossEngine *pEngine);
+inline static MossResult moss__createDescriptorPool (MossEngine *pEngine);
 
-inline static MossResult mossCreateDescriptorSetLayout (MossEngine *pEngine);
+inline static MossResult moss__createDescriptorSetLayout (MossEngine *pEngine);
 
-inline static MossResult mossAllocateDescriptorSets (MossEngine *pEngine);
+inline static MossResult moss_allocateDescriptorSets (MossEngine *pEngine);
 
-inline static void mossConfigureDescriptorSets (MossEngine *pEngine);
+inline static void moss__configureDescriptorSets (MossEngine *pEngine);
 
-inline static void
-mossCreateVkPipelineVertexInputStateInfo (VkPipelineVertexInputStateCreateInfo *pOutInfo);
+inline static void moss__createVkPipelineVertexInputStateInfo (
+  VkPipelineVertexInputStateCreateInfo *pOutInfo
+);
 
-inline static MossResult mossCreateGraphicsPipeline (MossEngine *pEngine);
+inline static MossResult moss__createGraphicsPipeline (MossEngine *pEngine);
 
-inline static MossResult mossCreatePresentFramebuffers (MossEngine *pEngine);
+inline static MossResult moss__createPresentFramebuffers (MossEngine *pEngine);
 
-inline static MossResult mossCreateGeneralCommandBuffers (MossEngine *pEngine);
+inline static MossResult moss__createGeneralCommandBuffers (MossEngine *pEngine);
 
-inline static MossResult mossCreateImageAvailableSemaphores (MossEngine *pEngine);
+inline static MossResult moss__createImageAvailableSemaphores (MossEngine *pEngine);
 
-inline static MossResult mossCreateRenderFinishedSemaphores (MossEngine *pEngine);
+inline static MossResult moss__createRenderFinishedSemaphores (MossEngine *pEngine);
 
-inline static MossResult mossCreateInFlightFences (MossEngine *pEngine);
+inline static MossResult moss__createInFlightFences (MossEngine *pEngine);
 
-inline static MossResult mossCreateSynchronizationObjects (MossEngine *pEngine);
+inline static MossResult moss__createSynchronizationObjects (MossEngine *pEngine);
 
-inline static void mossCleanupSemaphores (
+inline static void moss__cleanupSemaphores (
   MossEngine *pEngine,
   VkSemaphore pSemaphores[ MAX_FRAMES_IN_FLIGHT ]
 );
 
 inline static void
-mossCleanupFences (MossEngine *pEngine, VkFence pFences[ MAX_FRAMES_IN_FLIGHT ]);
+moss__cleanupFences (MossEngine *pEngine, VkFence pFences[ MAX_FRAMES_IN_FLIGHT ]);
 
-inline static void mossCleanupSwapchainFramebuffers (MossEngine *pEngine);
+inline static void moss__cleanupSwapchainFramebuffers (MossEngine *pEngine);
 
-inline static void mossCleanupSwapchainImageViews (MossEngine *pEngine);
+inline static void moss__cleanupSwapchainImageViews (MossEngine *pEngine);
 
-inline static void mossCleanupSwapchainHandle (MossEngine *pEngine);
+inline static void moss__cleanupSwapchainHandle (MossEngine *pEngine);
 
-inline static void mossCleanupDepthResources (MossEngine *pEngine);
+inline static void moss__cleanupDepthResources (MossEngine *pEngine);
 
-inline static void mossCleanupSwapchain (MossEngine *pEngine);
+inline static void moss__cleanupSwapchain (MossEngine *pEngine);
 
-inline static MossResult mossRecreateSwapchain (MossEngine *pEngine, VkExtent2D extent);
+inline static MossResult moss__recreateSwapchain (MossEngine *pEngine, VkExtent2D extent);
 
 inline static void mossUpdateCameraUboData (MossEngine *pEngine);
 
@@ -152,13 +153,13 @@ mossCreateEngine (const MossEngineConfig *const pConfig, MossEngine **const ppOu
   // Store framebuffer size callback
   pEngine->getWindowFramebufferSize = pConfig->getWindowFramebufferSize;
 
-  if (mossCreateApiInstance (pEngine, pConfig->appInfo) != MOSS_RESULT_SUCCESS)
+  if (moss__createApiInstance (pEngine, pConfig->appInfo) != MOSS_RESULT_SUCCESS)
   {
     mossDestroyEngine ((MossEngine *)pEngine);
     return MOSS_RESULT_ERROR;
   }
 
-  if (mossCreateSurface (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createSurface (pEngine) != MOSS_RESULT_SUCCESS)
   {
     mossDestroyEngine ((MossEngine *)pEngine);
     return MOSS_RESULT_ERROR;
@@ -185,7 +186,7 @@ mossCreateEngine (const MossEngineConfig *const pConfig, MossEngine **const ppOu
     pEngine->queueFamilyIndices = mossVk__findQueueFamilies (&findInfo);
   }
 
-  if (mossCreateLogicalDevice (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createLogicalDevice (pEngine) != MOSS_RESULT_SUCCESS)
   {
     mossDestroyEngine ((MossEngine *)pEngine);
     return MOSS_RESULT_ERROR;
@@ -218,25 +219,25 @@ mossCreateEngine (const MossEngineConfig *const pConfig, MossEngine **const ppOu
   VkExtent2D extent;
   pEngine->getWindowFramebufferSize (&extent.width, &extent.height);
 
-  if (mossCreateSwapchain (pEngine, extent) != MOSS_RESULT_SUCCESS)
+  if (moss__createSwapchain (pEngine, extent) != MOSS_RESULT_SUCCESS)
   {
     mossDestroyEngine ((MossEngine *)pEngine);
     return MOSS_RESULT_ERROR;
   }
 
-  if (mossCreateSwapchainImageViews (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createSwapchainImageViews (pEngine) != MOSS_RESULT_SUCCESS)
   {
     mossDestroyEngine ((MossEngine *)pEngine);
     return MOSS_RESULT_ERROR;
   }
 
-  if (mossCreateRenderPass (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createRenderPass (pEngine) != MOSS_RESULT_SUCCESS)
   {
     mossDestroyEngine ((MossEngine *)pEngine);
     return MOSS_RESULT_ERROR;
   }
 
-  if (mossCreateCameraUboBuffers (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createCameraUboBuffers (pEngine) != MOSS_RESULT_SUCCESS)
   {
     mossDestroyEngine ((MossEngine *)pEngine);
     return MOSS_RESULT_ERROR;
@@ -270,69 +271,69 @@ mossCreateEngine (const MossEngineConfig *const pConfig, MossEngine **const ppOu
     }
   }
 
-  if (mossCreateTextureImage (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createTextureImage (pEngine) != MOSS_RESULT_SUCCESS)
   {
     mossDestroyEngine ((MossEngine *)pEngine);
     return MOSS_RESULT_ERROR;
   }
 
-  if (mossCreateTextureImageView (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createTextureImageView (pEngine) != MOSS_RESULT_SUCCESS)
   {
     mossDestroyEngine ((MossEngine *)pEngine);
     return MOSS_RESULT_ERROR;
   }
 
-  if (mossCreateTextureSampler (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createTextureSampler (pEngine) != MOSS_RESULT_SUCCESS)
   {
     mossDestroyEngine ((MossEngine *)pEngine);
     return MOSS_RESULT_ERROR;
   }
 
-  if (mossCreateDepthResources (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createDepthResources (pEngine) != MOSS_RESULT_SUCCESS)
   {
     mossDestroyEngine ((MossEngine *)pEngine);
     return MOSS_RESULT_ERROR;
   }
 
-  if (mossCreateDescriptorPool (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createDescriptorPool (pEngine) != MOSS_RESULT_SUCCESS)
   {
     mossDestroyEngine ((MossEngine *)pEngine);
     return MOSS_RESULT_ERROR;
   }
 
-  if (mossCreateDescriptorSetLayout (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createDescriptorSetLayout (pEngine) != MOSS_RESULT_SUCCESS)
   {
     mossDestroyEngine ((MossEngine *)pEngine);
     return MOSS_RESULT_ERROR;
   }
 
-  if (mossAllocateDescriptorSets (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss_allocateDescriptorSets (pEngine) != MOSS_RESULT_SUCCESS)
   {
     mossDestroyEngine ((MossEngine *)pEngine);
     return MOSS_RESULT_ERROR;
   }
 
-  mossConfigureDescriptorSets (pEngine);
+  moss__configureDescriptorSets (pEngine);
 
-  if (mossCreateGraphicsPipeline (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createGraphicsPipeline (pEngine) != MOSS_RESULT_SUCCESS)
   {
     mossDestroyEngine ((MossEngine *)pEngine);
     return MOSS_RESULT_ERROR;
   }
 
-  if (mossCreatePresentFramebuffers (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createPresentFramebuffers (pEngine) != MOSS_RESULT_SUCCESS)
   {
     mossDestroyEngine ((MossEngine *)pEngine);
     return MOSS_RESULT_ERROR;
   }
 
-  if (mossCreateGeneralCommandBuffers (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createGeneralCommandBuffers (pEngine) != MOSS_RESULT_SUCCESS)
   {
     mossDestroyEngine ((MossEngine *)pEngine);
     return MOSS_RESULT_ERROR;
   }
 
-  if (mossCreateSynchronizationObjects (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createSynchronizationObjects (pEngine) != MOSS_RESULT_SUCCESS)
   {
     mossDestroyEngine ((MossEngine *)pEngine);
     return MOSS_RESULT_ERROR;
@@ -358,11 +359,11 @@ void mossDestroyEngine (MossEngine *const pEngine)
 {
   if (pEngine->device != VK_NULL_HANDLE) { vkDeviceWaitIdle (pEngine->device); }
 
-  mossCleanupSwapchain (pEngine);
+  moss__cleanupSwapchain (pEngine);
 
-  mossCleanupFences (pEngine, pEngine->inFlightFences);
-  mossCleanupSemaphores (pEngine, pEngine->renderFinishedSemaphores);
-  mossCleanupSemaphores (pEngine, pEngine->imageAvailableSemaphores);
+  moss__cleanupFences (pEngine, pEngine->inFlightFences);
+  moss__cleanupSemaphores (pEngine, pEngine->renderFinishedSemaphores);
+  moss__cleanupSemaphores (pEngine, pEngine->imageAvailableSemaphores);
 
   if (pEngine->device != VK_NULL_HANDLE)
   {
@@ -388,7 +389,7 @@ void mossDestroyEngine (MossEngine *const pEngine)
       }
     }
 
-    mossCleanupDepthResources (pEngine);
+    moss__cleanupDepthResources (pEngine);
 
     if (pEngine->sampler != VK_NULL_HANDLE)
     {
@@ -489,7 +490,7 @@ MossResult mossBeginFrame (MossEngine *const pEngine)
     // Get current framebuffer size from callback
     VkExtent2D extent;
     pEngine->getWindowFramebufferSize (&extent.width, &extent.height);
-    return mossRecreateSwapchain (pEngine, extent);
+    return moss__recreateSwapchain (pEngine, extent);
   }
 
   if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
@@ -632,7 +633,7 @@ MossResult mossEndFrame (MossEngine *const pEngine)
     // Get current framebuffer size from callback
     VkExtent2D extent;
     pEngine->getWindowFramebufferSize (&extent.width, &extent.height);
-    if (mossRecreateSwapchain (pEngine, extent) != MOSS_RESULT_SUCCESS)
+    if (moss__recreateSwapchain (pEngine, extent) != MOSS_RESULT_SUCCESS)
     {
       return MOSS_RESULT_ERROR;
     }
@@ -661,7 +662,7 @@ MossResult mossSetRenderResolution (MossEngine *const pEngine, const vec2 newRes
   =============================================================================*/
 
 inline static MossResult
-mossCreateApiInstance (MossEngine *const pEngine, const MossAppInfo *const pAppInfo)
+moss__createApiInstance (MossEngine *const pEngine, const MossAppInfo *const pAppInfo)
 {
   // Set up validation layers
 #ifdef NDEBUG
@@ -715,7 +716,7 @@ mossCreateApiInstance (MossEngine *const pEngine, const MossAppInfo *const pAppI
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult mossCreateSurface (MossEngine *const pEngine)
+inline static MossResult moss__createSurface (MossEngine *const pEngine)
 {
 #ifdef __APPLE__
   const VkMetalSurfaceCreateInfoEXT surface_create_info = {
@@ -745,7 +746,7 @@ inline static MossResult mossCreateSurface (MossEngine *const pEngine)
 #endif
 }
 
-inline static MossResult mossCreateLogicalDevice (MossEngine *const pEngine)
+inline static MossResult moss__createLogicalDevice (MossEngine *const pEngine)
 {
   const MossVk__PhysicalDeviceExtensions extensions =
     mossVk__getRequiredDeviceExtensions ( );
@@ -830,7 +831,7 @@ inline static void mossInitBufferSharingMode (MossEngine *const pEngine)
 }
 
 inline static MossResult
-mossCreateSwapchain (MossEngine *const pEngine, const VkExtent2D extent)
+moss__createSwapchain (MossEngine *const pEngine, const VkExtent2D extent)
 {
   const MossVk__QuerySwapchainSupportInfo queryInfo = {
     .device  = pEngine->physicalDevice,
@@ -925,7 +926,7 @@ mossCreateSwapchain (MossEngine *const pEngine, const VkExtent2D extent)
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult mossCreateSwapchainImageViews (MossEngine *const pEngine)
+inline static MossResult moss__createSwapchainImageViews (MossEngine *const pEngine)
 {
   MossVk__ImageViewCreateInfo info = {
     .device = pEngine->device,
@@ -945,7 +946,7 @@ inline static MossResult mossCreateSwapchainImageViews (MossEngine *const pEngin
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult mossCreateRenderPass (MossEngine *const pEngine)
+inline static MossResult moss__createRenderPass (MossEngine *const pEngine)
 {
   const VkAttachmentDescription color_attachment = {
     .format         = pEngine->swapchainImageFormat,
@@ -1026,7 +1027,7 @@ inline static MossResult mossCreateRenderPass (MossEngine *const pEngine)
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult mossCreateCameraUboBuffers (MossEngine *const pEngine)
+inline static MossResult moss__createCameraUboBuffers (MossEngine *const pEngine)
 {
   const MossVk__CreateBufferInfo createInfo = {
     .device                      = pEngine->device,
@@ -1114,7 +1115,7 @@ inline static MossResult mossCreateCameraUboBuffers (MossEngine *const pEngine)
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult mossCreateTextureImage (MossEngine *const pEngine)
+inline static MossResult moss__createTextureImage (MossEngine *const pEngine)
 {
   // Load texture
   int textureWidth, textureHeight, texture_channels;  // NOLINT
@@ -1333,7 +1334,7 @@ inline static MossResult mossCreateTextureImage (MossEngine *const pEngine)
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult mossCreateTextureImageView (MossEngine *const pEngine)
+inline static MossResult moss__createTextureImageView (MossEngine *const pEngine)
 {
   const MossVk__ImageViewCreateInfo info = {
     .device = pEngine->device,
@@ -1346,7 +1347,7 @@ inline static MossResult mossCreateTextureImageView (MossEngine *const pEngine)
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult mossCreateTextureSampler (MossEngine *const pEngine)
+inline static MossResult moss__createTextureSampler (MossEngine *const pEngine)
 {
   const VkSamplerCreateInfo create_info = {
     .sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
@@ -1377,7 +1378,7 @@ inline static MossResult mossCreateTextureSampler (MossEngine *const pEngine)
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult mossCreateDepthResources (MossEngine *const pEngine)
+inline static MossResult moss__createDepthResources (MossEngine *const pEngine)
 {
   // TODO: add moss_vk__select_format function that will select format from
   //       the list of desired formats ordered by priority.
@@ -1471,7 +1472,7 @@ inline static MossResult mossCreateDepthResources (MossEngine *const pEngine)
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult mossCreateDescriptorPool (MossEngine *const pEngine)
+inline static MossResult moss__createDescriptorPool (MossEngine *const pEngine)
 {
   const VkDescriptorPoolSize pool_sizes[] = {
     {
@@ -1506,7 +1507,7 @@ inline static MossResult mossCreateDescriptorPool (MossEngine *const pEngine)
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult mossCreateDescriptorSetLayout (MossEngine *const pEngine)
+inline static MossResult moss__createDescriptorSetLayout (MossEngine *const pEngine)
 {
   const VkDescriptorSetLayoutBinding layout_bindings[] = {
     {
@@ -1543,7 +1544,7 @@ inline static MossResult mossCreateDescriptorSetLayout (MossEngine *const pEngin
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult mossAllocateDescriptorSets (MossEngine *const pEngine)
+inline static MossResult moss_allocateDescriptorSets (MossEngine *const pEngine)
 {
   VkDescriptorSetLayout layouts[ MAX_FRAMES_IN_FLIGHT ];
   for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
@@ -1569,7 +1570,7 @@ inline static MossResult mossAllocateDescriptorSets (MossEngine *const pEngine)
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static void mossConfigureDescriptorSets (MossEngine *const pEngine)
+inline static void moss__configureDescriptorSets (MossEngine *const pEngine)
 {
   VkDescriptorBufferInfo pBufferInfos[ MAX_FRAMES_IN_FLIGHT ];
   VkDescriptorImageInfo  pImageInfos[ MAX_FRAMES_IN_FLIGHT ];
@@ -1629,7 +1630,7 @@ inline static void mossConfigureDescriptorSets (MossEngine *const pEngine)
   );
 }
 
-inline static void mossCreateVkPipelineVertexInputStateInfo (
+inline static void moss__createVkPipelineVertexInputStateInfo (
   VkPipelineVertexInputStateCreateInfo *const pOutInfo
 )
 {
@@ -1648,7 +1649,7 @@ inline static void mossCreateVkPipelineVertexInputStateInfo (
   };
 }
 
-inline static MossResult mossCreateGraphicsPipeline (MossEngine *const pEngine)
+inline static MossResult moss__createGraphicsPipeline (MossEngine *const pEngine)
 {
   VkShaderModule vertShaderModule;
   VkShaderModule fragShaderModule;
@@ -1701,7 +1702,7 @@ inline static MossResult mossCreateGraphicsPipeline (MossEngine *const pEngine)
                                                             frag_shader_stage_info };
 
   VkPipelineVertexInputStateCreateInfo vertex_input_info;
-  mossCreateVkPipelineVertexInputStateInfo (&vertex_input_info);
+  moss__createVkPipelineVertexInputStateInfo (&vertex_input_info);
 
   const VkPipelineInputAssemblyStateCreateInfo input_assembly = {
     .sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
@@ -1844,7 +1845,7 @@ inline static MossResult mossCreateGraphicsPipeline (MossEngine *const pEngine)
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult mossCreatePresentFramebuffers (MossEngine *const pEngine)
+inline static MossResult moss__createPresentFramebuffers (MossEngine *const pEngine)
 {
   for (uint32_t i = 0; i < pEngine->swapchainImageCount; ++i)
   {
@@ -1882,7 +1883,7 @@ inline static MossResult mossCreatePresentFramebuffers (MossEngine *const pEngin
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult mossCreateGeneralCommandBuffers (MossEngine *const pEngine)
+inline static MossResult moss__createGeneralCommandBuffers (MossEngine *const pEngine)
 {
   const VkCommandBufferAllocateInfo allocInfo = {
     .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -1905,7 +1906,7 @@ inline static MossResult mossCreateGeneralCommandBuffers (MossEngine *const pEng
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult mossCreateImageAvailableSemaphores (MossEngine *const pEngine)
+inline static MossResult moss__createImageAvailableSemaphores (MossEngine *const pEngine)
 {
   if (pEngine->device == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
 
@@ -1930,7 +1931,7 @@ inline static MossResult mossCreateImageAvailableSemaphores (MossEngine *const p
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult mossCreateRenderFinishedSemaphores (MossEngine *const pEngine)
+inline static MossResult moss__createRenderFinishedSemaphores (MossEngine *const pEngine)
 {
   if (pEngine->device == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
 
@@ -1955,7 +1956,7 @@ inline static MossResult mossCreateRenderFinishedSemaphores (MossEngine *const p
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult mossCreateInFlightFences (MossEngine *const pEngine)
+inline static MossResult moss__createInFlightFences (MossEngine *const pEngine)
 {
   if (pEngine->device == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
 
@@ -1977,19 +1978,19 @@ inline static MossResult mossCreateInFlightFences (MossEngine *const pEngine)
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult mossCreateSynchronizationObjects (MossEngine *const pEngine)
+inline static MossResult moss__createSynchronizationObjects (MossEngine *const pEngine)
 {
-  if (mossCreateImageAvailableSemaphores (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createImageAvailableSemaphores (pEngine) != MOSS_RESULT_SUCCESS)
   {
     return MOSS_RESULT_ERROR;
   }
 
-  if (mossCreateRenderFinishedSemaphores (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createRenderFinishedSemaphores (pEngine) != MOSS_RESULT_SUCCESS)
   {
     return MOSS_RESULT_ERROR;
   }
 
-  if (mossCreateInFlightFences (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createInFlightFences (pEngine) != MOSS_RESULT_SUCCESS)
   {
     return MOSS_RESULT_ERROR;
   }
@@ -2006,7 +2007,7 @@ inline static void mossUpdateCameraUboData (MossEngine *const pEngine)
   );
 }
 
-inline static void mossCleanupSwapchainFramebuffers (MossEngine *const pEngine)
+inline static void moss__cleanupSwapchainFramebuffers (MossEngine *const pEngine)
 {
   for (uint32_t i = 0; i < pEngine->swapchainImageCount; ++i)
   {
@@ -2017,7 +2018,7 @@ inline static void mossCleanupSwapchainFramebuffers (MossEngine *const pEngine)
   }
 }
 
-inline static void mossCleanupSwapchainImageViews (MossEngine *const pEngine)
+inline static void moss__cleanupSwapchainImageViews (MossEngine *const pEngine)
 {
   for (uint32_t i = 0; i < pEngine->swapchainImageCount; ++i)
   {
@@ -2032,7 +2033,7 @@ inline static void mossCleanupSwapchainImageViews (MossEngine *const pEngine)
   }
 }
 
-inline static void mossCleanupSwapchainHandle (MossEngine *const pEngine)
+inline static void moss__cleanupSwapchainHandle (MossEngine *const pEngine)
 {
   if (pEngine->swapchain != VK_NULL_HANDLE)
   {
@@ -2041,7 +2042,7 @@ inline static void mossCleanupSwapchainHandle (MossEngine *const pEngine)
   }
 }
 
-inline static void mossCleanupDepthResources (MossEngine *const pEngine)
+inline static void moss__cleanupDepthResources (MossEngine *const pEngine)
 {
   if (pEngine->depthImageView != VK_NULL_HANDLE)
   {
@@ -2062,12 +2063,12 @@ inline static void mossCleanupDepthResources (MossEngine *const pEngine)
   }
 }
 
-inline static void mossCleanupSwapchain (MossEngine *const pEngine)
+inline static void moss__cleanupSwapchain (MossEngine *const pEngine)
 {
-  mossCleanupSwapchainFramebuffers (pEngine);
-  mossCleanupDepthResources (pEngine);
-  mossCleanupSwapchainImageViews (pEngine);
-  mossCleanupSwapchainHandle (pEngine);
+  moss__cleanupSwapchainFramebuffers (pEngine);
+  moss__cleanupDepthResources (pEngine);
+  moss__cleanupSwapchainImageViews (pEngine);
+  moss__cleanupSwapchainHandle (pEngine);
 
   pEngine->swapchainImageCount  = 0;
   pEngine->swapchainImageFormat = 0;
@@ -2075,25 +2076,25 @@ inline static void mossCleanupSwapchain (MossEngine *const pEngine)
 }
 
 inline static MossResult
-mossRecreateSwapchain (MossEngine *const pEngine, const VkExtent2D extent)
+moss__recreateSwapchain (MossEngine *const pEngine, const VkExtent2D extent)
 {
   vkDeviceWaitIdle (pEngine->device);
 
-  mossCleanupSwapchain (pEngine);
+  moss__cleanupSwapchain (pEngine);
 
-  if (mossCreateSwapchain (pEngine, extent) != MOSS_RESULT_SUCCESS)
+  if (moss__createSwapchain (pEngine, extent) != MOSS_RESULT_SUCCESS)
   {
     return MOSS_RESULT_ERROR;
   }
-  if (mossCreateSwapchainImageViews (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createSwapchainImageViews (pEngine) != MOSS_RESULT_SUCCESS)
   {
     return MOSS_RESULT_ERROR;
   }
-  if (mossCreateDepthResources (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createDepthResources (pEngine) != MOSS_RESULT_SUCCESS)
   {
     return MOSS_RESULT_ERROR;
   }
-  if (mossCreatePresentFramebuffers (pEngine) != MOSS_RESULT_SUCCESS)
+  if (moss__createPresentFramebuffers (pEngine) != MOSS_RESULT_SUCCESS)
   {
     return MOSS_RESULT_ERROR;
   }
@@ -2102,7 +2103,7 @@ mossRecreateSwapchain (MossEngine *const pEngine, const VkExtent2D extent)
 }
 
 
-inline static void mossCleanupSemaphores (
+inline static void moss__cleanupSemaphores (
   MossEngine *const pEngine,
   VkSemaphore       pSemaphores[ MAX_FRAMES_IN_FLIGHT ]
 )
@@ -2117,7 +2118,7 @@ inline static void mossCleanupSemaphores (
 }
 
 inline static void
-mossCleanupFences (MossEngine *const pEngine, VkFence pFences[ MAX_FRAMES_IN_FLIGHT ])
+moss__cleanupFences (MossEngine *const pEngine, VkFence pFences[ MAX_FRAMES_IN_FLIGHT ])
 {
   for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
   {
