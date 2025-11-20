@@ -75,7 +75,19 @@ include(CMakeInfo.txt)
 # Define source files for the library
 set(MOSS_SOURCE_FILES
   src/camera.c
-  src/engine.c
+  src/engine/main.c
+  src/engine/camera_ubo.c
+  src/engine/command_buffer.c
+  src/engine/descriptor.c
+  src/engine/depth.c
+  src/engine/device.c
+  src/engine/framebuffer.c
+  src/engine/instance_surface.c
+  src/engine/pipeline.c
+  src/engine/render_pass.c
+  src/engine/swapchain.c
+  src/engine/synchronization.c
+  src/engine/texture.c
   src/sprite_batch.c
   # add new source files here...
 )
