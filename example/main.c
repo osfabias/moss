@@ -18,9 +18,6 @@
   @author Ilya Buravov (ilburale@gmail.com)
 */
 
-#include "moss/sprite.h"
-#include "moss/sprite_batch.h"
-#include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -37,6 +34,7 @@
 #include <moss/engine.h>
 #include <moss/result.h>
 #include <moss/sprite.h>
+#include <moss/sprite_batch.h>
 
 #include <stuffy/app.h>
 #include <stuffy/input/keyboard.h>
@@ -44,8 +42,8 @@
 #include <stuffy/window.h>
 
 static const MossAppInfo moss_app_info = {
-  .app_name    = "Moss Example Application",
-  .app_version = { 0, 1, 0 },
+  .appName    = "Moss Example Application",
+  .appVersion = { 0, 1, 0 },
 };
 
 static StuffyWindow *g_window = NULL;
@@ -79,32 +77,32 @@ int main (void)
 
   // Create engine
   const MossEngineConfig moss_engine_config = {
-    .app_info                    = &moss_app_info,
-    .get_window_framebuffer_size = get_window_framebuffer_size,
+    .appInfo                  = &moss_app_info,
+    .getWindowFramebufferSize = get_window_framebuffer_size,
 #ifdef __APPLE__
-    .metal_layer = metal_layer,
+    .metalLayer = metal_layer,
 #endif
   };
 
-  MossEngine *engine;
-  if (moss_create_engine (&moss_engine_config, &engine) != MOSS_RESULT_SUCCESS)
+  MossEngine *pEngine;
+  if (mossCreateEngine (&moss_engine_config, &pEngine) != MOSS_RESULT_SUCCESS)
   {
     return 1;
   }
 
-  MossCamera *camera;
-  moss_get_camera (engine, &camera);
+  MossCamera *pCamera;
+  mossGetCamera (pEngine, &pCamera);
 
   // Track camera state locally (since there are no getter functions)
   vec2 camera_position = { 0.0F, 0.0F };
   vec2 camera_size     = { 960.0F, 540.0F };
 
-  moss_set_camera_size (camera, camera_size);
-  moss_set_camera_position (camera, camera_position);
+  mossSetCameraSize (pCamera, camera_size);
+  mossSetCameraPosition (pCamera, camera_position);
 
   // Create 1000000 static sprites with random positions and sizes
   const size_t NUM_SPRITES = 700000;
-  MossSprite  *sprites     = malloc (sizeof (MossSprite) * NUM_SPRITES);
+  MossSprite  *pSprites    = malloc (sizeof (MossSprite) * NUM_SPRITES);
 
   // Seed random number generator
   srand ((unsigned int)time (NULL));
@@ -113,53 +111,53 @@ int main (void)
   for (size_t i = 0; i < NUM_SPRITES; ++i)
   {
     // Random position within a larger area
-    sprites[ i ].position[ 0 ] = ((float)rand ( ) / RAND_MAX - 0.5F) * 2000.0F;
-    sprites[ i ].position[ 1 ] = ((float)rand ( ) / RAND_MAX - 0.5F) * 2000.0F;
+    pSprites[ i ].position[ 0 ] = ((float)rand ( ) / RAND_MAX - 0.5F) * 2000.0F;
+    pSprites[ i ].position[ 1 ] = ((float)rand ( ) / RAND_MAX - 0.5F) * 2000.0F;
 
     // Random size between 8 and 32
-    const float size       = 8.0F + ((float)rand ( ) / RAND_MAX) * 24.0F;
-    sprites[ i ].size[ 0 ] = size;
-    sprites[ i ].size[ 1 ] = size;
+    const float size        = 8.0F + ((float)rand ( ) / RAND_MAX) * 24.0F;
+    pSprites[ i ].size[ 0 ] = size;
+    pSprites[ i ].size[ 1 ] = size;
 
     // Random depth for sorting
-    sprites[ i ].depth = ((float)rand ( ) / RAND_MAX) * 1.0F;
+    pSprites[ i ].depth = ((float)rand ( ) / RAND_MAX) * 1.0F;
 
     // UV coordinates (full texture)
-    sprites[ i ].uv.top_left[ 0 ]     = 0.5F;
-    sprites[ i ].uv.top_left[ 1 ]     = 0.0F;
-    sprites[ i ].uv.bottom_right[ 0 ] = 1.0F;
-    sprites[ i ].uv.bottom_right[ 1 ] = 1.0F;
+    pSprites[ i ].uv.topLeft[ 0 ]     = 0.5F;
+    pSprites[ i ].uv.topLeft[ 1 ]     = 0.0F;
+    pSprites[ i ].uv.bottomRight[ 0 ] = 1.0F;
+    pSprites[ i ].uv.bottomRight[ 1 ] = 1.0F;
   }
 
   // Create sprite batch
-  const MossSpriteBatchCreateInfo sprite_batch_info = {
-    .engine   = engine,
+  const MossSpriteBatchCreateInfo spriteBatchInfo = {
+    .pEngine  = pEngine,
     .capacity = NUM_SPRITES,
   };
-  MossSpriteBatch *sprite_batch;
-  if (moss_create_sprite_batch (&sprite_batch_info, &sprite_batch) != MOSS_RESULT_SUCCESS)
+  MossSpriteBatch *pSpriteBatch;
+  if (mossCreateSpriteBatch (&spriteBatchInfo, &pSpriteBatch) != MOSS_RESULT_SUCCESS)
   {
-    moss_destroy_engine (engine);
+    mossDestroyEngine (pEngine);
     return 1;
   }
 
-  moss_begin_sprite_batch (sprite_batch);
+  mossBeginSpriteBatch (pSpriteBatch);
   {
-    const MossAddSpritesToSpriteBatchInfo add_info = {
-      .sprites      = sprites,
-      .sprite_count = NUM_SPRITES,
+    const MossAddSpritesToSpriteBatchInfo addInfo = {
+      .pSprites    = pSprites,
+      .spriteCount = NUM_SPRITES,
     };
-    moss_add_sprites_to_sprite_batch (sprite_batch, &add_info);
+    mossAddSpritesToSpriteBatch (pSpriteBatch, &addInfo);
   }
-  moss_end_sprite_batch (sprite_batch);
+  mossEndSpriteBatch (pSpriteBatch);
 
   // Initialize timing
 #ifdef __APPLE__
-  mach_timebase_info_data_t timebase_info;
-  mach_timebase_info (&timebase_info);
-  uint64_t start_time                    = mach_absolute_time ( );
-  uint64_t last_frame_time               = start_time;
-  uint64_t last_fps_update_absolute_time = start_time;
+  mach_timebase_info_data_t timebaseInfo;
+  mach_timebase_info (&timebaseInfo);
+  uint64_t startTime                 = mach_absolute_time ( );
+  uint64_t lastFrameTime             = startTime;
+  uint64_t lastFpsUpdateAbsoluteTime = startTime;
 #else
   struct timespec start_time;
   struct timespec last_frame_time;
@@ -201,9 +199,9 @@ int main (void)
 #ifdef __APPLE__
     uint64_t current_time = mach_absolute_time ( );
     uint64_t frame_time_nanos =
-      (current_time - last_frame_time) * timebase_info.numer / timebase_info.denom;
+      (current_time - lastFrameTime) * timebaseInfo.numer / timebaseInfo.denom;
     double frame_time_seconds = (double)frame_time_nanos / 1000000000.0;
-    last_frame_time           = current_time;
+    lastFrameTime             = current_time;
 #else
     struct timespec current_time;
     clock_gettime (CLOCK_MONOTONIC, &current_time);
@@ -264,7 +262,7 @@ int main (void)
       camera_position[ 0 ] += move_distance;
     }
 
-    moss_set_camera_position (camera, camera_position);
+    mossSetCameraPosition (pCamera, camera_position);
 
     // Zoom controls
     float zoom_delta = 0.0F;
@@ -314,7 +312,7 @@ int main (void)
 
       camera_size[ 0 ] = new_size_x;
       camera_size[ 1 ] = new_size_y;
-      moss_set_camera_size (camera, camera_size);
+      mossSetCameraSize (pCamera, camera_size);
     }
 
     // Escape to exit
@@ -328,15 +326,15 @@ int main (void)
     clock_gettime (CLOCK_MONOTONIC, &draw_start_time);
 #endif
 
-    moss_begin_frame (engine);
-    moss_draw_sprite_batch (engine, sprite_batch);
-    moss_end_frame (engine);
+    mossBeginFrame (pEngine);
+    mossDrawSpriteBatch (pEngine, pSpriteBatch);
+    mossEndFrame (pEngine);
 
     // Measure draw time end
 #ifdef __APPLE__
     uint64_t draw_end_time = mach_absolute_time ( );
     uint64_t draw_time_nanos =
-      (draw_end_time - draw_start_time) * timebase_info.numer / timebase_info.denom;
+      (draw_end_time - draw_start_time) * timebaseInfo.numer / timebaseInfo.denom;
     double draw_time_seconds = (double)draw_time_nanos / 1000000000.0;
 #else
     struct timespec draw_end_time;
@@ -359,8 +357,8 @@ int main (void)
 #ifdef __APPLE__
     uint64_t current_absolute_time = mach_absolute_time ( );
     uint64_t time_since_last_update_nanos =
-      (current_absolute_time - last_fps_update_absolute_time) * timebase_info.numer /
-      timebase_info.denom;
+      (current_absolute_time - lastFpsUpdateAbsoluteTime) * timebaseInfo.numer /
+      timebaseInfo.denom;
     double time_since_last_update = (double)time_since_last_update_nanos / 1000000000.0;
 #else
     struct timespec current_absolute_time;
@@ -385,7 +383,7 @@ int main (void)
 
       // Update last update time
 #ifdef __APPLE__
-      last_fps_update_absolute_time = current_absolute_time;
+      lastFpsUpdateAbsoluteTime = current_absolute_time;
 #else
       last_fps_update_time = current_absolute_time;
 #endif
@@ -432,9 +430,9 @@ int main (void)
   }
 
   // Cleanup
-  free (sprites);
-  moss_destroy_sprite_batch (sprite_batch);
-  moss_destroy_engine (engine);
+  free (pSprites);
+  mossDestroySpriteBatch (pSpriteBatch);
+  mossDestroyEngine (pEngine);
   stuffy_window_close (g_window);
   stuffy_app_deinit ( );
 

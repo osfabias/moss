@@ -34,9 +34,9 @@
 */
 typedef struct
 {
-  VkPhysicalDevice      physical_device; /* Physical device to search memory type on. */
-  uint32_t              type_filter;     /* Memory type filter. */
-  VkMemoryPropertyFlags properties;      /* Required memory properties. */
+  VkPhysicalDevice      physicalDevice; /* Physical device to search memory type on. */
+  uint32_t              typeFilter;     /* Memory type filter. */
+  VkMemoryPropertyFlags properties;     /* Required memory properties. */
 } Moss__SelectSuitableMemoryTypeInfo;
 
 /*=============================================================================
@@ -50,22 +50,22 @@ typedef struct
   @param out_memory_type Output parameter for found memory type.
   @return MOSS_RESULT_SUCCESS on success, MOSS_RESULT_ERROR otherwise.
 */
-inline static MossResult moss__select_suitable_memory_type (
+inline static MossResult moss__selectSuitableMemoryType (
   const Moss__SelectSuitableMemoryTypeInfo *const info,
-  uint32_t *const                                 out_memory_type
+  uint32_t *const                                 outMemoryType
 )
 {
-  VkPhysicalDeviceMemoryProperties memory_properties;
-  vkGetPhysicalDeviceMemoryProperties (info->physical_device, &memory_properties);
+  VkPhysicalDeviceMemoryProperties memoryProperties;
+  vkGetPhysicalDeviceMemoryProperties (info->physicalDevice, &memoryProperties);
 
-  for (uint32_t i = 0; i < memory_properties.memoryTypeCount; ++i)
+  for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i)
   {
-    const VkMemoryType memory_type = memory_properties.memoryTypes[ i ];
+    const VkMemoryType memoryType = memoryProperties.memoryTypes[ i ];
 
-    if (info->type_filter & (1 << i) &&
-        (memory_type.propertyFlags & info->properties) == info->properties)
+    if (info->typeFilter & (1 << i) &&
+        (memoryType.propertyFlags & info->properties) == info->properties)
     {
-      *out_memory_type = i;
+      *outMemoryType = i;
       return MOSS_RESULT_SUCCESS;
     }
   }

@@ -14,7 +14,7 @@
   limitations under the License.
 
   @file example/depth_test.c
-  @brief Example program to test depth sorting with three sprites.
+  @brief Example program to test depth sorting with three pSprites.
   @author Ilya Buravov (ilburale@gmail.com)
 */
 
@@ -36,8 +36,8 @@
 #include <stuffy/window.h>
 
 static const MossAppInfo moss_app_info = {
-  .app_name    = "Moss Depth Test",
-  .app_version = { 0, 1, 0 },
+  .appName    = "Moss Depth Test",
+  .appVersion = { 0, 1, 0 },
 };
 
 static StuffyWindow *g_window = NULL;
@@ -71,88 +71,88 @@ int main (void)
 
   // Create engine
   const MossEngineConfig moss_engine_config = {
-    .app_info                    = &moss_app_info,
-    .get_window_framebuffer_size = get_window_framebuffer_size,
+    .appInfo                  = &moss_app_info,
+    .getWindowFramebufferSize = get_window_framebuffer_size,
 #ifdef __APPLE__
-    .metal_layer = metal_layer,
+    .metalLayer = metal_layer,
 #endif
   };
 
-  MossEngine *engine;
-  if (moss_create_engine (&moss_engine_config, &engine) != MOSS_RESULT_SUCCESS)
+  MossEngine *pEngine;
+  if (mossCreateEngine (&moss_engine_config, &pEngine) != MOSS_RESULT_SUCCESS)
   {
     return 1;
   }
 
-  MossCamera *camera;
-  moss_get_camera (engine, &camera);
+  MossCamera *pCamera;
+  mossGetCamera (pEngine, &pCamera);
 
   // Set up camera
   vec2 camera_position = { 0.0F, 0.0F };
   vec2 camera_size     = { 960.0F, 540.0F };
 
-  moss_set_camera_size (camera, camera_size);
-  moss_set_camera_position (camera, camera_position);
+  mossSetCameraSize (pCamera, camera_size);
+  mossSetCameraPosition (pCamera, camera_position);
 
-  // Create three sprites with different depths
+  // Create three pSprites with different depths
   // They will overlap at the center to test depth sorting
   const size_t NUM_SPRITES = 3;
-  MossSprite   sprites[ NUM_SPRITES ];
+  MossSprite   pSprites[ NUM_SPRITES ];
 
   // Sprite 1: Back (depth 0.0 - furthest back)
-  sprites[ 0 ].position[ 0 ] = 0.0F;
-  sprites[ 0 ].position[ 1 ] = 0.0F;
-  sprites[ 0 ].size[ 0 ]     = 200.0F;
-  sprites[ 0 ].size[ 1 ]     = 200.0F;
-  sprites[ 0 ].depth         = 0.0F;  // Back
-  sprites[ 0 ].uv.top_left[ 0 ]     = 0.0F;
-  sprites[ 0 ].uv.top_left[ 1 ]     = 0.0F;
-  sprites[ 0 ].uv.bottom_right[ 0 ] = 1.0F;
-  sprites[ 0 ].uv.bottom_right[ 1 ] = 1.0F;
+  pSprites[ 0 ].position[ 0 ]       = 0.0F;
+  pSprites[ 0 ].position[ 1 ]       = 0.0F;
+  pSprites[ 0 ].size[ 0 ]           = 200.0F;
+  pSprites[ 0 ].size[ 1 ]           = 200.0F;
+  pSprites[ 0 ].depth               = 0.0F;  // Back
+  pSprites[ 0 ].uv.topLeft[ 0 ]     = 0.0F;
+  pSprites[ 0 ].uv.topLeft[ 1 ]     = 0.0F;
+  pSprites[ 0 ].uv.bottomRight[ 0 ] = 1.0F;
+  pSprites[ 0 ].uv.bottomRight[ 1 ] = 1.0F;
 
   // Sprite 2: Middle (depth 0.5)
-  sprites[ 1 ].position[ 0 ] = 50.0F;  // Slightly offset to see overlap
-  sprites[ 1 ].position[ 1 ] = 50.0F;
-  sprites[ 1 ].size[ 0 ]     = 200.0F;
-  sprites[ 1 ].size[ 1 ]     = 200.0F;
-  sprites[ 1 ].depth         = 0.5F;  // Middle
-  sprites[ 1 ].uv.top_left[ 0 ]     = 0.0F;
-  sprites[ 1 ].uv.top_left[ 1 ]     = 0.0F;
-  sprites[ 1 ].uv.bottom_right[ 0 ] = 1.0F;
-  sprites[ 1 ].uv.bottom_right[ 1 ] = 1.0F;
+  pSprites[ 1 ].position[ 0 ]       = 50.0F;  // Slightly offset to see overlap
+  pSprites[ 1 ].position[ 1 ]       = 50.0F;
+  pSprites[ 1 ].size[ 0 ]           = 200.0F;
+  pSprites[ 1 ].size[ 1 ]           = 200.0F;
+  pSprites[ 1 ].depth               = 0.5F;  // Middle
+  pSprites[ 1 ].uv.topLeft[ 0 ]     = 0.0F;
+  pSprites[ 1 ].uv.topLeft[ 1 ]     = 0.0F;
+  pSprites[ 1 ].uv.bottomRight[ 0 ] = 1.0F;
+  pSprites[ 1 ].uv.bottomRight[ 1 ] = 1.0F;
 
   // Sprite 3: Front (depth 1.0 - closest to camera)
-  sprites[ 2 ].position[ 0 ] = 100.0F;  // More offset
-  sprites[ 2 ].position[ 1 ] = 100.0F;
-  sprites[ 2 ].size[ 0 ]     = 200.0F;
-  sprites[ 2 ].size[ 1 ]     = 200.0F;
-  sprites[ 2 ].depth         = 1.0F;  // Front
-  sprites[ 2 ].uv.top_left[ 0 ]     = 0.0F;
-  sprites[ 2 ].uv.top_left[ 1 ]     = 0.0F;
-  sprites[ 2 ].uv.bottom_right[ 0 ] = 1.0F;
-  sprites[ 2 ].uv.bottom_right[ 1 ] = 1.0F;
+  pSprites[ 2 ].position[ 0 ]       = 100.0F;  // More offset
+  pSprites[ 2 ].position[ 1 ]       = 100.0F;
+  pSprites[ 2 ].size[ 0 ]           = 200.0F;
+  pSprites[ 2 ].size[ 1 ]           = 200.0F;
+  pSprites[ 2 ].depth               = 1.0F;  // Front
+  pSprites[ 2 ].uv.topLeft[ 0 ]     = 0.0F;
+  pSprites[ 2 ].uv.topLeft[ 1 ]     = 0.0F;
+  pSprites[ 2 ].uv.bottomRight[ 0 ] = 1.0F;
+  pSprites[ 2 ].uv.bottomRight[ 1 ] = 1.0F;
 
   // Create sprite batch
   const MossSpriteBatchCreateInfo sprite_batch_info = {
-    .engine   = engine,
+    .pEngine  = pEngine,
     .capacity = NUM_SPRITES,
   };
-  MossSpriteBatch *sprite_batch;
-  if (moss_create_sprite_batch (&sprite_batch_info, &sprite_batch) != MOSS_RESULT_SUCCESS)
+  MossSpriteBatch *pSpriteBatch;
+  if (mossCreateSpriteBatch (&sprite_batch_info, &pSpriteBatch) != MOSS_RESULT_SUCCESS)
   {
-    moss_destroy_engine (engine);
+    mossDestroyEngine (pEngine);
     return 1;
   }
 
-  moss_begin_sprite_batch (sprite_batch);
+  mossBeginSpriteBatch (pSpriteBatch);
   {
     const MossAddSpritesToSpriteBatchInfo add_info = {
-      .sprites      = sprites,
-      .sprite_count = NUM_SPRITES,
+      .pSprites    = pSprites,
+      .spriteCount = NUM_SPRITES,
     };
-    moss_add_sprites_to_sprite_batch (sprite_batch, &add_info);
+    mossAddSpritesToSpriteBatch (pSpriteBatch, &add_info);
   }
-  moss_end_sprite_batch (sprite_batch);
+  mossEndSpriteBatch (pSpriteBatch);
 
   printf ("Depth Test Example\n");
   printf ("==================\n");
@@ -173,17 +173,16 @@ int main (void)
     // Escape to exit
     if (keyboard->keys[ STUFFY_KEY_ESCAPE ]) { break; }
 
-    moss_begin_frame (engine);
-    moss_draw_sprite_batch (engine, sprite_batch);
-    moss_end_frame (engine);
+    mossBeginFrame (pEngine);
+    mossDrawSpriteBatch (pEngine, pSpriteBatch);
+    mossEndFrame (pEngine);
   }
 
   // Cleanup
-  moss_destroy_sprite_batch (sprite_batch);
-  moss_destroy_engine (engine);
+  mossDestroySpriteBatch (pSpriteBatch);
+  mossDestroyEngine (pEngine);
   stuffy_window_close (g_window);
   stuffy_app_deinit ( );
 
   return EXIT_SUCCESS;
 }
-

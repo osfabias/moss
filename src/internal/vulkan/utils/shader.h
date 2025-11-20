@@ -40,10 +40,10 @@
 */
 typedef struct
 {
-  const char *file_path; /* Path to the SPIR-V file. */
-  uint32_t  **out_code;  /* Pointer to store allocated code buffer (must be freed by
-                             caller). */
-  size_t *out_code_size; /* Pointer to store code size in bytes. */
+  const char *filePath;  /* Path to the SPIR-V file. */
+  uint32_t  **outCode;   /* Pointer to store allocated code buffer (must be freed by
+                            caller). */
+  size_t *outCodeSize;   /* Pointer to store code size in bytes. */
 } MossVk__ReadShaderFileInfo;
 
 /*
@@ -51,10 +51,10 @@ typedef struct
 */
 typedef struct
 {
-  VkDevice        device;            /* Logical device. */
-  const uint32_t *code;              /* Pointer to SPIR-V code. */
-  size_t          code_size;         /* Size of SPIR-V code in bytes. */
-  VkShaderModule *out_shader_module; /* Pointer to store created shader module. */
+  VkDevice        device;          /* Logical device. */
+  const uint32_t *code;            /* Pointer to SPIR-V code. */
+  size_t          codeSize;        /* Size of SPIR-V code in bytes. */
+  VkShaderModule *outShaderModule; /* Pointer to store created shader module. */
 } MossVk__CreateShaderModuleInfo;
 
 /*
@@ -62,9 +62,9 @@ typedef struct
 */
 typedef struct
 {
-  VkDevice        device;            /* Logical device. */
-  const char     *file_path;         /* Path to the SPIR-V file. */
-  VkShaderModule *out_shader_module; /* Pointer to store created shader module. */
+  VkDevice        device;          /* Logical device. */
+  const char     *filePath;        /* Path to the SPIR-V file. */
+  VkShaderModule *outShaderModule; /* Pointer to store created shader module. */
 } MossVk__CreateShaderModuleFromFileInfo;
 
 /*=============================================================================
@@ -77,47 +77,47 @@ typedef struct
   @return VK_SUCCESS on success, error code otherwise.
 */
 inline static MossResult
-moss_vk__read_shader_file (const MossVk__ReadShaderFileInfo *const info)
+mossVk__readShaderFile (const MossVk__ReadShaderFileInfo *const info)
 {
-  FILE *const file = fopen (info->file_path, "rb");
+  FILE *const file = fopen (info->filePath, "rb");
   if (file == NULL)
   {
-    moss__error ("Failed to open shader file: %s\n", info->file_path);
+    moss__error ("Failed to open shader file: %s\n", info->filePath);
     return MOSS_RESULT_ERROR;
   }
 
   fseek (file, 0, SEEK_END);
-  const long file_size = ftell (file);
+  const long fileSize = ftell (file);
   fseek (file, 0, SEEK_SET);
 
-  if (file_size < 0 || (file_size % 4) != 0)
+  if (fileSize < 0 || (fileSize % 4) != 0)
   {
-    moss__error ("Invalid shader file size: %s\n", info->file_path);
+    moss__error ("Invalid shader file size: %s\n", info->filePath);
     fclose (file);
     return MOSS_RESULT_ERROR;
   }
 
-  const size_t code_size = (size_t)file_size;
-  uint32_t    *code      = malloc (code_size);
+  const size_t codeSize = (size_t)fileSize;
+  uint32_t    *code     = malloc (codeSize);
   if (code == NULL)
   {
-    moss__error ("Failed to allocate memory for shader code: %s\n", info->file_path);
+    moss__error ("Failed to allocate memory for shader code: %s\n", info->filePath);
     fclose (file);
     return MOSS_RESULT_ERROR;
   }
 
-  const size_t read_size = fread (code, 1, code_size, file);
+  const size_t readSize = fread (code, 1, codeSize, file);
   fclose (file);
 
-  if (read_size != code_size)
+  if (readSize != codeSize)
   {
-    moss__error ("Failed to read shader file: %s\n", info->file_path);
+    moss__error ("Failed to read shader file: %s\n", info->filePath);
     free (code);
     return MOSS_RESULT_ERROR;
   }
 
-  *info->out_code      = code;
-  *info->out_code_size = code_size;
+  *info->outCode     = code;
+  *info->outCodeSize = codeSize;
 
   return MOSS_RESULT_SUCCESS;
 }
@@ -128,18 +128,18 @@ moss_vk__read_shader_file (const MossVk__ReadShaderFileInfo *const info)
   @return VK_SUCCESS on success, error code otherwise.
 */
 inline static MossResult
-moss_vk__create_shader_module (const MossVk__CreateShaderModuleInfo *const info)
+mossVk__createShaderModule (const MossVk__CreateShaderModuleInfo *const info)
 {
-  const VkShaderModuleCreateInfo create_info = {
+  const VkShaderModuleCreateInfo createInfo = {
     .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
     .pNext    = NULL,
     .flags    = 0,
-    .codeSize = info->code_size,
+    .codeSize = info->codeSize,
     .pCode    = info->code,
   };
 
   const VkResult result =
-    vkCreateShaderModule (info->device, &create_info, NULL, info->out_shader_module);
+    vkCreateShaderModule (info->device, &createInfo, NULL, info->outShaderModule);
   if (result != VK_SUCCESS)
   {
     moss__error ("Failed to create shader module. Error code: %d.\n", result);
@@ -154,31 +154,31 @@ moss_vk__create_shader_module (const MossVk__CreateShaderModuleInfo *const info)
   @param info Required info to create shader module from file.
   @return VK_SUCCESS on success, error code otherwise.
 */
-inline static MossResult moss_vk__create_shader_module_from_file (
+inline static MossResult mossVk__createShaderModuleFromFile (
   const MossVk__CreateShaderModuleFromFileInfo *const info
 )
 {
-  uint32_t *code      = NULL;
-  size_t    code_size = 0;
+  uint32_t *code     = NULL;
+  size_t    codeSize = 0;
 
   {  // Read shader file code
-    const MossVk__ReadShaderFileInfo read_info = {
-      .file_path     = info->file_path,
-      .out_code      = &code,
-      .out_code_size = &code_size,
+    const MossVk__ReadShaderFileInfo readInfo = {
+      .filePath   = info->filePath,
+      .outCode    = &code,
+      .outCodeSize = &codeSize,
     };
-    const MossResult result = moss_vk__read_shader_file (&read_info);
+    const MossResult result = mossVk__readShaderFile (&readInfo);
     if (result != MOSS_RESULT_SUCCESS) { return result; }
   }
 
   {  // Create shader module
-    const MossVk__CreateShaderModuleInfo create_info = {
-      .device            = info->device,
-      .code              = code,
-      .code_size         = code_size,
-      .out_shader_module = info->out_shader_module,
+    const MossVk__CreateShaderModuleInfo createInfo = {
+      .device         = info->device,
+      .code           = code,
+      .codeSize       = codeSize,
+      .outShaderModule = info->outShaderModule,
     };
-    const MossResult result = moss_vk__create_shader_module (&create_info);
+    const MossResult result = mossVk__createShaderModule (&createInfo);
     if (result != MOSS_RESULT_SUCCESS) { return result; }
   }
 

@@ -37,8 +37,8 @@
 */
 typedef struct
 {
-  VkDevice device;            /* Logical device to create command pool on. */
-  uint32_t queue_family_index; /* Queue family index to assign command pool to. */
+  VkDevice device;          /* Logical device to create command pool on. */
+  uint32_t queueFamilyIndex; /* Queue family index to assign command pool to. */
 } MossVk__CreateCommandPoolInfo;
 
 /*=============================================================================
@@ -51,20 +51,20 @@ typedef struct
   @param out_command_pool Output parameter for created command pool handle.
   @return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
-inline static MossResult moss_vk__create_command_pool (
+inline static MossResult mossVk__createCommandPool (
   const MossVk__CreateCommandPoolInfo *const info,
-  VkCommandPool                        *out_command_pool
+  VkCommandPool                        *outCommandPool
 )
 {
-  const VkCommandPoolCreateInfo pool_info = {
+  const VkCommandPoolCreateInfo poolInfo = {
     .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
     .pNext            = NULL,
     .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-    .queueFamilyIndex = info->queue_family_index,
+    .queueFamilyIndex = info->queueFamilyIndex,
   };
 
   const VkResult result =
-    vkCreateCommandPool (info->device, &pool_info, NULL, out_command_pool);
+    vkCreateCommandPool (info->device, &poolInfo, NULL, outCommandPool);
 
   if (result != VK_SUCCESS)
   {

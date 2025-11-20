@@ -51,12 +51,12 @@ typedef struct
   @param out_image_view Output parameter for created image view handle.
   @return MOSS_RESULT_SUCCESS on success, otherwise MOSS_RESULT_ERROR.
 */
-inline static MossResult moss_vk__create_image_view (
+inline static MossResult mossVk__createImageView (
   const MossVk__ImageViewCreateInfo *const info,
-  VkImageView                             *out_image_view
+  VkImageView                             *outImageView
 )
 {
-  const VkImageSubresourceRange subresource_range = {
+  const VkImageSubresourceRange subresourceRange = {
     .aspectMask     = info->aspect,
     .baseMipLevel   = 0,
     .levelCount     = 1,
@@ -71,7 +71,7 @@ inline static MossResult moss_vk__create_image_view (
     .a = VK_COMPONENT_SWIZZLE_IDENTITY,
   };
 
-  const VkImageViewCreateInfo create_info = {
+  const VkImageViewCreateInfo createInfo = {
     .sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
     .pNext            = NULL,
     .flags            = 0,
@@ -79,11 +79,11 @@ inline static MossResult moss_vk__create_image_view (
     .viewType         = VK_IMAGE_VIEW_TYPE_2D,
     .format           = info->format,
     .components       = components,
-    .subresourceRange = subresource_range,
+    .subresourceRange = subresourceRange,
   };
 
   const VkResult result =
-    vkCreateImageView (info->device, &create_info, NULL, out_image_view);
+    vkCreateImageView (info->device, &createInfo, NULL, outImageView);
 
   if (result != VK_SUCCESS)
   {

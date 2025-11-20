@@ -45,55 +45,55 @@ typedef struct
     FUNCTIONS
   =============================================================================*/
 
-inline static MossVk__ValidationLayers moss_vk__get_validation_layers (void)
+inline static MossVk__ValidationLayers mossVk__getValidationLayers (void)
 {
-  static const char *const validation_layer_names[] = {"VK_LAYER_KHRONOS_validation"};
+  static const char *const validationLayerNames[] = {"VK_LAYER_KHRONOS_validation"};
 
-  static const MossVk__ValidationLayers validation_layers = {
-    .names = validation_layer_names,
-    .count = sizeof (validation_layer_names) / sizeof (validation_layer_names[ 0 ]),
+  static const MossVk__ValidationLayers validationLayers = {
+    .names = validationLayerNames,
+    .count = sizeof (validationLayerNames) / sizeof (validationLayerNames[ 0 ]),
   };
 
-  return validation_layers;
+  return validationLayers;
 }
 
 /*
   @brief Checks if validation layers are available.
 */
-inline static bool moss_vk__check_validation_layer_support (void)
+inline static bool mossVk__checkValidationLayerSupport (void)
 {
-  uint32_t available_layer_count;
-  vkEnumerateInstanceLayerProperties (&available_layer_count, NULL);
+  uint32_t availableLayerCount;
+  vkEnumerateInstanceLayerProperties (&availableLayerCount, NULL);
 
-  if (available_layer_count == 0)
+  if (availableLayerCount == 0)
   {
     moss__error ("No validation layers available. ");
     return false;
   }
 
-  assert (available_layer_count < 16);
+  assert (availableLayerCount < 16);
 
-  VkLayerProperties available_layers[ available_layer_count ];
-  vkEnumerateInstanceLayerProperties (&available_layer_count, available_layers);
+  VkLayerProperties availableLayers[ availableLayerCount ];
+  vkEnumerateInstanceLayerProperties (&availableLayerCount, availableLayers);
 
-  const MossVk__ValidationLayers required_validation_layers =
-    moss_vk__get_validation_layers ( );
+  const MossVk__ValidationLayers requiredValidationLayers =
+    mossVk__getValidationLayers ( );
 
-  for (uint32_t i = 0; i < required_validation_layers.count; ++i)
+  for (uint32_t i = 0; i < requiredValidationLayers.count; ++i)
   {
-    bool              layer_found       = false;
-    const char *const target_layer_name = required_validation_layers.names[ i ];
+    bool              layerFound      = false;
+    const char *const targetLayerName = requiredValidationLayers.names[ i ];
 
-    for (uint32_t j = 0; j < available_layer_count; ++j)
+    for (uint32_t j = 0; j < availableLayerCount; ++j)
     {
-      if (strcmp (target_layer_name, available_layers[ j ].layerName) == 0)
+      if (strcmp (targetLayerName, availableLayers[ j ].layerName) == 0)
       {
-        layer_found = true;
+        layerFound = true;
         break;
       }
     }
 
-    if (layer_found == false) { return false; }
+    if (layerFound == false) { return false; }
   }
 
   return true;

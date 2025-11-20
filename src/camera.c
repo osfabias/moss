@@ -26,25 +26,25 @@
 #include "src/internal/camera.h"
 #include "src/internal/engine.h"
 
-void moss_get_camera (MossEngine *const engine, MossCamera **out_camera)
+void mossGetCamera (MossEngine *const pEngine, MossCamera **pOutCamera)
 {
-  *out_camera = &engine->camera;
+  *pOutCamera = &pEngine->camera;
 }
 
-void moss_set_camera_position (MossCamera *const camera, const vec2 new_position)
+void mossSetCameraPosition (MossCamera *const pCamera, const vec2 newPosition)
 {
-  camera->offset[ 0 ] = -1 * new_position[ 0 ] * camera->scale[ 0 ];
-  camera->offset[ 1 ] = -1 * new_position[ 1 ] * camera->scale[ 1 ];
+  pCamera->offset[ 0 ] = -1 * newPosition[ 0 ] * pCamera->scale[ 0 ];
+  pCamera->offset[ 1 ] = -1 * newPosition[ 1 ] * pCamera->scale[ 1 ];
 }
 
-void moss_set_camera_size (MossCamera *const camera, const vec2 new_size)
+void mossSetCameraSize (MossCamera *const pCamera, const vec2 newSize)
 {
-  camera->offset[ 0 ] /= camera->scale[ 0 ];
-  camera->offset[ 1 ] /= camera->scale[ 1 ];
+  pCamera->offset[ 0 ] /= pCamera->scale[ 0 ];
+  pCamera->offset[ 1 ] /= pCamera->scale[ 1 ];
 
-  camera->scale[ 0 ] = 2.0F / new_size[ 0 ];
-  camera->scale[ 1 ] = -2.0F / new_size[ 1 ];  // Flip Y coordinates
+  pCamera->scale[ 0 ] = 2.0F / newSize[ 0 ];
+  pCamera->scale[ 1 ] = -2.0F / newSize[ 1 ];  // Flip Y coordinates
                                                //
-  camera->offset[ 0 ] *= camera->scale[ 0 ];
-  camera->offset[ 1 ] *= camera->scale[ 1 ];
+  pCamera->offset[ 0 ] *= pCamera->scale[ 0 ];
+  pCamera->offset[ 1 ] *= pCamera->scale[ 1 ];
 }

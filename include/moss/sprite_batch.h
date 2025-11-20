@@ -28,34 +28,36 @@ typedef struct MossSpriteBatch MossSpriteBatch;
 
 typedef struct
 {
-  MossEngine *engine;   /* Engine handle. */
+  MossEngine *pEngine;  /* Engine handle. */
   size_t      capacity; /* Maximum number of sprites that can be added to this batch. */
 } MossSpriteBatchCreateInfo;
 
 typedef struct
 {
-  const MossSprite *sprites;
-  size_t            sprite_count;
+  const MossSprite *pSprites;
+  size_t            spriteCount;
 } MossAddSpritesToSpriteBatchInfo;
 
 /*=============================================================================
     FUNCTIONS
   =============================================================================*/
 
-MossResult
-moss_create_sprite_batch (const MossSpriteBatchCreateInfo *info, MossSpriteBatch **out_sprite_batch);
-
-void moss_destroy_sprite_batch (MossSpriteBatch *sprite_batch);
-
-void moss_clear_sprite_batch (MossSpriteBatch *sprite_batch);
-
-MossResult moss_begin_sprite_batch (MossSpriteBatch *sprite_batch);
-
-MossResult moss_add_sprites_to_sprite_batch (
-  MossSpriteBatch                       *sprite_batch,
-  const MossAddSpritesToSpriteBatchInfo *info
+MossResult mossCreateSpriteBatch (
+  const MossSpriteBatchCreateInfo *pInfo,
+  MossSpriteBatch                **pOutSpriteBatch
 );
 
-MossResult moss_end_sprite_batch (MossSpriteBatch *sprite_batch);
+void mossDestroySpriteBatch (MossSpriteBatch *pSpriteBatch);
 
-MossResult moss_draw_sprite_batch (MossEngine *engine, MossSpriteBatch *sprite_batch);
+void mossClearSpriteBatch (MossSpriteBatch *pSpriteBatch);
+
+MossResult mossBeginSpriteBatch (MossSpriteBatch *pSpriteBatch);
+
+MossResult mossAddSpritesToSpriteBatch (
+  MossSpriteBatch                       *pSpriteBatch,
+  const MossAddSpritesToSpriteBatchInfo *pInfo
+);
+
+MossResult mossEndSpriteBatch (MossSpriteBatch *pSpriteBatch);
+
+MossResult mossDrawSpriteBatch (MossEngine *pEngine, MossSpriteBatch *pSpriteBatch);

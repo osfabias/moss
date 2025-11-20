@@ -25,7 +25,7 @@ typedef struct
   vec2  size;     /* World units size. */
   struct
   {
-    vec2 top_left;     /* UV coords of the top left corner on texture altas. */
-    vec2 bottom_right; /* UV coords of the bottom right on texture atlas. */
+    vec2 topLeft;     /* UV coords of the top left corner on texture altas. */
+    vec2 bottomRight; /* UV coords of the bottom right on texture atlas. */
   } uv;
 } MossSprite;

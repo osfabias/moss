@@ -45,10 +45,10 @@ typedef struct
   @brief Returns a list of required Vulkan instance extensions.
   @return Instance extensions struct.
 */
-inline static MossVk__InstanceExtensions moss_vk__get_required_instance_extensions (void)
+inline static MossVk__InstanceExtensions mossVk__getRequiredInstanceExtensions (void)
 {
 #ifdef __APPLE__
-  static const char *const extension_names[] = {
+  static const char *const extensionNames[] = {
     VK_KHR_SURFACE_EXTENSION_NAME,
     VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
     VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
@@ -59,8 +59,8 @@ inline static MossVk__InstanceExtensions moss_vk__get_required_instance_extensio
 #endif
 
   static const MossVk__InstanceExtensions extensions = {
-    .names = extension_names,
-    .count = sizeof (extension_names) / sizeof (extension_names[ 0 ]),
+    .names = extensionNames,
+    .count = sizeof (extensionNames) / sizeof (extensionNames[ 0 ]),
   };
 
   return extensions;
@@ -70,7 +70,7 @@ inline static MossVk__InstanceExtensions moss_vk__get_required_instance_extensio
   @brief Returns required Vulkan instance flags.
   @return Vulkan instance flags value.
 */
-inline static uint32_t moss_vk__get_required_instance_flags (void)
+inline static uint32_t mossVk__getRequiredInstanceFlags (void)
 {
 #ifdef __APPLE__
   return VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;

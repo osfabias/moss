@@ -51,13 +51,13 @@ typedef struct
   VkSurfaceFormatKHR formats[ MAX_VULKAN_FORMAT_COUNT ];
 
   /* Number of formats. */
-  uint32_t format_count;
+  uint32_t formatCount;
 
   /* Available present modes. */
-  VkPresentModeKHR present_modes[ MAX_VULKAN_PRESENT_MODE_COUNT ];
+  VkPresentModeKHR presentModes[ MAX_VULKAN_PRESENT_MODE_COUNT ];
 
   /* Number of present modes. */
-  uint32_t present_mode_count;
+  uint32_t presentModeCount;
 } MossVk__SwapChainSupportDetails;
 
 /*
@@ -79,7 +79,7 @@ typedef struct
   @return Swap chain support details. Caller must free formats and present_modes arrays.
 */
 inline static MossVk__SwapChainSupportDetails
-moss_vk__query_swapchain_support (const MossVk__QuerySwapchainSupportInfo *const info)
+mossVk__querySwapchainSupport (const MossVk__QuerySwapchainSupportInfo *const info)
 {
   MossVk__SwapChainSupportDetails details = {0};
 
@@ -92,16 +92,16 @@ moss_vk__query_swapchain_support (const MossVk__QuerySwapchainSupportInfo *const
   vkGetPhysicalDeviceSurfaceFormatsKHR (
     info->device,
     info->surface,
-    &details.format_count,
+    &details.formatCount,
     NULL
   );
 
-  if (details.format_count <= MAX_VULKAN_FORMAT_COUNT)
+  if (details.formatCount <= MAX_VULKAN_FORMAT_COUNT)
   {
     vkGetPhysicalDeviceSurfaceFormatsKHR (
       info->device,
       info->surface,
-      &details.format_count,
+      &details.formatCount,
       details.formats
     );
   }
@@ -109,7 +109,7 @@ moss_vk__query_swapchain_support (const MossVk__QuerySwapchainSupportInfo *const
   {
     moss__error (
       "Format count exceeded the limit (%d > %d). No formats saved.",
-      details.format_count,
+      details.formatCount,
       MAX_VULKAN_FORMAT_COUNT
     );
   }
@@ -117,24 +117,24 @@ moss_vk__query_swapchain_support (const MossVk__QuerySwapchainSupportInfo *const
   vkGetPhysicalDeviceSurfacePresentModesKHR (
     info->device,
     info->surface,
-    &details.present_mode_count,
+    &details.presentModeCount,
     NULL
   );
 
-  if (details.present_mode_count <= MAX_VULKAN_PRESENT_MODE_COUNT)
+  if (details.presentModeCount <= MAX_VULKAN_PRESENT_MODE_COUNT)
   {
     vkGetPhysicalDeviceSurfacePresentModesKHR (
       info->device,
       info->surface,
-      &details.present_mode_count,
-      details.present_modes
+      &details.presentModeCount,
+      details.presentModes
     );
   }
   else
   {
     moss__error (
       "Present mode count exceeded the limit (%d > %d). No formats saved.",
-      details.present_mode_count,
+      details.presentModeCount,
       MAX_VULKAN_PRESENT_MODE_COUNT
     );
   }
@@ -148,21 +148,21 @@ moss_vk__query_swapchain_support (const MossVk__QuerySwapchainSupportInfo *const
   @param format_count Number of available formats.
   @return Selected surface format.
 */
-inline static VkSurfaceFormatKHR moss_vk__choose_swap_surface_format (
-  const VkSurfaceFormatKHR *available_formats,
-  uint32_t                  format_count
+inline static VkSurfaceFormatKHR mossVk__chooseSwapSurfaceFormat (
+  const VkSurfaceFormatKHR *availableFormats,
+  uint32_t                  formatCount
 )
 {
-  for (uint32_t i = 0; i < format_count; ++i)
+  for (uint32_t i = 0; i < formatCount; ++i)
   {
-    if (available_formats[ i ].format == VK_FORMAT_B8G8R8A8_SRGB &&
-        available_formats[ i ].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+    if (availableFormats[ i ].format == VK_FORMAT_B8G8R8A8_SRGB &&
+        availableFormats[ i ].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
     {
-      return available_formats[ i ];
+      return availableFormats[ i ];
     }
   }
 
-  return available_formats[ 0 ];
+  return availableFormats[ 0 ];
 }
 
 /*
@@ -171,16 +171,16 @@ inline static VkSurfaceFormatKHR moss_vk__choose_swap_surface_format (
   @param present_mode_count Number of available present modes.
   @return Selected present mode.
 */
-inline static VkPresentModeKHR moss_vk__choose_swap_present_mode (
-  const VkPresentModeKHR *available_present_modes,
-  uint32_t                present_mode_count
+inline static VkPresentModeKHR mossVk__chooseSwapPresentMode (
+  const VkPresentModeKHR *availablePresentModes,
+  uint32_t                presentModeCount
 )
 {
-  for (uint32_t i = 0; i < present_mode_count; ++i)
+  for (uint32_t i = 0; i < presentModeCount; ++i)
   {
-    if (available_present_modes[ i ] == VK_PRESENT_MODE_MAILBOX_KHR)
+    if (availablePresentModes[ i ] == VK_PRESENT_MODE_MAILBOX_KHR)
     {
-      return available_present_modes[ i ];
+      return availablePresentModes[ i ];
     }
   }
 
@@ -194,7 +194,7 @@ inline static VkPresentModeKHR moss_vk__choose_swap_present_mode (
   @param height Desired height.
   @return Selected extent.
 */
-inline static VkExtent2D moss_vk__choose_swap_extent (
+inline static VkExtent2D mossVk__chooseSwapExtent (
   const VkSurfaceCapabilitiesKHR *capabilities,
   uint32_t                        width,
   uint32_t                        height
@@ -205,26 +205,26 @@ inline static VkExtent2D moss_vk__choose_swap_extent (
     return capabilities->currentExtent;
   }
 
-  VkExtent2D actual_extent = {width, height};
+  VkExtent2D actualExtent = {width, height};
 
-  if (actual_extent.width < capabilities->minImageExtent.width)
+  if (actualExtent.width < capabilities->minImageExtent.width)
   {
-    actual_extent.width = capabilities->minImageExtent.width;
+    actualExtent.width = capabilities->minImageExtent.width;
   }
-  if (actual_extent.width > capabilities->maxImageExtent.width)
+  if (actualExtent.width > capabilities->maxImageExtent.width)
   {
-    actual_extent.width = capabilities->maxImageExtent.width;
-  }
-
-  if (actual_extent.height < capabilities->minImageExtent.height)
-  {
-    actual_extent.height = capabilities->minImageExtent.height;
-  }
-  if (actual_extent.height > capabilities->maxImageExtent.height)
-  {
-    actual_extent.height = capabilities->maxImageExtent.height;
+    actualExtent.width = capabilities->maxImageExtent.width;
   }
 
-  return actual_extent;
+  if (actualExtent.height < capabilities->minImageExtent.height)
+  {
+    actualExtent.height = capabilities->minImageExtent.height;
+  }
+  if (actualExtent.height > capabilities->maxImageExtent.height)
+  {
+    actualExtent.height = capabilities->maxImageExtent.height;
+  }
+
+  return actualExtent;
 }
 

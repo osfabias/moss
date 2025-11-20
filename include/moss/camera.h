@@ -22,8 +22,8 @@
 
 typedef struct MossCamera MossCamera;
 
-void moss_get_camera (MossEngine *engine, MossCamera **out_camera);
+void mossGetCamera (MossEngine *pEngine, MossCamera **pOutCamera);
 
-void moss_set_camera_position (MossCamera *camera, const vec2 new_position);
+void mossSetCameraPosition (MossCamera *pCamera, const vec2 newPosition);
 
-void moss_set_camera_size (MossCamera *camera, const vec2 new_size);
+void mossSetCameraSize (MossCamera *pCamera, const vec2 newSize);

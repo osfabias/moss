@@ -66,9 +66,9 @@ typedef struct
   @return Vulkan input binding description.
 */
 inline static Moss__VkVertexInputBindingDescriptionPack
-moss__get_vk_vertex_input_binding_description (void)
+moss__getVkVertexInputBindingDescription (void)
 {
-  static const VkVertexInputBindingDescription binding_descriptions[] = {
+  static const VkVertexInputBindingDescription bindingDescriptions[] = {
     {
      .binding   = 0,
      .stride    = sizeof (Moss__Vertex),
@@ -76,12 +76,12 @@ moss__get_vk_vertex_input_binding_description (void)
      },
   };
 
-  static const Moss__VkVertexInputBindingDescriptionPack descriptions_pack = {
-    .count        = sizeof (binding_descriptions) / sizeof (binding_descriptions[ 0 ]),
-    .descriptions = binding_descriptions,
+  static const Moss__VkVertexInputBindingDescriptionPack descriptionsPack = {
+    .count        = sizeof (bindingDescriptions) / sizeof (bindingDescriptions[ 0 ]),
+    .descriptions = bindingDescriptions,
   };
 
-  return descriptions_pack;
+  return descriptionsPack;
 }
 
 /*
@@ -90,9 +90,9 @@ moss__get_vk_vertex_input_binding_description (void)
   @return Vulkan input attribute descriptions.
 */
 inline static Moss__VkVertexInputAttributeDescriptionPack
-moss__get_vk_vertex_input_attribute_description (void)
+moss__getVkVertexInputAttributeDescription (void)
 {
-  static const VkVertexInputAttributeDescription attribute_descriptions[] = {
+  static const VkVertexInputAttributeDescription attributeDescriptions[] = {
     {
      .binding  = 0,
      .location = 0,
@@ -107,10 +107,10 @@ moss__get_vk_vertex_input_attribute_description (void)
      }
   };
 
-  static const Moss__VkVertexInputAttributeDescriptionPack descriptions_pack = {
-    .descriptions = attribute_descriptions,
-    .count = sizeof (attribute_descriptions) / sizeof (attribute_descriptions[ 0 ]),
+  static const Moss__VkVertexInputAttributeDescriptionPack descriptionsPack = {
+    .descriptions = attributeDescriptions,
+    .count = sizeof (attributeDescriptions) / sizeof (attributeDescriptions[ 0 ]),
   };
 
-  return descriptions_pack;
+  return descriptionsPack;
 }

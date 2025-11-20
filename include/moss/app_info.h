@@ -20,6 +20,6 @@
 
 typedef struct
 {
-  const char *app_name;    /* App name. */
-  MossVersion app_version; /* App version. */
+  const char *appName;    /* App name. */
+  MossVersion appVersion; /* App version. */
 } MossAppInfo;

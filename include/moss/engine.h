@@ -34,11 +34,11 @@ typedef void (*MossGetWindowFramebufferSizeCallback) (uint32_t *width, uint32_t 
 
 typedef struct
 {
-  const MossAppInfo *app_info; /* Application info. */
+  const MossAppInfo *appInfo; /* Application info. */
   MossGetWindowFramebufferSizeCallback
-    get_window_framebuffer_size; /* Callback to get framebuffer size. */
+    getWindowFramebufferSize; /* Callback to get framebuffer size. */
 #ifdef __APPLE__
-  void *metal_layer; /* Metal layer (CAMetalLayer*). */
+  void *metalLayer; /* Metal layer (CAMetalLayer*). */
 #endif
 } MossEngineConfig;
 
@@ -46,12 +46,12 @@ typedef struct
     FUNCTIONS
   =============================================================================*/
 
-MossResult moss_create_engine (const MossEngineConfig *config, MossEngine **out_engine);
+MossResult mossCreateEngine (const MossEngineConfig *pConfig, MossEngine **pOutEngine);
 
-void moss_destroy_engine (MossEngine *engine);
+void mossDestroyEngine (MossEngine *pEngine);
 
-MossResult moss_begin_frame (MossEngine *engine);
+MossResult mossBeginFrame (MossEngine *pEngine);
 
-MossResult moss_end_frame (MossEngine *engine);
+MossResult mossEndFrame (MossEngine *pEngine);
 
-MossResult moss_set_render_resolution (MossEngine *engine, const vec2 new_resolution);
+MossResult mossSetRenderResolution (MossEngine *pEngine, const vec2 newResolution);

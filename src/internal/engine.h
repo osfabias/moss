@@ -40,120 +40,120 @@ struct MossEngine
 
   /* === Metal layer === */
   /* Metal layer for surface creation on macOS. */
-  void *metal_layer;
+  void *metalLayer;
   /* Callback to get window framebuffer size. */
-  MossGetWindowFramebufferSizeCallback get_window_framebuffer_size;
+  MossGetWindowFramebufferSizeCallback getWindowFramebufferSize;
 
   /* === Vulkan instance and surface === */
   /* Vulkan instance. */
-  VkInstance api_instance;
+  VkInstance apiInstance;
   /* Window surface. */
   VkSurfaceKHR surface;
 
   /* === Physical and logical device === */
   /* Physical device. */
-  VkPhysicalDevice physical_device;
+  VkPhysicalDevice physicalDevice;
   /* Logical device. */
   VkDevice device;
   /* Queue family indices. */
-  MossVk__QueueFamilyIndices queue_family_indices;
+  MossVk__QueueFamilyIndices queueFamilyIndices;
   /* Graphics queue. */
-  VkQueue graphics_queue;
+  VkQueue graphicsQueue;
   /* Present queue. */
-  VkQueue present_queue;
+  VkQueue presentQueue;
   /* Transfer queue. */
-  VkQueue transfer_queue;
+  VkQueue transferQueue;
 
   /* === Buffer sharing mode and queue family indices === */
   /* Buffer sharing mode for buffers shared between graphics and transfer queues. */
-  VkSharingMode buffer_sharing_mode;
+  VkSharingMode bufferSharingMode;
   /* Number of queue family indices that share buffers. */
-  uint32_t shared_queue_family_index_count;
+  uint32_t sharedQueueFamilyIndexCount;
   /* Queue family indices that share buffers. */
-  uint32_t shared_queue_family_indices[ 2 ];
+  uint32_t sharedQueueFamilyIndices[ 2 ];
 
   /* === Swap chain === */
   /* Swap chain. */
   VkSwapchainKHR swapchain;
   /* Swap chain images. */
-  VkImage swapchain_images[ MAX_SWAPCHAIN_IMAGE_COUNT ];
+  VkImage swapchainImages[ MAX_SWAPCHAIN_IMAGE_COUNT ];
   /* Number of swap chain images. */
-  uint32_t swapchain_image_count;
+  uint32_t swapchainImageCount;
   /* Swap chain image format. */
-  VkFormat swapchain_image_format;
+  VkFormat swapchainImageFormat;
   /* Swap chain extent. */
-  VkExtent2D swapchain_extent;
+  VkExtent2D swapchainExtent;
 
   /* === Present framebuffers === */
   /* Framebuffers used for final frame presentation. */
-  VkFramebuffer present_framebuffers[ MAX_SWAPCHAIN_IMAGE_COUNT ];
+  VkFramebuffer presentFramebuffers[ MAX_SWAPCHAIN_IMAGE_COUNT ];
   /* Present framebuffer image views. */
-  VkImageView present_framebuffer_image_views[ MAX_SWAPCHAIN_IMAGE_COUNT ];
+  VkImageView presentFramebufferImageViews[ MAX_SWAPCHAIN_IMAGE_COUNT ];
 
   /* === Render pipeline === */
   /* Render pass. */
-  VkRenderPass render_pass;
+  VkRenderPass renderPass;
   /* Descriptor pool. */
-  VkDescriptorPool descriptor_pool;
+  VkDescriptorPool descriptorPool;
   /* Descriptor set. */
-  VkDescriptorSet descriptor_sets[ MAX_FRAMES_IN_FLIGHT ];
+  VkDescriptorSet descriptorSets[ MAX_FRAMES_IN_FLIGHT ];
   /* Descriptor set layout. */
-  VkDescriptorSetLayout descriptor_set_layout;
+  VkDescriptorSetLayout descriptorSetLayout;
   /* Pipeline layout. */
-  VkPipelineLayout pipeline_layout;
+  VkPipelineLayout pipelineLayout;
   /* Graphics pipeline. */
-  VkPipeline graphics_pipeline;
+  VkPipeline graphicsPipeline;
 
   /* === Depth buffering === */
   /* Depth image. */
-  VkImage depth_image;
+  VkImage depthImage;
   /* Depth image view. */
-  VkImageView depth_image_view;
+  VkImageView depthImageView;
   /* Depth image. */
-  VkDeviceMemory depth_image_memory;
+  VkDeviceMemory depthImageMemory;
 
   /* === Texture image :3 === */
   /* Texture image. */
-  VkImage texture_image;
+  VkImage textureImage;
   /* Texture image view. */
-  VkImageView texture_image_view;
+  VkImageView textureImageView;
   /* Texture image memory. */
-  VkDeviceMemory texture_image_memory;
+  VkDeviceMemory textureImageMemory;
   /* Sampler. */
   VkSampler sampler;
   /* Uniform buffers. */
-  VkBuffer       camera_ubo_buffers[ MAX_FRAMES_IN_FLIGHT ];
-  VkDeviceMemory camera_ubo_memories[ MAX_FRAMES_IN_FLIGHT ];
+  VkBuffer       cameraUboBuffers[ MAX_FRAMES_IN_FLIGHT ];
+  VkDeviceMemory cameraUboMemories[ MAX_FRAMES_IN_FLIGHT ];
   /* Uniform buffer mapped memory blocks. */
-  void *camera_ubo_buffer_mapped_memory_blocks[ MAX_FRAMES_IN_FLIGHT ];
+  void *cameraUboBufferMappedMemoryBlocks[ MAX_FRAMES_IN_FLIGHT ];
 
   /* === Command buffers === */
   /* General command pool. */
-  VkCommandPool general_command_pool;
+  VkCommandPool generalCommandPool;
   /* Command buffers. */
-  VkCommandBuffer general_command_buffers[ MAX_FRAMES_IN_FLIGHT ];
+  VkCommandBuffer generalCommandBuffers[ MAX_FRAMES_IN_FLIGHT ];
   /* Transfer command pool. */
-  VkCommandPool transfer_command_pool;
+  VkCommandPool transferCommandPool;
 
   /* === Synchronization objects === */
   /* Image available semaphores. */
-  VkSemaphore image_available_semaphores[ MAX_FRAMES_IN_FLIGHT ];
+  VkSemaphore imageAvailableSemaphores[ MAX_FRAMES_IN_FLIGHT ];
   /* Render finished semaphores. */
-  VkSemaphore render_finished_semaphores[ MAX_FRAMES_IN_FLIGHT ];
+  VkSemaphore renderFinishedSemaphores[ MAX_FRAMES_IN_FLIGHT ];
   /* In-flight fences. */
-  VkFence in_flight_fences[ MAX_FRAMES_IN_FLIGHT ];
+  VkFence inFlightFences[ MAX_FRAMES_IN_FLIGHT ];
 
   /* === Frame state === */
   /* Current frame index. */
-  uint32_t current_frame;
+  uint32_t currentFrame;
   /* Current swap chain image index (set by moss_begin_frame). */
-  uint32_t current_image_index;
+  uint32_t currentImageIndex;
 };
 
 /*
   @brief Initialize engine state to default values.
 */
-inline static void moss__init_engine_state (MossEngine *engine)
+inline static void moss__initEngineState (MossEngine *engine)
 {
   *engine = (MossEngine){
     .camera = {
@@ -162,70 +162,70 @@ inline static void moss__init_engine_state (MossEngine *engine)
     },
 
     /* Metal layer. */
-    .metal_layer = NULL,
+    .metalLayer = NULL,
     /* Framebuffer size callback. */
-    .get_window_framebuffer_size = NULL,
+    .getWindowFramebufferSize = NULL,
 
     /* Vulkan instance and surface. */
-    .api_instance = VK_NULL_HANDLE,
+    .apiInstance = VK_NULL_HANDLE,
     .surface      = VK_NULL_HANDLE,
 
     /* Physical and logical device. */
-    .physical_device                            = VK_NULL_HANDLE,
+    .physicalDevice                            = VK_NULL_HANDLE,
     .device                                     = VK_NULL_HANDLE,
-    .graphics_queue                             = VK_NULL_HANDLE,
-    .present_queue                              = VK_NULL_HANDLE,
-    .transfer_queue = VK_NULL_HANDLE,
-    .queue_family_indices = {
-      .graphics_family       = 0,
-      .present_family        = 0,
-      .transfer_family       = 0,
-      .graphics_family_found = false,
-      .present_family_found  = false,
-      .transfer_family_found = false,
+    .graphicsQueue                             = VK_NULL_HANDLE,
+    .presentQueue                              = VK_NULL_HANDLE,
+    .transferQueue = VK_NULL_HANDLE,
+    .queueFamilyIndices = {
+      .graphicsFamily       = 0,
+      .presentFamily        = 0,
+      .transferFamily       = 0,
+      .graphicsFamilyFound = false,
+      .presentFamilyFound  = false,
+      .transferFamilyFound = false,
     },
-    .buffer_sharing_mode            = VK_SHARING_MODE_EXCLUSIVE,
-    .shared_queue_family_index_count = 0,
-    .shared_queue_family_indices     = {0, 0},
+    .bufferSharingMode            = VK_SHARING_MODE_EXCLUSIVE,
+    .sharedQueueFamilyIndexCount = 0,
+    .sharedQueueFamilyIndices     = {0, 0},
 
     /* Swap chain. */
     .swapchain                   = VK_NULL_HANDLE,
-    .swapchain_images            = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE },
-    .swapchain_image_count       = 0,
-    .swapchain_image_format      = 0,
-    .swapchain_extent            = (VkExtent2D) { .width = 0, .height = 0 },
-    .present_framebuffer_image_views       = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE },
-    .present_framebuffers      = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE },
+    .swapchainImages            = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE },
+    .swapchainImageCount       = 0,
+    .swapchainImageFormat      = 0,
+    .swapchainExtent            = (VkExtent2D) { .width = 0, .height = 0 },
+    .presentFramebufferImageViews       = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE },
+    .presentFramebuffers      = { VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE },
 
     /* Render pipeline. */
-    .render_pass           = VK_NULL_HANDLE,
-    .descriptor_pool       = VK_NULL_HANDLE,
-    .descriptor_sets       = {VK_NULL_HANDLE, VK_NULL_HANDLE},
-    .descriptor_set_layout = VK_NULL_HANDLE,
-    .pipeline_layout       = VK_NULL_HANDLE,
-    .graphics_pipeline     = VK_NULL_HANDLE,
+    .renderPass           = VK_NULL_HANDLE,
+    .descriptorPool       = VK_NULL_HANDLE,
+    .descriptorSets       = {VK_NULL_HANDLE, VK_NULL_HANDLE},
+    .descriptorSetLayout = VK_NULL_HANDLE,
+    .pipelineLayout       = VK_NULL_HANDLE,
+    .graphicsPipeline     = VK_NULL_HANDLE,
 
     /* Depth resources */
-    .depth_image        = VK_NULL_HANDLE,
-    .depth_image_view   = VK_NULL_HANDLE,
-    .depth_image_memory = VK_NULL_HANDLE,
+    .depthImage        = VK_NULL_HANDLE,
+    .depthImageView   = VK_NULL_HANDLE,
+    .depthImageMemory = VK_NULL_HANDLE,
 
     /* Uniform buffers. */
-    .camera_ubo_buffers   = { VK_NULL_HANDLE, VK_NULL_HANDLE },
-    .camera_ubo_memories  = { VK_NULL_HANDLE, VK_NULL_HANDLE },
-    .camera_ubo_buffer_mapped_memory_blocks = { NULL, NULL },
+    .cameraUboBuffers   = { VK_NULL_HANDLE, VK_NULL_HANDLE },
+    .cameraUboMemories  = { VK_NULL_HANDLE, VK_NULL_HANDLE },
+    .cameraUboBufferMappedMemoryBlocks = { NULL, NULL },
 
     /* Command buffers. */
-    .general_command_pool    = VK_NULL_HANDLE,
-    .general_command_buffers = { VK_NULL_HANDLE, VK_NULL_HANDLE },
+    .generalCommandPool    = VK_NULL_HANDLE,
+    .generalCommandBuffers = { VK_NULL_HANDLE, VK_NULL_HANDLE },
 
     /* Synchronization objects. */
-    .image_available_semaphores = { VK_NULL_HANDLE, VK_NULL_HANDLE },
-    .render_finished_semaphores = { VK_NULL_HANDLE, VK_NULL_HANDLE },
-    .in_flight_fences           = { VK_NULL_HANDLE, VK_NULL_HANDLE },
+    .imageAvailableSemaphores = { VK_NULL_HANDLE, VK_NULL_HANDLE },
+    .renderFinishedSemaphores = { VK_NULL_HANDLE, VK_NULL_HANDLE },
+    .inFlightFences           = { VK_NULL_HANDLE, VK_NULL_HANDLE },
 
     /* Frame state. */
-    .current_frame      = 0,
-    .current_image_index = 0,
+    .currentFrame      = 0,
+    .currentImageIndex = 0,
   };
 }
