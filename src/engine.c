@@ -1026,412 +1026,89 @@ inline static MossResult mossCreateRenderPass (MossEngine *const pEngine)
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static void mossCreateVkPipelineVertexInputStateInfo (
-  VkPipelineVertexInputStateCreateInfo *const pOutInfo
-)
+inline static MossResult mossCreateCameraUboBuffers (MossEngine *const pEngine)
 {
-  const Moss__VkVertexInputBindingDescriptionPack bindingDescriptionsPack =
-    moss__getVkVertexInputBindingDescription ( );
-
-  const Moss__VkVertexInputAttributeDescriptionPack attributeDescriptionsPack =
-    moss__getVkVertexInputAttributeDescription ( );
-
-  *pOutInfo = (VkPipelineVertexInputStateCreateInfo) {
-    .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-    .vertexBindingDescriptionCount   = bindingDescriptionsPack.count,
-    .pVertexBindingDescriptions      = bindingDescriptionsPack.descriptions,
-    .vertexAttributeDescriptionCount = attributeDescriptionsPack.count,
-    .pVertexAttributeDescriptions    = attributeDescriptionsPack.descriptions,
-  };
-}
-
-inline static MossResult mossCreateDescriptorPool (MossEngine *const pEngine)
-{
-  const VkDescriptorPoolSize pool_sizes[] = {
-    {
-     .type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-     .descriptorCount = MAX_FRAMES_IN_FLIGHT,
-     },
-    {
-     .type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-     .descriptorCount = MAX_FRAMES_IN_FLIGHT,
-     }
+  const MossVk__CreateBufferInfo createInfo = {
+    .device                      = pEngine->device,
+    .size                        = sizeof (pEngine->camera),
+    .usage                       = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+    .sharingMode                 = pEngine->bufferSharingMode,
+    .sharedQueueFamilyIndexCount = pEngine->sharedQueueFamilyIndexCount,
+    .sharedQueueFamilyIndices    = pEngine->sharedQueueFamilyIndices,
   };
 
-  const VkDescriptorPoolCreateInfo create_info = {
-    .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-    .poolSizeCount = sizeof (pool_sizes) / sizeof (pool_sizes[ 0 ]),
-    .pPoolSizes    = pool_sizes,
-    .maxSets       = MAX_FRAMES_IN_FLIGHT,
-    .flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-  };
-
-  const VkResult result = vkCreateDescriptorPool (
-    pEngine->device,
-    &create_info,
-    NULL,
-    &pEngine->descriptorPool
-  );
-  if (result != VK_SUCCESS)
-  {
-    moss__error ("Failed to create descriptor pool: %d.", result);
-    return MOSS_RESULT_ERROR;
-  }
-  return MOSS_RESULT_SUCCESS;
-}
-
-inline static MossResult mossCreateDescriptorSetLayout (MossEngine *const pEngine)
-{
-  const VkDescriptorSetLayoutBinding layout_bindings[] = {
-    {
-     .binding         = 0,
-     .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-     .descriptorCount = 1,
-     .stageFlags      = VK_SHADER_STAGE_VERTEX_BIT,
-     },
-    {
-     .binding         = 1,
-     .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-     .descriptorCount = 1,
-     .stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT,
-     },
-  };
-
-  const VkDescriptorSetLayoutCreateInfo create_info = {
-    .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    .bindingCount = sizeof (layout_bindings) / sizeof (layout_bindings[ 0 ]),
-    .pBindings    = layout_bindings,
-  };
-
-  const VkResult result = vkCreateDescriptorSetLayout (
-    pEngine->device,
-    &create_info,
-    NULL,
-    &pEngine->descriptorSetLayout
-  );
-  if (result != VK_SUCCESS)
-  {
-    moss__error ("Failed to create Vulkan descriptor layout: %d.", result);
-    return MOSS_RESULT_ERROR;
-  }
-  return MOSS_RESULT_SUCCESS;
-}
-
-inline static MossResult mossAllocateDescriptorSets (MossEngine *const pEngine)
-{
-  VkDescriptorSetLayout layouts[ MAX_FRAMES_IN_FLIGHT ];
   for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
   {
-    layouts[ i ] = pEngine->descriptorSetLayout;
-  }
+    {
+      const MossResult result =
+        mossVk__createBuffer (&createInfo, &pEngine->cameraUboBuffers[ i ]);
+      if (result != MOSS_RESULT_SUCCESS)
+      {
+        for (uint32_t j = i; j >= 0; --j)
+        {
+          if (j < i)
+          {
+            if (pEngine->cameraUboMemories[ j ] != VK_NULL_HANDLE)
+            {
+              vkFreeMemory (pEngine->device, pEngine->cameraUboMemories[ j ], NULL);
+            }
+            if (pEngine->cameraUboBuffers[ j ] != VK_NULL_HANDLE)
+            {
+              vkDestroyBuffer (pEngine->device, pEngine->cameraUboBuffers[ j ], NULL);
+            }
+          }
+          else {
+            vkDestroyBuffer (pEngine->device, pEngine->cameraUboBuffers[ j ], NULL);
+          }
+        }
+        moss__error ("Failed to create camera UBO buffer.\n");
+        return result;
+      }
+    }
 
-  const VkDescriptorSetAllocateInfo alloc_info = {
-    .sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-    .descriptorSetCount = MAX_FRAMES_IN_FLIGHT,
-    .pSetLayouts        = layouts,
-    .descriptorPool     = pEngine->descriptorPool
-  };
+    {
+      const MossVk__AllocateBufferMemoryInfo allocInfo = {
+        .physicalDevice = pEngine->physicalDevice,
+        .device         = pEngine->device,
+        .buffer         = pEngine->cameraUboBuffers[ i ],
+        .memoryProperties =
+          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+      };
+      const MossResult result =
+        mossVk__allocateBufferMemory (&allocInfo, &pEngine->cameraUboMemories[ i ]);
+      if (result != MOSS_RESULT_SUCCESS)
+      {
+        for (uint32_t j = i; j >= 0; --j)
+        {
+          if (pEngine->cameraUboMemories[ j ] != VK_NULL_HANDLE)
+          {
+            vkFreeMemory (pEngine->device, pEngine->cameraUboMemories[ j ], NULL);
+          }
+          if (pEngine->cameraUboBuffers[ j ] != VK_NULL_HANDLE)
+          {
+            vkDestroyBuffer (pEngine->device, pEngine->cameraUboBuffers[ j ], NULL);
+          }
+        }
+        moss__error ("Failed to allocate camera UBO buffer memory.\n");
+        return result;
+      }
+    }
 
-  const VkResult result =
-    vkAllocateDescriptorSets (pEngine->device, &alloc_info, pEngine->descriptorSets);
-  if (result != VK_SUCCESS)
-  {
-    moss__error ("Failed to allocate descriptor sets: %d.\n", result);
-    return MOSS_RESULT_ERROR;
-  }
-
-  return MOSS_RESULT_SUCCESS;
-}
-
-inline static void mossConfigureDescriptorSets (MossEngine *const pEngine)
-{
-  VkDescriptorBufferInfo pBufferInfos[ MAX_FRAMES_IN_FLIGHT ];
-  VkDescriptorImageInfo  pImageInfos[ MAX_FRAMES_IN_FLIGHT ];
-  VkWriteDescriptorSet   pDescriptorWrites[ MAX_FRAMES_IN_FLIGHT * 2 ];
-
-  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-  {
-    VkMemoryRequirements pMemoryRequirements;
+    VkMemoryRequirements memoryRequirements;
     vkGetBufferMemoryRequirements (
       pEngine->device,
       pEngine->cameraUboBuffers[ i ],
-      &pMemoryRequirements
+      &memoryRequirements
     );
 
-    pBufferInfos[ i ] = (VkDescriptorBufferInfo) {
-      .offset = 0,
-      .buffer = pEngine->cameraUboBuffers[ i ],
-      .range  = pMemoryRequirements.size,
-    };
-
-    pDescriptorWrites[ i ] = (VkWriteDescriptorSet) {
-      .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet          = pEngine->descriptorSets[ i ],
-      .dstBinding      = 0,
-      .dstArrayElement = 0,
-      .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      .descriptorCount = 1,
-      .pBufferInfo     = &pBufferInfos[ i ],
-    };
-  }
-
-  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-  {
-    pImageInfos[ i ] = (VkDescriptorImageInfo) {
-      .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-      .sampler     = pEngine->sampler,
-      .imageView   = pEngine->textureImageView,
-    };
-
-    pDescriptorWrites[ MAX_FRAMES_IN_FLIGHT + i ] = (VkWriteDescriptorSet) {
-      .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet          = pEngine->descriptorSets[ i ],
-      .dstBinding      = 1,
-      .dstArrayElement = 0,
-      .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      .descriptorCount = 1,
-      .pImageInfo      = &pImageInfos[ i ],
-    };
-  }
-
-  vkUpdateDescriptorSets (
-    pEngine->device,
-    sizeof (pDescriptorWrites) / sizeof (pDescriptorWrites[ 0 ]),
-    pDescriptorWrites,
-    0,
-    NULL
-  );
-}
-
-inline static MossResult mossCreateGraphicsPipeline (MossEngine *const pEngine)
-{
-  VkShaderModule vertShaderModule;
-  VkShaderModule fragShaderModule;
-
-  {
-    const MossVk__CreateShaderModuleFromFileInfo createInfo = {
-      .device          = pEngine->device,
-      .filePath        = MOSS__VERT_SHADER_PATH,
-      .outShaderModule = &vertShaderModule,
-    };
-    const MossResult result = mossVk__createShaderModuleFromFile (&createInfo);
-    if (result != MOSS_RESULT_SUCCESS)
-    {
-      moss__error ("Failed to create fragment shader module.");
-      return MOSS_RESULT_ERROR;
-    }
-  }
-
-  {
-    const MossVk__CreateShaderModuleFromFileInfo createInfo = {
-      .device          = pEngine->device,
-      .filePath        = MOSS__FRAG_SHADER_PATH,
-      .outShaderModule = &fragShaderModule,
-    };
-    const MossResult result = mossVk__createShaderModuleFromFile (&createInfo);
-    if (result != MOSS_RESULT_SUCCESS)
-    {
-      vkDestroyShaderModule (pEngine->device, vertShaderModule, NULL);
-
-      moss__error ("Failed to create fragment shader module.\n");
-      return MOSS_RESULT_ERROR;
-    }
-  }
-
-  const VkPipelineShaderStageCreateInfo vert_shader_stage_info = {
-    .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-    .stage  = VK_SHADER_STAGE_VERTEX_BIT,
-    .module = vertShaderModule,
-    .pName  = "main",
-  };
-
-  const VkPipelineShaderStageCreateInfo frag_shader_stage_info = {
-    .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-    .stage  = VK_SHADER_STAGE_FRAGMENT_BIT,
-    .module = fragShaderModule,
-    .pName  = "main",
-  };
-
-  const VkPipelineShaderStageCreateInfo shader_stages[] = { vert_shader_stage_info,
-                                                            frag_shader_stage_info };
-
-  VkPipelineVertexInputStateCreateInfo vertex_input_info;
-  mossCreateVkPipelineVertexInputStateInfo (&vertex_input_info);
-
-  const VkPipelineInputAssemblyStateCreateInfo input_assembly = {
-    .sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-    .topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-    .primitiveRestartEnable = VK_FALSE,
-  };
-
-  const VkPipelineViewportStateCreateInfo viewport_state = {
-    .sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-    .viewportCount = 1,
-    .pViewports    = NULL,  // Dynamic viewport
-    .scissorCount  = 1,
-    .pScissors     = NULL,  // Dynamic scissor
-  };
-
-  const VkPipelineRasterizationStateCreateInfo rasterizer = {
-    .sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-    .depthClampEnable        = VK_FALSE,
-    .rasterizerDiscardEnable = VK_FALSE,
-    .polygonMode             = VK_POLYGON_MODE_FILL,
-    .lineWidth               = 1.0F,
-    .cullMode                = VK_CULL_MODE_NONE,
-    .frontFace               = VK_FRONT_FACE_COUNTER_CLOCKWISE,
-    .depthBiasEnable         = VK_FALSE,
-  };
-
-  const VkPipelineMultisampleStateCreateInfo multisampling = {
-    .sType                = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-    .sampleShadingEnable  = VK_FALSE,
-    .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
-  };
-
-  const VkPipelineColorBlendAttachmentState color_blend_attachment = {
-    .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-                      VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
-    .blendEnable         = VK_TRUE,
-    .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
-    .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-    .colorBlendOp        = VK_BLEND_OP_ADD,
-    .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
-    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
-    .alphaBlendOp        = VK_BLEND_OP_ADD,
-  };
-
-  const VkPipelineColorBlendStateCreateInfo color_blending = {
-    .sType           = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-    .logicOpEnable   = VK_FALSE,
-    .attachmentCount = 1,
-    .pAttachments    = &color_blend_attachment,
-  };
-
-  const VkDescriptorSetLayout set_layouts[] = { pEngine->descriptorSetLayout };
-
-  const VkPipelineLayoutCreateInfo pipeline_layout_info = {
-    .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-    .pNext                  = NULL,
-    .setLayoutCount         = sizeof (set_layouts) / sizeof (set_layouts[ 0 ]),
-    .pSetLayouts            = set_layouts,
-    .pushConstantRangeCount = 0,
-    .pPushConstantRanges    = NULL,
-  };
-
-  if (vkCreatePipelineLayout (
-        pEngine->device,
-        &pipeline_layout_info,
-        NULL,
-        &pEngine->pipelineLayout
-      ) != VK_SUCCESS)
-  {
-    moss__error ("Failed to create pipeline layout.\n");
-    vkDestroyShaderModule (pEngine->device, fragShaderModule, NULL);
-    vkDestroyShaderModule (pEngine->device, vertShaderModule, NULL);
-    return MOSS_RESULT_ERROR;
-  }
-
-  const VkDynamicState dynamic_states[] = {
-    VK_DYNAMIC_STATE_VIEWPORT,
-    VK_DYNAMIC_STATE_SCISSOR,
-  };
-
-  const VkPipelineDynamicStateCreateInfo dynamic_state = {
-    .sType             = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-    .dynamicStateCount = sizeof (dynamic_states) / sizeof (dynamic_states[ 0 ]),
-    .pDynamicStates    = dynamic_states,
-  };
-
-  const VkPipelineDepthStencilStateCreateInfo depth_stencil_state = {
-    .sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-    .pNext                 = VK_FALSE,
-    .depthTestEnable       = VK_TRUE,
-    .depthWriteEnable      = VK_TRUE,
-    .depthCompareOp        = VK_COMPARE_OP_LESS,
-    .depthBoundsTestEnable = VK_FALSE,
-    .minDepthBounds        = 0.0F,
-    .maxDepthBounds        = 0.0F,
-    .stencilTestEnable     = VK_FALSE,
-    .front                 = { 0 },
-    .back                  = { 0 },
-  };
-
-  const VkGraphicsPipelineCreateInfo pipeline_info = {
-    .sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-    .pNext               = NULL,
-    .stageCount          = 2,
-    .pStages             = shader_stages,
-    .pVertexInputState   = &vertex_input_info,
-    .pInputAssemblyState = &input_assembly,
-    .pViewportState      = &viewport_state,
-    .pRasterizationState = &rasterizer,
-    .pMultisampleState   = &multisampling,
-    .pColorBlendState    = &color_blending,
-    .pDynamicState       = &dynamic_state,
-    .pDepthStencilState  = &depth_stencil_state,
-    .layout              = pEngine->pipelineLayout,
-    .renderPass          = pEngine->renderPass,
-    .subpass             = 0,
-    .basePipelineHandle  = VK_NULL_HANDLE,
-    .basePipelineIndex   = -1,
-  };
-
-  const VkResult result = vkCreateGraphicsPipelines (
-    pEngine->device,
-    VK_NULL_HANDLE,
-    1,
-    &pipeline_info,
-    NULL,
-    &pEngine->graphicsPipeline
-  );
-
-  vkDestroyShaderModule (pEngine->device, fragShaderModule, NULL);
-  vkDestroyShaderModule (pEngine->device, vertShaderModule, NULL);
-
-  if (result != VK_SUCCESS)
-  {
-    moss__error ("Failed to create graphics pipeline. Error code: %d.\n", result);
-    vkDestroyPipelineLayout (pEngine->device, pEngine->pipelineLayout, NULL);
-    return MOSS_RESULT_ERROR;
-  }
-
-  return MOSS_RESULT_SUCCESS;
-}
-
-inline static MossResult mossCreatePresentFramebuffers (MossEngine *const pEngine)
-{
-  for (uint32_t i = 0; i < pEngine->swapchainImageCount; ++i)
-  {
-    const VkImageView attachments[] = {
-      pEngine->presentFramebufferImageViews[ i ],
-      pEngine->depthImageView,
-    };
-
-    const VkFramebufferCreateInfo framebuffer_info = {
-      .sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-      .renderPass      = pEngine->renderPass,
-      .attachmentCount = sizeof (attachments) / sizeof (attachments[ 0 ]),
-      .pAttachments    = attachments,
-      .width           = pEngine->swapchainExtent.width,
-      .height          = pEngine->swapchainExtent.height,
-      .layers          = 1,
-    };
-
-    if (vkCreateFramebuffer (
-          pEngine->device,
-          &framebuffer_info,
-          NULL,
-          &pEngine->presentFramebuffers[ i ]
-        ) != VK_SUCCESS)
-    {
-      moss__error ("Failed to create framebuffer %u.\n", i);
-      for (uint32_t j = 0; j < i; ++j)
-      {
-        vkDestroyFramebuffer (pEngine->device, pEngine->presentFramebuffers[ j ], NULL);
-      }
-      return MOSS_RESULT_ERROR;
-    }
+    vkMapMemory (
+      pEngine->device,
+      pEngine->cameraUboMemories[ i ],
+      0,
+      memoryRequirements.size,
+      0,
+      &pEngine->cameraUboBufferMappedMemoryBlocks[ i ]
+    );
   }
 
   return MOSS_RESULT_SUCCESS;
@@ -1669,6 +1346,37 @@ inline static MossResult mossCreateTextureImageView (MossEngine *const pEngine)
   return MOSS_RESULT_SUCCESS;
 }
 
+inline static MossResult mossCreateTextureSampler (MossEngine *const pEngine)
+{
+  const VkSamplerCreateInfo create_info = {
+    .sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+    .magFilter               = VK_FILTER_NEAREST,
+    .minFilter               = VK_FILTER_NEAREST,
+    .addressModeU            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeV            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .addressModeW            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    .anisotropyEnable        = VK_FALSE,
+    .borderColor             = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+    .unnormalizedCoordinates = VK_FALSE,
+    .compareEnable           = VK_FALSE,
+    .compareOp               = VK_COMPARE_OP_ALWAYS,
+    .mipmapMode              = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+    .mipLodBias              = 0.0F,
+    .minLod                  = 0.0F,
+    .maxLod                  = 0.0F,
+  };
+
+  const VkResult result =
+    vkCreateSampler (pEngine->device, &create_info, NULL, &pEngine->sampler);
+  if (result != VK_SUCCESS)
+  {
+    moss__error ("Failed to create sampler: %d.", result);
+    return MOSS_RESULT_ERROR;
+  }
+
+  return MOSS_RESULT_SUCCESS;
+}
+
 inline static MossResult mossCreateDepthResources (MossEngine *const pEngine)
 {
   // TODO: add moss_vk__select_format function that will select format from
@@ -1763,121 +1471,412 @@ inline static MossResult mossCreateDepthResources (MossEngine *const pEngine)
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static MossResult mossCreateTextureSampler (MossEngine *const pEngine)
+inline static MossResult mossCreateDescriptorPool (MossEngine *const pEngine)
 {
-  const VkSamplerCreateInfo create_info = {
-    .sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-    .magFilter               = VK_FILTER_NEAREST,
-    .minFilter               = VK_FILTER_NEAREST,
-    .addressModeU            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-    .addressModeV            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-    .addressModeW            = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-    .anisotropyEnable        = VK_FALSE,
-    .borderColor             = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
-    .unnormalizedCoordinates = VK_FALSE,
-    .compareEnable           = VK_FALSE,
-    .compareOp               = VK_COMPARE_OP_ALWAYS,
-    .mipmapMode              = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-    .mipLodBias              = 0.0F,
-    .minLod                  = 0.0F,
-    .maxLod                  = 0.0F,
+  const VkDescriptorPoolSize pool_sizes[] = {
+    {
+     .type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+     .descriptorCount = MAX_FRAMES_IN_FLIGHT,
+     },
+    {
+     .type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+     .descriptorCount = MAX_FRAMES_IN_FLIGHT,
+     }
+  };
+
+  const VkDescriptorPoolCreateInfo create_info = {
+    .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+    .poolSizeCount = sizeof (pool_sizes) / sizeof (pool_sizes[ 0 ]),
+    .pPoolSizes    = pool_sizes,
+    .maxSets       = MAX_FRAMES_IN_FLIGHT,
+    .flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+  };
+
+  const VkResult result = vkCreateDescriptorPool (
+    pEngine->device,
+    &create_info,
+    NULL,
+    &pEngine->descriptorPool
+  );
+  if (result != VK_SUCCESS)
+  {
+    moss__error ("Failed to create descriptor pool: %d.", result);
+    return MOSS_RESULT_ERROR;
+  }
+  return MOSS_RESULT_SUCCESS;
+}
+
+inline static MossResult mossCreateDescriptorSetLayout (MossEngine *const pEngine)
+{
+  const VkDescriptorSetLayoutBinding layout_bindings[] = {
+    {
+     .binding         = 0,
+     .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+     .descriptorCount = 1,
+     .stageFlags      = VK_SHADER_STAGE_VERTEX_BIT,
+     },
+    {
+     .binding         = 1,
+     .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+     .descriptorCount = 1,
+     .stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT,
+     },
+  };
+
+  const VkDescriptorSetLayoutCreateInfo create_info = {
+    .sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .bindingCount = sizeof (layout_bindings) / sizeof (layout_bindings[ 0 ]),
+    .pBindings    = layout_bindings,
+  };
+
+  const VkResult result = vkCreateDescriptorSetLayout (
+    pEngine->device,
+    &create_info,
+    NULL,
+    &pEngine->descriptorSetLayout
+  );
+  if (result != VK_SUCCESS)
+  {
+    moss__error ("Failed to create Vulkan descriptor layout: %d.", result);
+    return MOSS_RESULT_ERROR;
+  }
+  return MOSS_RESULT_SUCCESS;
+}
+
+inline static MossResult mossAllocateDescriptorSets (MossEngine *const pEngine)
+{
+  VkDescriptorSetLayout layouts[ MAX_FRAMES_IN_FLIGHT ];
+  for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+  {
+    layouts[ i ] = pEngine->descriptorSetLayout;
+  }
+
+  const VkDescriptorSetAllocateInfo alloc_info = {
+    .sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .descriptorSetCount = MAX_FRAMES_IN_FLIGHT,
+    .pSetLayouts        = layouts,
+    .descriptorPool     = pEngine->descriptorPool
   };
 
   const VkResult result =
-    vkCreateSampler (pEngine->device, &create_info, NULL, &pEngine->sampler);
+    vkAllocateDescriptorSets (pEngine->device, &alloc_info, pEngine->descriptorSets);
   if (result != VK_SUCCESS)
   {
-    moss__error ("Failed to create sampler: %d.", result);
+    moss__error ("Failed to allocate descriptor sets: %d.\n", result);
     return MOSS_RESULT_ERROR;
   }
 
   return MOSS_RESULT_SUCCESS;
 }
 
-
-inline static MossResult mossCreateCameraUboBuffers (MossEngine *const pEngine)
+inline static void mossConfigureDescriptorSets (MossEngine *const pEngine)
 {
-  const MossVk__CreateBufferInfo createInfo = {
-    .device                      = pEngine->device,
-    .size                        = sizeof (pEngine->camera),
-    .usage                       = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-    .sharingMode                 = pEngine->bufferSharingMode,
-    .sharedQueueFamilyIndexCount = pEngine->sharedQueueFamilyIndexCount,
-    .sharedQueueFamilyIndices    = pEngine->sharedQueueFamilyIndices,
-  };
+  VkDescriptorBufferInfo pBufferInfos[ MAX_FRAMES_IN_FLIGHT ];
+  VkDescriptorImageInfo  pImageInfos[ MAX_FRAMES_IN_FLIGHT ];
+  VkWriteDescriptorSet   pDescriptorWrites[ MAX_FRAMES_IN_FLIGHT * 2 ];
 
-  for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
   {
-    {
-      const MossResult result =
-        mossVk__createBuffer (&createInfo, &pEngine->cameraUboBuffers[ i ]);
-      if (result != MOSS_RESULT_SUCCESS)
-      {
-        for (uint32_t j = i; j >= 0; --j)
-        {
-          if (j < i)
-          {
-            if (pEngine->cameraUboMemories[ j ] != VK_NULL_HANDLE)
-            {
-              vkFreeMemory (pEngine->device, pEngine->cameraUboMemories[ j ], NULL);
-            }
-            if (pEngine->cameraUboBuffers[ j ] != VK_NULL_HANDLE)
-            {
-              vkDestroyBuffer (pEngine->device, pEngine->cameraUboBuffers[ j ], NULL);
-            }
-          }
-          else {
-            vkDestroyBuffer (pEngine->device, pEngine->cameraUboBuffers[ j ], NULL);
-          }
-        }
-        moss__error ("Failed to create camera UBO buffer.\n");
-        return result;
-      }
-    }
-
-    {
-      const MossVk__AllocateBufferMemoryInfo allocInfo = {
-        .physicalDevice = pEngine->physicalDevice,
-        .device         = pEngine->device,
-        .buffer         = pEngine->cameraUboBuffers[ i ],
-        .memoryProperties =
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-      };
-      const MossResult result =
-        mossVk__allocateBufferMemory (&allocInfo, &pEngine->cameraUboMemories[ i ]);
-      if (result != MOSS_RESULT_SUCCESS)
-      {
-        for (uint32_t j = i; j >= 0; --j)
-        {
-          if (pEngine->cameraUboMemories[ j ] != VK_NULL_HANDLE)
-          {
-            vkFreeMemory (pEngine->device, pEngine->cameraUboMemories[ j ], NULL);
-          }
-          if (pEngine->cameraUboBuffers[ j ] != VK_NULL_HANDLE)
-          {
-            vkDestroyBuffer (pEngine->device, pEngine->cameraUboBuffers[ j ], NULL);
-          }
-        }
-        moss__error ("Failed to allocate camera UBO buffer memory.\n");
-        return result;
-      }
-    }
-
-    VkMemoryRequirements memoryRequirements;
+    VkMemoryRequirements pMemoryRequirements;
     vkGetBufferMemoryRequirements (
       pEngine->device,
       pEngine->cameraUboBuffers[ i ],
-      &memoryRequirements
+      &pMemoryRequirements
     );
 
-    vkMapMemory (
-      pEngine->device,
-      pEngine->cameraUboMemories[ i ],
-      0,
-      memoryRequirements.size,
-      0,
-      &pEngine->cameraUboBufferMappedMemoryBlocks[ i ]
-    );
+    pBufferInfos[ i ] = (VkDescriptorBufferInfo) {
+      .offset = 0,
+      .buffer = pEngine->cameraUboBuffers[ i ],
+      .range  = pMemoryRequirements.size,
+    };
+
+    pDescriptorWrites[ i ] = (VkWriteDescriptorSet) {
+      .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet          = pEngine->descriptorSets[ i ],
+      .dstBinding      = 0,
+      .dstArrayElement = 0,
+      .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .descriptorCount = 1,
+      .pBufferInfo     = &pBufferInfos[ i ],
+    };
+  }
+
+  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+  {
+    pImageInfos[ i ] = (VkDescriptorImageInfo) {
+      .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+      .sampler     = pEngine->sampler,
+      .imageView   = pEngine->textureImageView,
+    };
+
+    pDescriptorWrites[ MAX_FRAMES_IN_FLIGHT + i ] = (VkWriteDescriptorSet) {
+      .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet          = pEngine->descriptorSets[ i ],
+      .dstBinding      = 1,
+      .dstArrayElement = 0,
+      .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .descriptorCount = 1,
+      .pImageInfo      = &pImageInfos[ i ],
+    };
+  }
+
+  vkUpdateDescriptorSets (
+    pEngine->device,
+    sizeof (pDescriptorWrites) / sizeof (pDescriptorWrites[ 0 ]),
+    pDescriptorWrites,
+    0,
+    NULL
+  );
+}
+
+inline static void mossCreateVkPipelineVertexInputStateInfo (
+  VkPipelineVertexInputStateCreateInfo *const pOutInfo
+)
+{
+  const Moss__VkVertexInputBindingDescriptionPack bindingDescriptionsPack =
+    moss__getVkVertexInputBindingDescription ( );
+
+  const Moss__VkVertexInputAttributeDescriptionPack attributeDescriptionsPack =
+    moss__getVkVertexInputAttributeDescription ( );
+
+  *pOutInfo = (VkPipelineVertexInputStateCreateInfo) {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+    .vertexBindingDescriptionCount   = bindingDescriptionsPack.count,
+    .pVertexBindingDescriptions      = bindingDescriptionsPack.descriptions,
+    .vertexAttributeDescriptionCount = attributeDescriptionsPack.count,
+    .pVertexAttributeDescriptions    = attributeDescriptionsPack.descriptions,
+  };
+}
+
+inline static MossResult mossCreateGraphicsPipeline (MossEngine *const pEngine)
+{
+  VkShaderModule vertShaderModule;
+  VkShaderModule fragShaderModule;
+
+  {
+    const MossVk__CreateShaderModuleFromFileInfo createInfo = {
+      .device          = pEngine->device,
+      .filePath        = MOSS__VERT_SHADER_PATH,
+      .outShaderModule = &vertShaderModule,
+    };
+    const MossResult result = mossVk__createShaderModuleFromFile (&createInfo);
+    if (result != MOSS_RESULT_SUCCESS)
+    {
+      moss__error ("Failed to create fragment shader module.");
+      return MOSS_RESULT_ERROR;
+    }
+  }
+
+  {
+    const MossVk__CreateShaderModuleFromFileInfo createInfo = {
+      .device          = pEngine->device,
+      .filePath        = MOSS__FRAG_SHADER_PATH,
+      .outShaderModule = &fragShaderModule,
+    };
+    const MossResult result = mossVk__createShaderModuleFromFile (&createInfo);
+    if (result != MOSS_RESULT_SUCCESS)
+    {
+      vkDestroyShaderModule (pEngine->device, vertShaderModule, NULL);
+
+      moss__error ("Failed to create fragment shader module.\n");
+      return MOSS_RESULT_ERROR;
+    }
+  }
+
+  const VkPipelineShaderStageCreateInfo vert_shader_stage_info = {
+    .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+    .stage  = VK_SHADER_STAGE_VERTEX_BIT,
+    .module = vertShaderModule,
+    .pName  = "main",
+  };
+
+  const VkPipelineShaderStageCreateInfo frag_shader_stage_info = {
+    .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+    .stage  = VK_SHADER_STAGE_FRAGMENT_BIT,
+    .module = fragShaderModule,
+    .pName  = "main",
+  };
+
+  const VkPipelineShaderStageCreateInfo shader_stages[] = { vert_shader_stage_info,
+                                                            frag_shader_stage_info };
+
+  VkPipelineVertexInputStateCreateInfo vertex_input_info;
+  mossCreateVkPipelineVertexInputStateInfo (&vertex_input_info);
+
+  const VkPipelineInputAssemblyStateCreateInfo input_assembly = {
+    .sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+    .topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+    .primitiveRestartEnable = VK_FALSE,
+  };
+
+  const VkPipelineViewportStateCreateInfo viewport_state = {
+    .sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+    .viewportCount = 1,
+    .pViewports    = NULL,  // Dynamic viewport
+    .scissorCount  = 1,
+    .pScissors     = NULL,  // Dynamic scissor
+  };
+
+  const VkPipelineRasterizationStateCreateInfo rasterizer = {
+    .sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+    .depthClampEnable        = VK_FALSE,
+    .rasterizerDiscardEnable = VK_FALSE,
+    .polygonMode             = VK_POLYGON_MODE_FILL,
+    .lineWidth               = 1.0F,
+    .cullMode                = VK_CULL_MODE_NONE,
+    .frontFace               = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+    .depthBiasEnable         = VK_FALSE,
+  };
+
+  const VkPipelineMultisampleStateCreateInfo multisampling = {
+    .sType                = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+    .sampleShadingEnable  = VK_FALSE,
+    .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+  };
+
+  const VkPipelineColorBlendAttachmentState color_blend_attachment = {
+    .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                      VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+    .blendEnable         = VK_TRUE,
+    .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+    .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+    .colorBlendOp        = VK_BLEND_OP_ADD,
+    .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+    .alphaBlendOp        = VK_BLEND_OP_ADD,
+  };
+
+  const VkPipelineColorBlendStateCreateInfo color_blending = {
+    .sType           = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+    .logicOpEnable   = VK_FALSE,
+    .attachmentCount = 1,
+    .pAttachments    = &color_blend_attachment,
+  };
+
+  const VkDescriptorSetLayout set_layouts[] = { pEngine->descriptorSetLayout };
+
+  const VkPipelineLayoutCreateInfo pipeline_layout_info = {
+    .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    .pNext                  = NULL,
+    .setLayoutCount         = sizeof (set_layouts) / sizeof (set_layouts[ 0 ]),
+    .pSetLayouts            = set_layouts,
+    .pushConstantRangeCount = 0,
+    .pPushConstantRanges    = NULL,
+  };
+
+  if (vkCreatePipelineLayout (
+        pEngine->device,
+        &pipeline_layout_info,
+        NULL,
+        &pEngine->pipelineLayout
+      ) != VK_SUCCESS)
+  {
+    moss__error ("Failed to create pipeline layout.\n");
+    vkDestroyShaderModule (pEngine->device, fragShaderModule, NULL);
+    vkDestroyShaderModule (pEngine->device, vertShaderModule, NULL);
+    return MOSS_RESULT_ERROR;
+  }
+
+  const VkDynamicState dynamic_states[] = {
+    VK_DYNAMIC_STATE_VIEWPORT,
+    VK_DYNAMIC_STATE_SCISSOR,
+  };
+
+  const VkPipelineDynamicStateCreateInfo dynamic_state = {
+    .sType             = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+    .dynamicStateCount = sizeof (dynamic_states) / sizeof (dynamic_states[ 0 ]),
+    .pDynamicStates    = dynamic_states,
+  };
+
+  const VkPipelineDepthStencilStateCreateInfo depth_stencil_state = {
+    .sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+    .pNext                 = VK_FALSE,
+    .depthTestEnable       = VK_TRUE,
+    .depthWriteEnable      = VK_TRUE,
+    .depthCompareOp        = VK_COMPARE_OP_LESS,
+    .depthBoundsTestEnable = VK_FALSE,
+    .minDepthBounds        = 0.0F,
+    .maxDepthBounds        = 0.0F,
+    .stencilTestEnable     = VK_FALSE,
+    .front                 = { 0 },
+    .back                  = { 0 },
+  };
+
+  const VkGraphicsPipelineCreateInfo pipeline_info = {
+    .sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+    .pNext               = NULL,
+    .stageCount          = 2,
+    .pStages             = shader_stages,
+    .pVertexInputState   = &vertex_input_info,
+    .pInputAssemblyState = &input_assembly,
+    .pViewportState      = &viewport_state,
+    .pRasterizationState = &rasterizer,
+    .pMultisampleState   = &multisampling,
+    .pColorBlendState    = &color_blending,
+    .pDynamicState       = &dynamic_state,
+    .pDepthStencilState  = &depth_stencil_state,
+    .layout              = pEngine->pipelineLayout,
+    .renderPass          = pEngine->renderPass,
+    .subpass             = 0,
+    .basePipelineHandle  = VK_NULL_HANDLE,
+    .basePipelineIndex   = -1,
+  };
+
+  const VkResult result = vkCreateGraphicsPipelines (
+    pEngine->device,
+    VK_NULL_HANDLE,
+    1,
+    &pipeline_info,
+    NULL,
+    &pEngine->graphicsPipeline
+  );
+
+  vkDestroyShaderModule (pEngine->device, fragShaderModule, NULL);
+  vkDestroyShaderModule (pEngine->device, vertShaderModule, NULL);
+
+  if (result != VK_SUCCESS)
+  {
+    moss__error ("Failed to create graphics pipeline. Error code: %d.\n", result);
+    vkDestroyPipelineLayout (pEngine->device, pEngine->pipelineLayout, NULL);
+    return MOSS_RESULT_ERROR;
+  }
+
+  return MOSS_RESULT_SUCCESS;
+}
+
+inline static MossResult mossCreatePresentFramebuffers (MossEngine *const pEngine)
+{
+  for (uint32_t i = 0; i < pEngine->swapchainImageCount; ++i)
+  {
+    const VkImageView attachments[] = {
+      pEngine->presentFramebufferImageViews[ i ],
+      pEngine->depthImageView,
+    };
+
+    const VkFramebufferCreateInfo framebuffer_info = {
+      .sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+      .renderPass      = pEngine->renderPass,
+      .attachmentCount = sizeof (attachments) / sizeof (attachments[ 0 ]),
+      .pAttachments    = attachments,
+      .width           = pEngine->swapchainExtent.width,
+      .height          = pEngine->swapchainExtent.height,
+      .layers          = 1,
+    };
+
+    if (vkCreateFramebuffer (
+          pEngine->device,
+          &framebuffer_info,
+          NULL,
+          &pEngine->presentFramebuffers[ i ]
+        ) != VK_SUCCESS)
+    {
+      moss__error ("Failed to create framebuffer %u.\n", i);
+      for (uint32_t j = 0; j < i; ++j)
+      {
+        vkDestroyFramebuffer (pEngine->device, pEngine->presentFramebuffers[ j ], NULL);
+      }
+      return MOSS_RESULT_ERROR;
+    }
   }
 
   return MOSS_RESULT_SUCCESS;
@@ -1904,6 +1903,107 @@ inline static MossResult mossCreateGeneralCommandBuffers (MossEngine *const pEng
   }
 
   return MOSS_RESULT_SUCCESS;
+}
+
+inline static MossResult mossCreateImageAvailableSemaphores (MossEngine *const pEngine)
+{
+  if (pEngine->device == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
+
+  const VkSemaphoreCreateInfo semaphore_info = {
+    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+  };
+
+  for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+  {
+    const VkResult result = vkCreateSemaphore (
+      pEngine->device,
+      &semaphore_info,
+      NULL,
+      &pEngine->imageAvailableSemaphores[ i ]
+    );
+    if (result == VK_SUCCESS) { continue; }
+
+    moss__error ("Failed to create image available semaphore for frame %u.\n", i);
+    return MOSS_RESULT_ERROR;
+  }
+
+  return MOSS_RESULT_SUCCESS;
+}
+
+inline static MossResult mossCreateRenderFinishedSemaphores (MossEngine *const pEngine)
+{
+  if (pEngine->device == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
+
+  const VkSemaphoreCreateInfo semaphore_info = {
+    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+  };
+
+  for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+  {
+    const VkResult result = vkCreateSemaphore (
+      pEngine->device,
+      &semaphore_info,
+      NULL,
+      &pEngine->renderFinishedSemaphores[ i ]
+    );
+    if (result == VK_SUCCESS) { continue; }
+
+    moss__error ("Failed to create render finished semaphore for frame %u.\n", i);
+    return MOSS_RESULT_ERROR;
+  }
+
+  return MOSS_RESULT_SUCCESS;
+}
+
+inline static MossResult mossCreateInFlightFences (MossEngine *const pEngine)
+{
+  if (pEngine->device == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
+
+  const VkFenceCreateInfo fence_info = {
+    .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+    .flags = VK_FENCE_CREATE_SIGNALED_BIT,
+  };
+
+  for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+  {
+    const VkResult result =
+      vkCreateFence (pEngine->device, &fence_info, NULL, &pEngine->inFlightFences[ i ]);
+    if (result == VK_SUCCESS) { continue; }
+
+    moss__error ("Failed to create in-flight fence for frame %u.\n", i);
+    return MOSS_RESULT_ERROR;
+  }
+
+  return MOSS_RESULT_SUCCESS;
+}
+
+inline static MossResult mossCreateSynchronizationObjects (MossEngine *const pEngine)
+{
+  if (mossCreateImageAvailableSemaphores (pEngine) != MOSS_RESULT_SUCCESS)
+  {
+    return MOSS_RESULT_ERROR;
+  }
+
+  if (mossCreateRenderFinishedSemaphores (pEngine) != MOSS_RESULT_SUCCESS)
+  {
+    return MOSS_RESULT_ERROR;
+  }
+
+  if (mossCreateInFlightFences (pEngine) != MOSS_RESULT_SUCCESS)
+  {
+    return MOSS_RESULT_ERROR;
+  }
+
+  return MOSS_RESULT_SUCCESS;
+}
+
+inline static void mossUpdateCameraUboData (MossEngine *const pEngine)
+{
+  memcpy (
+    pEngine->cameraUboBufferMappedMemoryBlocks[ pEngine->currentFrame ],
+    &pEngine->camera,
+    sizeof (pEngine->camera)
+  );
 }
 
 inline static void mossCleanupSwapchainFramebuffers (MossEngine *const pEngine)
@@ -2001,106 +2101,6 @@ mossRecreateSwapchain (MossEngine *const pEngine, const VkExtent2D extent)
   return MOSS_RESULT_SUCCESS;
 }
 
-inline static void mossUpdateCameraUboData (MossEngine *const pEngine)
-{
-  memcpy (
-    pEngine->cameraUboBufferMappedMemoryBlocks[ pEngine->currentFrame ],
-    &pEngine->camera,
-    sizeof (pEngine->camera)
-  );
-}
-
-inline static MossResult mossCreateImageAvailableSemaphores (MossEngine *const pEngine)
-{
-  if (pEngine->device == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
-
-  const VkSemaphoreCreateInfo semaphore_info = {
-    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-  };
-
-  for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-  {
-    const VkResult result = vkCreateSemaphore (
-      pEngine->device,
-      &semaphore_info,
-      NULL,
-      &pEngine->imageAvailableSemaphores[ i ]
-    );
-    if (result == VK_SUCCESS) { continue; }
-
-    moss__error ("Failed to create image available semaphore for frame %u.\n", i);
-    return MOSS_RESULT_ERROR;
-  }
-
-  return MOSS_RESULT_SUCCESS;
-}
-
-inline static MossResult mossCreateRenderFinishedSemaphores (MossEngine *const pEngine)
-{
-  if (pEngine->device == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
-
-  const VkSemaphoreCreateInfo semaphore_info = {
-    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-  };
-
-  for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-  {
-    const VkResult result = vkCreateSemaphore (
-      pEngine->device,
-      &semaphore_info,
-      NULL,
-      &pEngine->renderFinishedSemaphores[ i ]
-    );
-    if (result == VK_SUCCESS) { continue; }
-
-    moss__error ("Failed to create render finished semaphore for frame %u.\n", i);
-    return MOSS_RESULT_ERROR;
-  }
-
-  return MOSS_RESULT_SUCCESS;
-}
-
-inline static MossResult mossCreateInFlightFences (MossEngine *const pEngine)
-{
-  if (pEngine->device == VK_NULL_HANDLE) { return MOSS_RESULT_ERROR; }
-
-  const VkFenceCreateInfo fence_info = {
-    .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-    .flags = VK_FENCE_CREATE_SIGNALED_BIT,
-  };
-
-  for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-  {
-    const VkResult result =
-      vkCreateFence (pEngine->device, &fence_info, NULL, &pEngine->inFlightFences[ i ]);
-    if (result == VK_SUCCESS) { continue; }
-
-    moss__error ("Failed to create in-flight fence for frame %u.\n", i);
-    return MOSS_RESULT_ERROR;
-  }
-
-  return MOSS_RESULT_SUCCESS;
-}
-
-inline static MossResult mossCreateSynchronizationObjects (MossEngine *const pEngine)
-{
-  if (mossCreateImageAvailableSemaphores (pEngine) != MOSS_RESULT_SUCCESS)
-  {
-    return MOSS_RESULT_ERROR;
-  }
-
-  if (mossCreateRenderFinishedSemaphores (pEngine) != MOSS_RESULT_SUCCESS)
-  {
-    return MOSS_RESULT_ERROR;
-  }
-
-  if (mossCreateInFlightFences (pEngine) != MOSS_RESULT_SUCCESS)
-  {
-    return MOSS_RESULT_ERROR;
-  }
-
-  return MOSS_RESULT_SUCCESS;
-}
 
 inline static void mossCleanupSemaphores (
   MossEngine *const pEngine,
